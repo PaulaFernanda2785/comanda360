@@ -24,7 +24,16 @@
         .kpi{background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
         .kpi strong{display:block;font-size:22px}
         .kpi span{color:#6b7280;font-size:12px}
-        .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#e5e7eb;font-size:12px}
+        .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#e5e7eb;color:#334155;font-size:12px}
+        .badge.status-default{background:#e2e8f0;color:#334155}
+        .badge.status-pending{background:#fef3c7;color:#92400e}
+        .badge.status-paid{background:#bbf7d0;color:#14532d}
+        .badge.status-canceled{background:#fee2e2;color:#991b1b}
+        .badge.status-overdue{background:#fecaca;color:#7f1d1d}
+        .badge.status-trial{background:#e0f2fe;color:#075985}
+        .badge.status-active{background:#dcfce7;color:#166534}
+        .badge.status-suspended{background:#f3e8ff;color:#6b21a8}
+        .badge.status-inactive{background:#f3f4f6;color:#4b5563}
         .muted{color:#6b7280}
         .btn{display:inline-block;padding:10px 14px;background:#1d4ed8;color:#fff;text-decoration:none;border-radius:8px;border:0;cursor:pointer}
         .btn.secondary{background:#475569}

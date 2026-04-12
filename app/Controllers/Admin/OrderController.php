@@ -31,9 +31,9 @@ final class OrderController extends Controller
             'title' => 'Pedidos',
             'user' => $user,
             'orders' => $this->service->list($companyId),
-            'statusOptions' => $this->service->availableStatuses(),
             'canUpdateStatus' => $this->permissions->roleHasPermission((int) ($user['role_id'] ?? 0), 'orders.status'),
             'canCancelOrder' => $this->permissions->roleHasPermission((int) ($user['role_id'] ?? 0), 'orders.cancel'),
+            'canSendKitchen' => $this->permissions->roleHasPermission((int) ($user['role_id'] ?? 0), 'orders.status'),
         ]);
     }
 
@@ -79,6 +79,20 @@ final class OrderController extends Controller
         try {
             $this->service->updateStatus($companyId, $userId, $request->all());
             return $this->backWithSuccess('Status do pedido atualizado com sucesso.', '/admin/orders');
+        } catch (ValidationException $e) {
+            return $this->backWithError($e->getMessage(), '/admin/orders');
+        }
+    }
+
+    public function sendToKitchen(Request $request): Response
+    {
+        $user = Auth::user();
+        $companyId = (int) ($user['company_id'] ?? 0);
+        $userId = (int) ($user['id'] ?? 0);
+
+        try {
+            $this->service->sendToKitchen($companyId, $userId, $request->all());
+            return $this->backWithSuccess('Pedido enviado para cozinha.', '/admin/orders');
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), '/admin/orders');
         }

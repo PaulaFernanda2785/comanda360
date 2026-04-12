@@ -36,7 +36,12 @@ final class CommandLifecycleService
             return false;
         }
 
-        $this->commands->close($companyId, $commandId);
+        $canceledOrders = $this->orders->countByCommandAndStatus($companyId, $commandId, 'canceled');
+        if ($canceledOrders === $totalOrders) {
+            $this->commands->cancel($companyId, $commandId);
+        } else {
+            $this->commands->close($companyId, $commandId);
+        }
 
         if ($command['table_id'] !== null) {
             $tableId = (int) $command['table_id'];

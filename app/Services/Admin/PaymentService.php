@@ -8,6 +8,7 @@ use App\Exceptions\ValidationException;
 use App\Repositories\CashMovementRepository;
 use App\Repositories\CashRegisterRepository;
 use App\Repositories\OrderRepository;
+use App\Repositories\OrderStatusHistoryRepository;
 use App\Repositories\PaymentMethodRepository;
 use App\Repositories\PaymentRepository;
 use Throwable;
@@ -18,6 +19,7 @@ final class PaymentService
         private readonly PaymentRepository $payments = new PaymentRepository(),
         private readonly PaymentMethodRepository $paymentMethods = new PaymentMethodRepository(),
         private readonly OrderRepository $orders = new OrderRepository(),
+        private readonly OrderStatusHistoryRepository $statusHistory = new OrderStatusHistoryRepository(),
         private readonly CashRegisterRepository $cashRegisters = new CashRegisterRepository(),
         private readonly CashMovementRepository $cashMovements = new CashMovementRepository(),
         private readonly CommandLifecycleService $commandLifecycle = new CommandLifecycleService()
@@ -142,6 +144,21 @@ final class PaymentService
             $paidAfter = round($paidBefore + $amount, 2);
             $nextPaymentStatus = $this->resolveOrderPaymentStatus($paidAfter, $totalAmount);
             $this->orders->updatePaymentStatus($companyId, $orderId, $nextPaymentStatus);
+
+            if ($nextPaymentStatus === 'paid') {
+                $currentStatus = (string) ($order['status'] ?? '');
+                if ($currentStatus !== 'finished' && $currentStatus !== 'canceled') {
+                    $this->orders->updateStatus($companyId, $orderId, 'finished');
+                    $this->statusHistory->create([
+                        'company_id' => $companyId,
+                        'order_id' => $orderId,
+                        'old_status' => $currentStatus,
+                        'new_status' => 'finished',
+                        'changed_by_user_id' => $userId,
+                        'notes' => 'Finalizado automaticamente apos pagamento total.',
+                    ]);
+                }
+            }
 
             $commandId = $order['command_id'] !== null ? (int) $order['command_id'] : null;
             $this->commandLifecycle->tryCloseWhenOrdersSettled($companyId, $commandId);

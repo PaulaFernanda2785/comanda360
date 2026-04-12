@@ -62,7 +62,8 @@ final class LoginController extends Controller
         }
 
         return match ((string) ($user['role_slug'] ?? '')) {
-            'waiter', 'kitchen', 'delivery' => '/admin/orders',
+            'kitchen' => '/admin/kitchen',
+            'waiter', 'delivery' => '/admin/orders',
             default => '/admin/dashboard',
         };
     }

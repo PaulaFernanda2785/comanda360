@@ -169,6 +169,49 @@ final class OrderRepository extends BaseRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
+    public function kitchenQueueByCompany(int $companyId): array
+    {
+        $sql = "
+            SELECT
+                o.id,
+                o.company_id,
+                o.command_id,
+                o.table_id,
+                o.order_number,
+                o.status,
+                o.payment_status,
+                o.customer_name,
+                o.total_amount,
+                o.created_at,
+                t.number AS table_number,
+                (
+                    SELECT COUNT(*)
+                    FROM order_items oi
+                    WHERE oi.order_id = o.id
+                      AND oi.company_id = o.company_id
+                      AND oi.status = 'active'
+                ) AS items_count
+            FROM orders o
+            LEFT JOIN tables t ON t.id = o.table_id
+            WHERE o.company_id = :company_id
+              AND o.status IN ('received', 'preparing', 'ready')
+            ORDER BY
+                CASE o.status
+                    WHEN 'received' THEN 1
+                    WHEN 'preparing' THEN 2
+                    WHEN 'ready' THEN 3
+                    ELSE 4
+                END,
+                o.created_at ASC,
+                o.id ASC
+        ";
+
+        $stmt = $this->db()->prepare($sql);
+        $stmt->execute(['company_id' => $companyId]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
     public function updateStatus(int $companyId, int $orderId, string $status): void
     {
         $stmt = $this->db()->prepare("
@@ -237,6 +280,25 @@ final class OrderRepository extends BaseRepository
         $stmt->execute([
             'company_id' => $companyId,
             'command_id' => $commandId,
+        ]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return (int) ($row['total'] ?? 0);
+    }
+
+    public function countByCommandAndStatus(int $companyId, int $commandId, string $status): int
+    {
+        $stmt = $this->db()->prepare("
+            SELECT COUNT(*) AS total
+            FROM orders
+            WHERE company_id = :company_id
+              AND command_id = :command_id
+              AND status = :status
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'command_id' => $commandId,
+            'status' => $status,
         ]);
 
         $row = $stmt->fetch(PDO::FETCH_ASSOC);

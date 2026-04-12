@@ -19,7 +19,7 @@
                 <th>Pagamento</th>
                 <th>Total</th>
                 <th>Ultima mudanca</th>
-                <th>Atualizar status</th>
+                <th>Acoes</th>
                 <th>Criado em</th>
             </tr>
         </thead>
@@ -34,8 +34,16 @@
                     <td><?= $order['command_id'] !== null ? '#' . (int) $order['command_id'] : '-' ?></td>
                     <td><?= $order['table_number'] !== null ? 'Mesa ' . (int) $order['table_number'] : '-' ?></td>
                     <td><?= (int) $order['items_count'] ?></td>
-                    <td><span class="badge"><?= htmlspecialchars(status_label('order_status', $order['status'] ?? null)) ?></span></td>
-                    <td><span class="badge"><?= htmlspecialchars(status_label('order_payment_status', $order['payment_status'] ?? null)) ?></span></td>
+                    <td>
+                        <span class="badge <?= htmlspecialchars(status_badge_class('order_status', $order['status'] ?? null)) ?>">
+                            <?= htmlspecialchars(status_label('order_status', $order['status'] ?? null)) ?>
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge <?= htmlspecialchars(status_badge_class('order_payment_status', $order['payment_status'] ?? null)) ?>">
+                            <?= htmlspecialchars(status_label('order_payment_status', $order['payment_status'] ?? null)) ?>
+                        </span>
+                    </td>
                     <td>R$ <?= number_format((float) $order['total_amount'], 2, ',', '.') ?></td>
                     <td>
                         <?= htmlspecialchars((string) ($order['latest_status_changed_at'] ?? '-')) ?>
@@ -44,24 +52,47 @@
                         <?php endif; ?>
                     </td>
                     <td>
-                        <?php if (!empty($canUpdateStatus)): ?>
+                        <?php if (!empty($canSendKitchen) && !empty($order['can_send_kitchen'])): ?>
+                            <form method="POST" action="<?= htmlspecialchars(base_url('/admin/orders/send-kitchen')) ?>" style="margin-bottom:6px">
+                                <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
+                                <button class="btn secondary" type="submit">Enviar para cozinha</button>
+                            </form>
+                        <?php endif; ?>
+
+                        <?php
+                        $nextStatuses = $order['next_statuses'] ?? [];
+                        if (!is_array($nextStatuses)) {
+                            $nextStatuses = [];
+                        }
+                        if (empty($canCancelOrder)) {
+                            $nextStatuses = array_values(array_filter(
+                                $nextStatuses,
+                                static fn (mixed $status): bool => (string) $status !== 'canceled'
+                            ));
+                        }
+                        if (!empty($order['can_send_kitchen'])) {
+                            $nextStatuses = array_values(array_filter(
+                                $nextStatuses,
+                                static fn (mixed $status): bool => (string) $status !== 'received'
+                            ));
+                        }
+                        ?>
+
+                        <?php if (!empty($canUpdateStatus) && !empty($nextStatuses)): ?>
                             <form method="POST" action="<?= htmlspecialchars(base_url('/admin/orders/status')) ?>">
                                 <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
                                 <select name="new_status" required>
                                     <option value="">Selecione</option>
-                                    <?php foreach (($statusOptions ?? []) as $status): ?>
-                                        <?php if ($status === 'canceled' && empty($canCancelOrder)): ?>
-                                            <?php continue; ?>
-                                        <?php endif; ?>
+                                    <?php foreach ($nextStatuses as $status): ?>
                                         <option value="<?= htmlspecialchars((string) $status) ?>">
                                             <?= htmlspecialchars(status_label('order_status', $status)) ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
                                 <input name="status_notes" type="text" placeholder="Observacao (opcional)" style="margin-top:6px">
-                                <button class="btn secondary" type="submit" style="margin-top:6px">Atualizar</button>
+                                <button class="btn secondary" type="submit" style="margin-top:6px">Atualizar status</button>
                             </form>
-                        <?php else: ?>
+                        <?php elseif (empty($canSendKitchen) || empty($order['can_send_kitchen'])): ?>
                             -
                         <?php endif; ?>
                     </td>

@@ -9,6 +9,7 @@ use App\Controllers\Admin\CommandController;
 use App\Controllers\Admin\OrderController;
 use App\Controllers\Admin\PaymentController;
 use App\Controllers\Admin\CashRegisterController;
+use App\Controllers\Admin\KitchenController;
 use App\Controllers\Saas\DashboardController as SaasDashboardController;
 use App\Controllers\Saas\CompanyController as SaasCompanyController;
 use App\Controllers\Saas\PlanController as SaasPlanController;
@@ -54,6 +55,11 @@ $router->get('/admin/orders', [OrderController::class, 'index'], $companyAccess(
 $router->get('/admin/orders/create', [OrderController::class, 'create'], $companyAccess('orders.create'));
 $router->post('/admin/orders/store', [OrderController::class, 'store'], $companyAccess('orders.create'));
 $router->post('/admin/orders/status', [OrderController::class, 'updateStatus'], $companyAccess('orders.status'));
+$router->post('/admin/orders/send-kitchen', [OrderController::class, 'sendToKitchen'], $companyAccess('orders.status'));
+
+$router->get('/admin/kitchen', [KitchenController::class, 'index'], $companyAccess('orders.view'));
+$router->post('/admin/kitchen/status', [KitchenController::class, 'updateStatus'], $companyAccess('orders.status'));
+$router->post('/admin/kitchen/emit-ticket', [KitchenController::class, 'emitTicket'], $companyAccess('orders.view'));
 
 $router->get('/admin/payments', [PaymentController::class, 'index'], $companyAccess('payments.view'));
 $router->get('/admin/payments/create', [PaymentController::class, 'create'], $companyAccess('payments.create'));

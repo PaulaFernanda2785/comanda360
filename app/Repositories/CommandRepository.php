@@ -142,6 +142,23 @@ final class CommandRepository extends BaseRepository
         ]);
     }
 
+    public function cancel(int $companyId, int $commandId): void
+    {
+        $stmt = $this->db()->prepare("
+            UPDATE commands
+            SET status = 'cancelada',
+                closed_at = NOW(),
+                updated_at = NOW()
+            WHERE company_id = :company_id
+              AND id = :id
+              AND status = 'aberta'
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'id' => $commandId,
+        ]);
+    }
+
     public function countOpenByTable(int $companyId, int $tableId): int
     {
         $stmt = $this->db()->prepare("

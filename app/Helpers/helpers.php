@@ -66,6 +66,10 @@ if (!function_exists('status_label')) {
                 'refunded' => 'Estornado',
                 'canceled' => 'Cancelado',
             ],
+            'print_log_status' => [
+                'success' => 'Sucesso',
+                'failed' => 'Falha',
+            ],
             'cash_register_status' => [
                 'open' => 'Aberto',
                 'closed' => 'Fechado',
@@ -133,5 +137,96 @@ if (!function_exists('status_label')) {
 
         $normalized = str_replace(['_', '-'], ' ', $raw);
         return ucfirst($normalized);
+    }
+}
+
+if (!function_exists('status_badge_class')) {
+    function status_badge_class(string $context, mixed $value): string
+    {
+        $raw = trim((string) ($value ?? ''));
+
+        $maps = [
+            'order_status' => [
+                'pending' => 'status-pending',
+                'received' => 'status-received',
+                'preparing' => 'status-preparing',
+                'ready' => 'status-ready',
+                'delivered' => 'status-delivered',
+                'paid' => 'status-paid',
+                'finished' => 'status-finished',
+                'canceled' => 'status-canceled',
+            ],
+            'order_payment_status' => [
+                'pending' => 'status-pending',
+                'partial' => 'status-partial',
+                'paid' => 'status-paid',
+                'canceled' => 'status-canceled',
+            ],
+            'payment_status' => [
+                'pending' => 'status-pending',
+                'paid' => 'status-paid',
+                'failed' => 'status-failed',
+                'refunded' => 'status-refunded',
+                'canceled' => 'status-canceled',
+            ],
+            'print_log_status' => [
+                'success' => 'status-success',
+                'failed' => 'status-failed',
+            ],
+            'cash_register_status' => [
+                'open' => 'status-open',
+                'closed' => 'status-closed',
+            ],
+            'command_status' => [
+                'aberta' => 'status-open',
+                'fechada' => 'status-closed',
+                'cancelada' => 'status-canceled',
+            ],
+            'table_status' => [
+                'livre' => 'status-free',
+                'ocupada' => 'status-busy',
+                'aguardando_fechamento' => 'status-waiting',
+                'bloqueada' => 'status-blocked',
+            ],
+            'subscription_status' => [
+                'ativa' => 'status-active',
+                'trial' => 'status-trial',
+                'vencida' => 'status-overdue',
+                'cancelada' => 'status-canceled',
+            ],
+            'subscription_payment_status' => [
+                'pendente' => 'status-pending',
+                'pago' => 'status-paid',
+                'vencido' => 'status-overdue',
+                'cancelado' => 'status-canceled',
+            ],
+            'company_status' => [
+                'ativa' => 'status-active',
+                'active' => 'status-active',
+                'teste' => 'status-trial',
+                'trial' => 'status-trial',
+                'suspensa' => 'status-suspended',
+                'suspended' => 'status-suspended',
+                'cancelada' => 'status-canceled',
+                'canceled' => 'status-canceled',
+            ],
+            'company_subscription_status' => [
+                'ativa' => 'status-active',
+                'trial' => 'status-trial',
+                'inadimplente' => 'status-overdue',
+                'suspensa' => 'status-suspended',
+                'cancelada' => 'status-canceled',
+                'vencida' => 'status-overdue',
+            ],
+            'plan_status' => [
+                'ativo' => 'status-active',
+                'inativo' => 'status-inactive',
+                'active' => 'status-active',
+                'inactive' => 'status-inactive',
+            ],
+        ];
+
+        $map = $maps[$context] ?? [];
+        return $map[$raw] ?? 'status-default';
     }
 }

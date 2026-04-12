@@ -41,6 +41,11 @@ final class OrderService
             $order['latest_status_changed_at'] = $history['changed_at'] ?? null;
             $order['latest_status_changed_by'] = $history['changed_by_user_name'] ?? null;
             $order['latest_status_note'] = $history['notes'] ?? null;
+            $order['next_statuses'] = $this->nextStatusesFor(
+                (string) ($order['status'] ?? ''),
+                (string) ($order['payment_status'] ?? '')
+            );
+            $order['can_send_kitchen'] = ((string) ($order['status'] ?? '')) === 'pending';
         }
         unset($order);
 
@@ -124,6 +129,30 @@ final class OrderService
         return ['pending', 'received', 'preparing', 'ready', 'delivered', 'finished', 'canceled'];
     }
 
+    public function sendToKitchen(int $companyId, int $userId, array $input): void
+    {
+        $orderId = (int) ($input['order_id'] ?? 0);
+
+        if ($orderId <= 0) {
+            throw new ValidationException('Pedido invalido para envio a cozinha.');
+        }
+
+        $order = $this->orders->findByIdForCompany($companyId, $orderId);
+        if ($order === null) {
+            throw new ValidationException('Pedido nao pertence a empresa autenticada.');
+        }
+
+        if ((string) ($order['status'] ?? '') !== 'pending') {
+            throw new ValidationException('Somente pedidos pendentes podem ser enviados para cozinha.');
+        }
+
+        $this->updateStatus($companyId, $userId, [
+            'order_id' => $orderId,
+            'new_status' => 'received',
+            'status_notes' => 'Enviado para cozinha.',
+        ]);
+    }
+
     public function updateStatus(int $companyId, int $userId, array $input): void
     {
         $orderId = (int) ($input['order_id'] ?? 0);
@@ -148,11 +177,12 @@ final class OrderService
         }
 
         $oldStatus = (string) ($order['status'] ?? '');
+        $paymentStatus = (string) ($order['payment_status'] ?? '');
         if ($oldStatus === $newStatus) {
             throw new ValidationException('O pedido ja esta com esse status.');
         }
 
-        if (!$this->isAllowedTransition($oldStatus, $newStatus)) {
+        if (!$this->isAllowedTransition($oldStatus, $newStatus, $paymentStatus)) {
             throw new ValidationException('Transicao de status nao permitida para este pedido.');
         }
 
@@ -161,6 +191,14 @@ final class OrderService
 
         try {
             $this->orders->updateStatus($companyId, $orderId, $newStatus);
+
+            if ($newStatus === 'canceled') {
+                $nextPaymentStatus = $this->resolvePaymentStatusOnCancellation((string) ($order['payment_status'] ?? 'pending'));
+                if ($nextPaymentStatus !== (string) ($order['payment_status'] ?? '')) {
+                    $this->orders->updatePaymentStatus($companyId, $orderId, $nextPaymentStatus);
+                }
+            }
+
             $this->statusHistory->create([
                 'company_id' => $companyId,
                 'order_id' => $orderId,
@@ -318,20 +356,50 @@ final class OrderService
         return $text !== '' ? $text : null;
     }
 
-    private function isAllowedTransition(string $oldStatus, string $newStatus): bool
+    private function nextStatusesFor(string $status, string $paymentStatus): array
     {
-        $allowedTransitions = [
-            'pending' => ['received', 'preparing', 'ready', 'delivered', 'finished', 'canceled'],
-            'received' => ['preparing', 'ready', 'delivered', 'finished', 'canceled'],
-            'preparing' => ['ready', 'delivered', 'finished', 'canceled'],
+        $transitions = $this->statusTransitions();
+        $next = $transitions[$status] ?? [];
+
+        // Avoid manual finalization before full payment confirmation.
+        if ($paymentStatus !== 'paid') {
+            $next = array_values(array_filter(
+                $next,
+                static fn (string $candidate): bool => $candidate !== 'finished'
+            ));
+        }
+
+        return $next;
+    }
+
+    private function isAllowedTransition(string $oldStatus, string $newStatus, string $paymentStatus): bool
+    {
+        $allowed = $this->nextStatusesFor($oldStatus, $paymentStatus);
+        return in_array($newStatus, $allowed, true);
+    }
+
+    private function statusTransitions(): array
+    {
+        return [
+            'pending' => ['received', 'canceled'],
+            'received' => ['preparing', 'canceled'],
+            'preparing' => ['ready', 'canceled'],
             'ready' => ['delivered', 'finished', 'canceled'],
             'delivered' => ['finished', 'canceled'],
             'paid' => ['finished', 'canceled'],
             'finished' => [],
             'canceled' => [],
         ];
+    }
 
-        $allowed = $allowedTransitions[$oldStatus] ?? [];
-        return in_array($newStatus, $allowed, true);
+    private function resolvePaymentStatusOnCancellation(string $currentPaymentStatus): string
+    {
+        // Keep paid/partial information when there was financial movement already.
+        // Only pending transitions to canceled to avoid "pedido cancelado com pagamento pendente".
+        return match ($currentPaymentStatus) {
+            'paid' => 'paid',
+            'partial' => 'partial',
+            default => 'canceled',
+        };
     }
 }

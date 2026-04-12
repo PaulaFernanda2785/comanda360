@@ -26,7 +26,31 @@
         input, select, textarea{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box}
         label{display:block;font-weight:bold;margin-bottom:6px}
         .field{margin-bottom:14px}
-        .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#e2e8f0;font-size:12px}
+        .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#e2e8f0;color:#334155;font-size:12px}
+        .badge.status-default{background:#e2e8f0;color:#334155}
+        .badge.status-pending{background:#fef3c7;color:#92400e}
+        .badge.status-received{background:#dbeafe;color:#1e40af}
+        .badge.status-preparing{background:#e0e7ff;color:#4338ca}
+        .badge.status-ready{background:#dcfce7;color:#166534}
+        .badge.status-delivered{background:#cffafe;color:#155e75}
+        .badge.status-finished{background:#bbf7d0;color:#14532d}
+        .badge.status-paid{background:#bbf7d0;color:#14532d}
+        .badge.status-partial{background:#fde68a;color:#78350f}
+        .badge.status-canceled{background:#fee2e2;color:#991b1b}
+        .badge.status-failed{background:#fecaca;color:#7f1d1d}
+        .badge.status-refunded{background:#fce7f3;color:#9d174d}
+        .badge.status-open{background:#d1fae5;color:#065f46}
+        .badge.status-closed{background:#e5e7eb;color:#374151}
+        .badge.status-free{background:#d1fae5;color:#065f46}
+        .badge.status-busy{background:#fee2e2;color:#991b1b}
+        .badge.status-waiting{background:#fef3c7;color:#92400e}
+        .badge.status-blocked{background:#d1d5db;color:#111827}
+        .badge.status-overdue{background:#fecaca;color:#7f1d1d}
+        .badge.status-trial{background:#e0f2fe;color:#075985}
+        .badge.status-active{background:#dcfce7;color:#166534}
+        .badge.status-suspended{background:#f3e8ff;color:#6b21a8}
+        .badge.status-inactive{background:#f3f4f6;color:#4b5563}
+        .badge.status-success{background:#dcfce7;color:#166534}
     </style>
 </head>
 <body>
@@ -38,6 +62,7 @@
         <a href="<?= htmlspecialchars(base_url('/admin/tables')) ?>">Mesas</a>
         <a href="<?= htmlspecialchars(base_url('/admin/commands')) ?>">Comandas</a>
         <a href="<?= htmlspecialchars(base_url('/admin/orders')) ?>">Pedidos</a>
+        <a href="<?= htmlspecialchars(base_url('/admin/kitchen')) ?>">Cozinha</a>
         <a href="<?= htmlspecialchars(base_url('/admin/payments')) ?>">Pagamentos</a>
         <a href="<?= htmlspecialchars(base_url('/admin/cash-registers')) ?>">Caixa</a>
         <a href="<?= htmlspecialchars(base_url('/logout')) ?>">Sair</a>
