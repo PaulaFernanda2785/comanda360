@@ -7,6 +7,7 @@ require BASE_PATH . '/app/Helpers/helpers.php';
 require BASE_PATH . '/app/Core/Autoloader.php';
 
 \App\Core\Autoloader::register(BASE_PATH . '/app');
+\App\Core\Env::load(BASE_PATH . '/.env');
 
 $config = require BASE_PATH . '/config/app.php';
 date_default_timezone_set($config['timezone']);

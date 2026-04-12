@@ -1,0 +1,33 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+.senha
+
+# Logs and runtime artifacts
+storage/logs/*
+storage/cache/*
+storage/sessions/*
+storage/tmp/*
+storage/*.log
+
+# Dependency/build artifacts
+vendor/
+node_modules/
+
+# IDE / OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Local certificates or keys
+*.pem
+*.key
+*.p12
+*.crt
