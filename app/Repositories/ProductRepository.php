@@ -338,6 +338,23 @@ final class ProductRepository extends BaseRepository
         $stmt->execute($params);
     }
 
+    public function setImagePathById(int $companyId, int $productId, ?string $imagePath): void
+    {
+        $stmt = $this->db()->prepare("
+            UPDATE products
+            SET image_path = :image_path,
+                updated_at = NOW()
+            WHERE company_id = :company_id
+              AND id = :id
+              AND deleted_at IS NULL
+        ");
+        $stmt->execute([
+            'image_path' => $imagePath,
+            'company_id' => $companyId,
+            'id' => $productId,
+        ]);
+    }
+
     public function softDeleteById(int $companyId, int $productId): void
     {
         $stmt = $this->db()->prepare("

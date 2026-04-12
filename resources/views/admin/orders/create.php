@@ -15,6 +15,7 @@ if (!is_string($productsJson)) {
 
 <div class="card">
     <form method="POST" action="<?= htmlspecialchars(base_url('/admin/orders/store')) ?>">
+        <?= form_security_fields('orders.store') ?>
         <div class="grid two">
             <div class="field">
                 <label for="command_id">Comanda aberta</label>

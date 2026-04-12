@@ -13,6 +13,9 @@
         label{display:block;margin:12px 0 6px;font-weight:bold}
         input{width:100%;padding:12px;border:1px solid #d0d7de;border-radius:8px;box-sizing:border-box}
         button{margin-top:16px;width:100%;padding:12px;border:0;background:#1d4ed8;color:#fff;border-radius:8px;font-weight:bold;cursor:pointer}
+        button.is-loading{opacity:.92;pointer-events:none}
+        .btn-spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.65);border-top-color:#fff;border-radius:50%;animation:btnspin .7s linear infinite;vertical-align:-2px;margin-right:6px}
+        @keyframes btnspin{to{transform:rotate(360deg)}}
         .error{background:#fee2e2;color:#991b1b;padding:10px;border-radius:8px;margin-top:12px}
     </style>
 </head>
@@ -22,5 +25,32 @@
         <?= $content ?>
     </div>
 </div>
+<script>
+(() => {
+    document.addEventListener('submit', (event) => {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement) || form.method.toLowerCase() !== 'post') {
+            return;
+        }
+
+        if (form.dataset.submitting === '1') {
+            event.preventDefault();
+            return;
+        }
+        form.dataset.submitting = '1';
+
+        const controls = Array.from(form.querySelectorAll('button[type="submit"], input[type="submit"]'));
+        controls.forEach((control) => control.disabled = true);
+
+        const submitter = event.submitter instanceof HTMLElement ? event.submitter : (controls[0] ?? null);
+        if (submitter instanceof HTMLButtonElement) {
+            submitter.classList.add('is-loading');
+            submitter.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span>Processando...';
+        } else if (submitter instanceof HTMLInputElement) {
+            submitter.value = 'Processando...';
+        }
+    });
+})();
+</script>
 </body>
 </html>

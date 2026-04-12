@@ -29,4 +29,14 @@ abstract class Controller
         Session::flash('success', $message);
         return $this->redirect($to);
     }
+
+    protected function guardSingleSubmit(Request $request, string $scope, string $redirectTo): ?Response
+    {
+        $result = validate_form_submission($request->all(), $scope, 5);
+        if (($result['ok'] ?? false) === true) {
+            return null;
+        }
+
+        return $this->backWithError((string) ($result['message'] ?? 'Nao foi possivel validar a requisicao.'), $redirectTo);
+    }
 }

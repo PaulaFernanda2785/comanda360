@@ -1,6 +1,12 @@
 RewriteEngine On
 
-# Redireciona tudo para index.php, exceto arquivos físicos
+# Upload de imagens de produtos (WAMP/mod_php)
+php_value file_uploads On
+php_value upload_max_filesize 12M
+php_value post_max_size 12M
+php_value max_file_uploads 20
+
+# Redireciona tudo para index.php, exceto arquivos fisicos
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [QSA,L]

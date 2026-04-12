@@ -25,11 +25,14 @@ $canCreateProducts = !empty($canCreateProducts);
     .tab-panel.active{display:block}
     .products-grid{display:grid;grid-template-columns:repeat(3,minmax(240px,1fr));gap:12px}
     .product-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+    .product-card.search-hit{outline:2px solid #60a5fa;outline-offset:1px}
     .product-head{display:flex;gap:10px}
     .product-thumb{width:76px;height:76px;border-radius:10px;background:linear-gradient(135deg,#dbeafe,#e2e8f0);overflow:hidden;flex-shrink:0}
     .product-thumb img{width:100%;height:100%;object-fit:cover}
     .product-meta p{margin:6px 0 0;color:#475569;font-size:13px;line-height:1.35}
     .product-actions{display:flex;gap:6px;flex-wrap:wrap}
+    .btn-additionals{background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff;border:1px solid #0f766e}
+    .btn-additionals:hover{filter:brightness(1.04)}
     .search-row{display:grid;grid-template-columns:1fr auto;gap:8px}
     .search-info{color:#64748b;font-size:12px;margin-top:6px}
     @media (max-width:1000px){
@@ -68,23 +71,24 @@ $canCreateProducts = !empty($canCreateProducts);
             <h3 style="margin-top:0">Gerenciar categorias</h3>
             <div class="category-manager">
                 <form method="POST" action="<?= htmlspecialchars(base_url('/admin/products/categories/store')) ?>">
+                    <?= form_security_fields('products.category.store') ?>
                     <div class="field">
                         <label for="category_name">Nome da categoria</label>
-                        <input id="category_name" name="name" type="text" required>
+                        <input id="category_name" name="name" type="text" required placeholder="Ex.: Lanches artesanais">
                     </div>
                     <div class="grid two">
                         <div class="field">
                             <label for="category_slug">Slug (opcional)</label>
-                            <input id="category_slug" name="slug" type="text" placeholder="gerado automaticamente">
+                            <input id="category_slug" name="slug" type="text" placeholder="Ex.: lanches-artesanais">
                         </div>
                         <div class="field">
                             <label for="category_display_order">Ordem</label>
-                            <input id="category_display_order" name="display_order" type="number" min="0" value="0">
+                            <input id="category_display_order" name="display_order" type="number" min="0" value="0" placeholder="Ex.: 10">
                         </div>
                     </div>
                     <div class="field">
                         <label for="category_description">Descricao</label>
-                        <input id="category_description" name="description" type="text" placeholder="Opcional">
+                        <input id="category_description" name="description" type="text" placeholder="Ex.: Produtos preparados na chapa">
                     </div>
                     <div class="field">
                         <label for="category_status">Status</label>
@@ -116,6 +120,7 @@ $canCreateProducts = !empty($canCreateProducts);
                                 </summary>
                                 <div style="margin-top:10px">
                                     <form method="POST" action="<?= htmlspecialchars(base_url('/admin/products/categories/update')) ?>" style="margin-bottom:8px">
+                                        <?= form_security_fields('products.category.update') ?>
                                         <input type="hidden" name="category_id" value="<?= (int) ($category['id'] ?? 0) ?>">
                                         <div class="grid two">
                                             <div class="field">
@@ -148,6 +153,7 @@ $canCreateProducts = !empty($canCreateProducts);
                                     </form>
 
                                     <form method="POST" action="<?= htmlspecialchars(base_url('/admin/products/categories/delete')) ?>" onsubmit="return confirm('Excluir esta categoria?');">
+                                        <?= form_security_fields('products.category.delete') ?>
                                         <input type="hidden" name="category_id" value="<?= (int) ($category['id'] ?? 0) ?>">
                                         <button class="btn secondary" type="submit">Excluir categoria</button>
                                     </form>
@@ -177,6 +183,7 @@ $canCreateProducts = !empty($canCreateProducts);
                     type="button"
                     class="tab-btn<?= $index === 0 ? ' active' : '' ?>"
                     data-tab-id="category-<?= (int) ($tab['id'] ?? 0) ?>"
+                    data-tab-name="<?= htmlspecialchars((string) ($tab['name'] ?? 'Categoria')) ?>"
                 >
                     <?= htmlspecialchars((string) ($tab['name'] ?? 'Categoria')) ?>
                     (<?= count(is_array($tab['products'] ?? null) ? $tab['products'] : []) ?>)
@@ -224,7 +231,7 @@ $canCreateProducts = !empty($canCreateProducts);
                             <div class="product-head">
                                 <div class="product-thumb">
                                     <?php if (!empty($product['image_path'])): ?>
-                                        <img src="<?= htmlspecialchars((string) $product['image_path']) ?>" alt="<?= htmlspecialchars((string) ($product['name'] ?? 'Produto')) ?>">
+                                        <img src="<?= htmlspecialchars(product_image_url((string) $product['image_path'])) ?>" alt="<?= htmlspecialchars((string) ($product['name'] ?? 'Produto')) ?>">
                                     <?php endif; ?>
                                 </div>
                                 <div class="product-meta">
@@ -265,8 +272,9 @@ $canCreateProducts = !empty($canCreateProducts);
                                 <?php if ($canManageProducts): ?>
                                     <div class="product-actions">
                                         <a class="btn secondary" href="<?= htmlspecialchars(base_url('/admin/products/edit?product_id=' . (int) $product['id'])) ?>">Editar</a>
-                                        <a class="btn secondary" href="<?= htmlspecialchars(base_url('/admin/products/additionals?product_id=' . (int) $product['id'])) ?>">Adicionais</a>
+                                        <a class="btn btn-additionals" href="<?= htmlspecialchars(base_url('/admin/products/additionals?product_id=' . (int) $product['id'])) ?>">Adicionais</a>
                                         <form method="POST" action="<?= htmlspecialchars(base_url('/admin/products/delete')) ?>" onsubmit="return confirm('Excluir este produto?');">
+                                            <?= form_security_fields('products.delete') ?>
                                             <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
                                             <button class="btn secondary" type="submit">Excluir</button>
                                         </form>
@@ -296,42 +304,81 @@ $canCreateProducts = !empty($canCreateProducts);
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '');
 
-    const setActiveTab = (tabId) => {
+    const setActiveTab = (tabId, skipFilter = false) => {
         tabButtons.forEach((button) => {
             button.classList.toggle('active', button.getAttribute('data-tab-id') === tabId);
         });
         tabPanels.forEach((panel) => {
             panel.classList.toggle('active', panel.getAttribute('data-panel-id') === tabId);
         });
-        applyFilter();
+        if (!skipFilter) {
+            applyFilter();
+        }
     };
 
     const activePanel = () => tabPanels.find((panel) => panel.classList.contains('active')) || null;
 
     const applyFilter = () => {
-        const panel = activePanel();
-        if (!panel) {
-            return;
-        }
-
-        const cards = Array.from(panel.querySelectorAll('.product-card[data-search]'));
         const rawQuery = searchInput ? searchInput.value : '';
         const tokens = normalize(rawQuery).split(/\s+/).filter(Boolean);
+        const panelStats = [];
 
-        let visibleCount = 0;
-        cards.forEach((card) => {
-            const haystack = normalize(card.getAttribute('data-search') || '');
-            const match = tokens.every((token) => haystack.includes(token));
-            card.style.display = match ? '' : 'none';
-            if (match) {
-                visibleCount++;
-            }
+        tabPanels.forEach((panel) => {
+            const cards = Array.from(panel.querySelectorAll('.product-card[data-search]'));
+            let visibleCount = 0;
+            let firstVisibleCard = null;
+
+            cards.forEach((card) => {
+                card.classList.remove('search-hit');
+                const haystack = normalize(card.getAttribute('data-search') || '');
+                const match = tokens.every((token) => haystack.includes(token));
+                card.style.display = match ? '' : 'none';
+                if (match) {
+                    visibleCount++;
+                    if (firstVisibleCard === null) {
+                        firstVisibleCard = card;
+                    }
+                }
+            });
+
+            panelStats.push({
+                panel,
+                visibleCount,
+                firstVisibleCard,
+            });
         });
 
+        const active = activePanel();
+        const activeStat = panelStats.find((item) => item.panel === active) ?? null;
+
+        if (tokens.length > 0) {
+            const firstMatched = panelStats.find((item) => item.visibleCount > 0) ?? null;
+            if (firstMatched !== null && firstMatched.panel !== active) {
+                setActiveTab(firstMatched.panel.getAttribute('data-panel-id') || '', true);
+            }
+        }
+
+        const finalActive = activePanel();
+        const finalActiveStat = panelStats.find((item) => item.panel === finalActive) ?? activeStat;
+        if (finalActiveStat && finalActiveStat.firstVisibleCard) {
+            finalActiveStat.firstVisibleCard.classList.add('search-hit');
+            if (tokens.length > 0) {
+                finalActiveStat.firstVisibleCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
         if (searchInfo) {
-            searchInfo.textContent = tokens.length === 0
-                ? 'Digite para filtrar de forma inteligente.'
-                : `Filtro ativo: ${visibleCount} produto(s) encontrado(s) nesta categoria.`;
+            if (tokens.length === 0) {
+                searchInfo.textContent = 'Digite para filtrar de forma inteligente.';
+            } else {
+                const activeButton = tabButtons.find((button) => button.classList.contains('active')) || null;
+                const categoryName = activeButton ? (activeButton.getAttribute('data-tab-name') || 'Categoria') : 'Categoria';
+                const visibleCount = finalActiveStat ? finalActiveStat.visibleCount : 0;
+                const totalVisible = panelStats.reduce((sum, item) => sum + item.visibleCount, 0);
+                searchInfo.textContent = totalVisible > 0
+                    ? `Filtro ativo: ${totalVisible} resultado(s). Direcionado para ${categoryName} com ${visibleCount} produto(s).`
+                    : 'Nenhum produto encontrado para o filtro informado.';
+            }
         }
     };
 

@@ -20,6 +20,73 @@ if (!function_exists('base_url')) {
     }
 }
 
+if (!function_exists('asset_url')) {
+    function asset_url(?string $path): string
+    {
+        $value = trim((string) ($path ?? ''));
+        if ($value === '') {
+            return '';
+        }
+
+        if (preg_match('#^(https?:)?//#i', $value) === 1) {
+            return $value;
+        }
+
+        $normalizedPath = '/' . ltrim($value, '/');
+        $basePath = str_replace('\\', '/', BASE_PATH);
+        $documentRoot = str_replace('\\', '/', (string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
+        $publicPath = str_replace('\\', '/', BASE_PATH . '/public');
+
+        if ($documentRoot !== '') {
+            $docFile = $documentRoot . $normalizedPath;
+            $docPublicFile = $documentRoot . '/public' . $normalizedPath;
+
+            if (is_file($docFile)) {
+                return base_url(ltrim($normalizedPath, '/'));
+            }
+
+            if (is_file($docPublicFile)) {
+                return base_url('public/' . ltrim($normalizedPath, '/'));
+            }
+
+            if (rtrim($documentRoot, '/') === rtrim($publicPath, '/')) {
+                return base_url(ltrim($normalizedPath, '/'));
+            }
+
+            if (rtrim($documentRoot, '/') === rtrim($basePath, '/')) {
+                return base_url('public/' . ltrim($normalizedPath, '/'));
+            }
+        }
+
+        return base_url(ltrim($normalizedPath, '/'));
+    }
+}
+
+if (!function_exists('product_image_url')) {
+    function product_image_url(?string $path): string
+    {
+        $value = trim((string) ($path ?? ''));
+        if ($value === '') {
+            return '';
+        }
+
+        if (preg_match('#^(https?:)?//#i', $value) === 1) {
+            return $value;
+        }
+
+        $normalizedPath = ltrim(str_replace('\\', '/', $value), '/');
+        if (str_starts_with($normalizedPath, 'public/')) {
+            $normalizedPath = ltrim(substr($normalizedPath, strlen('public/')), '/');
+        }
+
+        if (!str_starts_with($normalizedPath, 'uploads/products/')) {
+            return asset_url($value);
+        }
+
+        return base_url('/media/product?path=' . rawurlencode($normalizedPath));
+    }
+}
+
 if (!function_exists('view')) {
     function view(string $template, array $data = [], string $layout = 'layouts/app'): string
     {
@@ -31,6 +98,159 @@ if (!function_exists('redirect')) {
     function redirect(string $to): \App\Core\Response
     {
         return \App\Core\Response::redirect($to);
+    }
+}
+
+if (!function_exists('csrf_token')) {
+    function csrf_token(): string
+    {
+        \App\Core\Session::start();
+
+        $token = \App\Core\Session::get('_csrf_token');
+        if (!is_string($token) || $token === '') {
+            $token = bin2hex(random_bytes(32));
+            \App\Core\Session::put('_csrf_token', $token);
+        }
+
+        return $token;
+    }
+}
+
+if (!function_exists('idempotency_token')) {
+    function idempotency_token(string $scope = 'default'): string
+    {
+        \App\Core\Session::start();
+
+        $token = bin2hex(random_bytes(24));
+        $allTokens = \App\Core\Session::get('_idempotency_tokens', []);
+        if (!is_array($allTokens)) {
+            $allTokens = [];
+        }
+
+        if (!isset($allTokens[$scope]) || !is_array($allTokens[$scope])) {
+            $allTokens[$scope] = [];
+        }
+
+        $allTokens[$scope][$token] = time();
+        foreach ($allTokens as $savedScope => $tokensByScope) {
+            if (!is_array($tokensByScope)) {
+                unset($allTokens[$savedScope]);
+                continue;
+            }
+
+            foreach ($tokensByScope as $savedToken => $createdAt) {
+                if (!is_int($createdAt) || (time() - $createdAt) > 3600) {
+                    unset($allTokens[$savedScope][$savedToken]);
+                }
+            }
+        }
+
+        \App\Core\Session::put('_idempotency_tokens', $allTokens);
+        return $token;
+    }
+}
+
+if (!function_exists('form_security_fields')) {
+    function form_security_fields(string $scope = 'default'): string
+    {
+        $csrf = htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8');
+        $idempotency = htmlspecialchars(idempotency_token($scope), ENT_QUOTES, 'UTF-8');
+
+        return '<input type="hidden" name="_csrf_token" value="' . $csrf . '">' .
+            '<input type="hidden" name="_idempotency_token" value="' . $idempotency . '">' .
+            '<input type="hidden" name="_form_scope" value="' . htmlspecialchars($scope, ENT_QUOTES, 'UTF-8') . '">';
+    }
+}
+
+if (!function_exists('validate_form_submission')) {
+    function validate_form_submission(array $input, string $scope = 'default', int $duplicateWindowSeconds = 5): array
+    {
+        \App\Core\Session::start();
+
+        $csrfFromRequest = trim((string) ($input['_csrf_token'] ?? ''));
+        $idempotencyFromRequest = trim((string) ($input['_idempotency_token'] ?? ''));
+        $scopeFromRequest = trim((string) ($input['_form_scope'] ?? ''));
+        if ($scopeFromRequest !== '' && !hash_equals($scope, $scopeFromRequest)) {
+            return [
+                'ok' => false,
+                'message' => 'Escopo de envio invalido para esta operacao.',
+            ];
+        }
+        $effectiveScope = $scope;
+
+        if ($csrfFromRequest === '' || $idempotencyFromRequest === '') {
+            return [
+                'ok' => false,
+                'message' => 'Requisicao invalida. Atualize a pagina e tente novamente.',
+            ];
+        }
+
+        $csrfInSession = (string) \App\Core\Session::get('_csrf_token', '');
+        if ($csrfInSession === '' || !hash_equals($csrfInSession, $csrfFromRequest)) {
+            return [
+                'ok' => false,
+                'message' => 'Sessao expirada ou token invalido. Atualize a pagina e envie novamente.',
+            ];
+        }
+
+        $fingerprint = hash('sha256', $effectiveScope . '|' . $idempotencyFromRequest);
+        $processed = \App\Core\Session::get('_processed_idempotency_tokens', []);
+        if (!is_array($processed)) {
+            $processed = [];
+        }
+
+        $now = time();
+        foreach ($processed as $savedFingerprint => $processedAt) {
+            if (!is_int($processedAt) || ($now - $processedAt) > 600) {
+                unset($processed[$savedFingerprint]);
+            }
+        }
+
+        if (isset($processed[$fingerprint]) && ($now - (int) $processed[$fingerprint]) <= $duplicateWindowSeconds) {
+            return [
+                'ok' => false,
+                'message' => 'Requisicao ja recebida ha poucos segundos. Aguarde antes de tentar novamente.',
+                'duplicate' => true,
+            ];
+        }
+
+        $allTokens = \App\Core\Session::get('_idempotency_tokens', []);
+        if (!is_array($allTokens) || !isset($allTokens[$effectiveScope]) || !is_array($allTokens[$effectiveScope])) {
+            return [
+                'ok' => false,
+                'message' => 'Token de envio expirado. Recarregue a pagina antes de enviar novamente.',
+            ];
+        }
+
+        if (!isset($allTokens[$effectiveScope][$idempotencyFromRequest])) {
+            if (isset($processed[$fingerprint]) && ($now - (int) $processed[$fingerprint]) <= $duplicateWindowSeconds) {
+                return [
+                    'ok' => false,
+                    'message' => 'Requisicao duplicada ignorada com seguranca.',
+                    'duplicate' => true,
+                ];
+            }
+
+            return [
+                'ok' => false,
+                'message' => 'Token de envio invalido ou ja utilizado. Atualize a pagina e tente novamente.',
+            ];
+        }
+
+        unset($allTokens[$effectiveScope][$idempotencyFromRequest]);
+        if ($allTokens[$effectiveScope] === []) {
+            unset($allTokens[$effectiveScope]);
+        }
+
+        $processed[$fingerprint] = $now;
+
+        \App\Core\Session::put('_idempotency_tokens', $allTokens);
+        \App\Core\Session::put('_processed_idempotency_tokens', $processed);
+
+        return [
+            'ok' => true,
+            'duplicate' => false,
+        ];
     }
 }
 

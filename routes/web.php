@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 use App\Controllers\Auth\LoginController;
+use App\Controllers\MediaController;
 use App\Controllers\Admin\DashboardController;
 use App\Controllers\Admin\ProductController;
 use App\Controllers\Admin\TableController;
@@ -36,6 +37,7 @@ $router->get('/', [LoginController::class, 'show']);
 $router->get('/login', [LoginController::class, 'show']);
 $router->post('/login', [LoginController::class, 'store']);
 $router->get('/logout', [LoginController::class, 'logout']);
+$router->get('/media/product', [MediaController::class, 'product']);
 
 $router->get('/admin/dashboard', [DashboardController::class, 'index'], $companyAccess('dashboard.view'));
 
@@ -45,6 +47,7 @@ $router->post('/admin/products/store', [ProductController::class, 'store'], $com
 $router->get('/admin/products/edit', [ProductController::class, 'edit'], $companyAccess('products.edit'));
 $router->post('/admin/products/update', [ProductController::class, 'update'], $companyAccess('products.edit'));
 $router->post('/admin/products/delete', [ProductController::class, 'delete'], $companyAccess('products.edit'));
+$router->post('/admin/products/remove-image', [ProductController::class, 'removeImage'], $companyAccess('products.edit'));
 $router->post('/admin/products/categories/store', [ProductController::class, 'storeCategory'], $companyAccess('products.edit'));
 $router->post('/admin/products/categories/update', [ProductController::class, 'updateCategory'], $companyAccess('products.edit'));
 $router->post('/admin/products/categories/delete', [ProductController::class, 'deleteCategory'], $companyAccess('products.edit'));

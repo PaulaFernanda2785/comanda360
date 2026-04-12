@@ -52,6 +52,9 @@
         .badge.status-suspended{background:#f3e8ff;color:#6b21a8}
         .badge.status-inactive{background:#f3f4f6;color:#4b5563}
         .badge.status-success{background:#dcfce7;color:#166534}
+        .btn.is-loading{opacity:.92;pointer-events:none}
+        .btn-spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.65);border-top-color:#fff;border-radius:50%;animation:btnspin .7s linear infinite;vertical-align:-2px;margin-right:6px}
+        @keyframes btnspin{to{transform:rotate(360deg)}}
     </style>
 </head>
 <body>
@@ -80,5 +83,59 @@
         <?= $content ?>
     </main>
 </div>
+<script>
+(() => {
+    const findSubmitControls = (form) => Array.from(form.querySelectorAll('button[type="submit"], input[type="submit"]'));
+
+    const setLoadingState = (control) => {
+        if (!control || control.dataset.processing === '1') {
+            return;
+        }
+
+        control.dataset.processing = '1';
+        control.disabled = true;
+        control.classList.add('is-loading');
+
+        if (control instanceof HTMLButtonElement) {
+            control.dataset.originalHtml = control.innerHTML;
+            control.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span>Processando...';
+        } else if (control instanceof HTMLInputElement) {
+            control.dataset.originalValue = control.value;
+            control.value = 'Processando...';
+        }
+    };
+
+    document.addEventListener('submit', (event) => {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement)) {
+            return;
+        }
+
+        if (form.method.toLowerCase() !== 'post') {
+            return;
+        }
+
+        if (form.dataset.submitting === '1') {
+            event.preventDefault();
+            return;
+        }
+
+        form.dataset.submitting = '1';
+
+        const controls = findSubmitControls(form);
+        controls.forEach((control) => {
+            control.disabled = true;
+        });
+
+        const submitter = event.submitter instanceof HTMLElement ? event.submitter : null;
+        const preferred = submitter && (submitter instanceof HTMLButtonElement || submitter instanceof HTMLInputElement)
+            ? submitter
+            : (controls[0] ?? null);
+        if (preferred) {
+            setLoadingState(preferred);
+        }
+    });
+})();
+</script>
 </body>
 </html>

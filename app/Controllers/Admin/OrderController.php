@@ -54,6 +54,11 @@ final class OrderController extends Controller
 
     public function store(Request $request): Response
     {
+        $guard = $this->guardSingleSubmit($request, 'orders.store', '/admin/orders/create');
+        if ($guard !== null) {
+            return $guard;
+        }
+
         $user = Auth::user();
         $companyId = (int) ($user['company_id'] ?? 0);
         $userId = (int) ($user['id'] ?? 0);

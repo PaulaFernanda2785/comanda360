@@ -37,6 +37,9 @@
         .muted{color:#6b7280}
         .btn{display:inline-block;padding:10px 14px;background:#1d4ed8;color:#fff;text-decoration:none;border-radius:8px;border:0;cursor:pointer}
         .btn.secondary{background:#475569}
+        .btn.is-loading{opacity:.92;pointer-events:none}
+        .btn-spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.65);border-top-color:#fff;border-radius:50%;animation:btnspin .7s linear infinite;vertical-align:-2px;margin-right:6px}
+        @keyframes btnspin{to{transform:rotate(360deg)}}
         input, select, textarea{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box}
         label{display:block;font-weight:bold;margin-bottom:6px}
         .field{margin-bottom:14px}
@@ -67,5 +70,50 @@
         <?= $content ?>
     </main>
 </div>
+<script>
+(() => {
+    const submitControls = (form) => Array.from(form.querySelectorAll('button[type="submit"], input[type="submit"]'));
+
+    const loading = (control) => {
+        if (!control || control.dataset.processing === '1') {
+            return;
+        }
+        control.dataset.processing = '1';
+        control.disabled = true;
+        control.classList.add('is-loading');
+
+        if (control instanceof HTMLButtonElement) {
+            control.dataset.originalHtml = control.innerHTML;
+            control.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span>Processando...';
+        } else if (control instanceof HTMLInputElement) {
+            control.dataset.originalValue = control.value;
+            control.value = 'Processando...';
+        }
+    };
+
+    document.addEventListener('submit', (event) => {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement) || form.method.toLowerCase() !== 'post') {
+            return;
+        }
+        if (form.dataset.submitting === '1') {
+            event.preventDefault();
+            return;
+        }
+
+        form.dataset.submitting = '1';
+        const controls = submitControls(form);
+        controls.forEach((control) => control.disabled = true);
+
+        const submitter = event.submitter instanceof HTMLElement ? event.submitter : null;
+        const preferred = submitter && (submitter instanceof HTMLButtonElement || submitter instanceof HTMLInputElement)
+            ? submitter
+            : (controls[0] ?? null);
+        if (preferred) {
+            loading(preferred);
+        }
+    });
+})();
+</script>
 </body>
 </html>

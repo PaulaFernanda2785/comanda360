@@ -54,6 +54,11 @@ final class ProductController extends Controller
 
     public function store(Request $request): Response
     {
+        $guard = $this->guardSingleSubmit($request, 'products.store', '/admin/products/create');
+        if ($guard !== null) {
+            return $guard;
+        }
+
         $user = Auth::user();
         $companyId = (int) ($user['company_id'] ?? 0);
 
@@ -91,9 +96,14 @@ final class ProductController extends Controller
 
     public function update(Request $request): Response
     {
+        $productId = (int) ($request->input('product_id', 0));
+        $guard = $this->guardSingleSubmit($request, 'products.update', '/admin/products/edit?product_id=' . $productId);
+        if ($guard !== null) {
+            return $guard;
+        }
+
         $user = Auth::user();
         $companyId = (int) ($user['company_id'] ?? 0);
-        $productId = (int) ($request->input('product_id', 0));
 
         $payload = $request->all();
         $payload['image_file'] = $request->files['image_file'] ?? null;
@@ -108,6 +118,11 @@ final class ProductController extends Controller
 
     public function delete(Request $request): Response
     {
+        $guard = $this->guardSingleSubmit($request, 'products.delete', '/admin/products');
+        if ($guard !== null) {
+            return $guard;
+        }
+
         $user = Auth::user();
         $companyId = (int) ($user['company_id'] ?? 0);
         $productId = (int) ($request->input('product_id', 0));
@@ -120,8 +135,32 @@ final class ProductController extends Controller
         }
     }
 
+    public function removeImage(Request $request): Response
+    {
+        $productId = (int) ($request->input('product_id', 0));
+        $guard = $this->guardSingleSubmit($request, 'products.image.remove', '/admin/products/edit?product_id=' . $productId);
+        if ($guard !== null) {
+            return $guard;
+        }
+
+        $user = Auth::user();
+        $companyId = (int) ($user['company_id'] ?? 0);
+
+        try {
+            $this->service->removeImage($companyId, $productId);
+            return $this->backWithSuccess('Imagem removida com sucesso.', '/admin/products/edit?product_id=' . $productId);
+        } catch (ValidationException $e) {
+            return $this->backWithError($e->getMessage(), '/admin/products/edit?product_id=' . $productId);
+        }
+    }
+
     public function storeCategory(Request $request): Response
     {
+        $guard = $this->guardSingleSubmit($request, 'products.category.store', '/admin/products');
+        if ($guard !== null) {
+            return $guard;
+        }
+
         $user = Auth::user();
         $companyId = (int) ($user['company_id'] ?? 0);
 
@@ -135,6 +174,11 @@ final class ProductController extends Controller
 
     public function updateCategory(Request $request): Response
     {
+        $guard = $this->guardSingleSubmit($request, 'products.category.update', '/admin/products');
+        if ($guard !== null) {
+            return $guard;
+        }
+
         $user = Auth::user();
         $companyId = (int) ($user['company_id'] ?? 0);
         $categoryId = (int) ($request->input('category_id', 0));
@@ -149,6 +193,11 @@ final class ProductController extends Controller
 
     public function deleteCategory(Request $request): Response
     {
+        $guard = $this->guardSingleSubmit($request, 'products.category.delete', '/admin/products');
+        if ($guard !== null) {
+            return $guard;
+        }
+
         $user = Auth::user();
         $companyId = (int) ($user['company_id'] ?? 0);
         $categoryId = (int) ($request->input('category_id', 0));
@@ -183,9 +232,14 @@ final class ProductController extends Controller
 
     public function updateAdditionalRules(Request $request): Response
     {
+        $productId = (int) ($request->input('product_id', 0));
+        $guard = $this->guardSingleSubmit($request, 'products.additionals.rules', '/admin/products/additionals?product_id=' . $productId);
+        if ($guard !== null) {
+            return $guard;
+        }
+
         $user = Auth::user();
         $companyId = (int) ($user['company_id'] ?? 0);
-        $productId = (int) ($request->input('product_id', 0));
 
         try {
             $this->service->updateAdditionalRules($companyId, $productId, $request->all());
@@ -197,9 +251,14 @@ final class ProductController extends Controller
 
     public function storeAdditionalItem(Request $request): Response
     {
+        $productId = (int) ($request->input('product_id', 0));
+        $guard = $this->guardSingleSubmit($request, 'products.additionals.store', '/admin/products/additionals?product_id=' . $productId);
+        if ($guard !== null) {
+            return $guard;
+        }
+
         $user = Auth::user();
         $companyId = (int) ($user['company_id'] ?? 0);
-        $productId = (int) ($request->input('product_id', 0));
 
         try {
             $this->service->addAdditionalItem($companyId, $productId, $request->all());
@@ -211,9 +270,14 @@ final class ProductController extends Controller
 
     public function removeAdditionalItem(Request $request): Response
     {
+        $productId = (int) ($request->input('product_id', 0));
+        $guard = $this->guardSingleSubmit($request, 'products.additionals.remove', '/admin/products/additionals?product_id=' . $productId);
+        if ($guard !== null) {
+            return $guard;
+        }
+
         $user = Auth::user();
         $companyId = (int) ($user['company_id'] ?? 0);
-        $productId = (int) ($request->input('product_id', 0));
         $additionalItemId = (int) ($request->input('additional_item_id', 0));
 
         try {

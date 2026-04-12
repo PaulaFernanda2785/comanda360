@@ -8,7 +8,7 @@ use App\Repositories\ProductRepository;
 
 final class ProductService
 {
-    private const MAX_IMAGE_SIZE_BYTES = 5242880; // 5MB
+    private const MAX_IMAGE_SIZE_BYTES = 10485760; // 10MB
 
     public function __construct(
         private readonly ProductRepository $products = new ProductRepository()
@@ -107,7 +107,7 @@ final class ProductService
     public function create(int $companyId, array $input): int
     {
         $imageFile = $this->extractImageFileFromInput($input);
-        $imagePath = $this->storeProductImage($companyId, $imageFile);
+        $imagePath = $this->storeProductImage($companyId, $imageFile, $input);
         $data = $this->normalizeBaseProductInput($companyId, $input, $imagePath, null);
 
         return $this->products->create($data);
@@ -131,27 +131,26 @@ final class ProductService
     {
         $existing = $this->findForEdit($companyId, $productId);
         $imageFile = $this->extractImageFileFromInput($input);
-        $removeImage = isset($input['remove_image']);
 
         $imagePath = $existing['image_path'] !== null ? (string) $existing['image_path'] : null;
         $newUploadedImagePath = null;
 
         if ($imageFile !== null) {
-            $newUploadedImagePath = $this->storeProductImage($companyId, $imageFile);
+            $newUploadedImagePath = $this->storeProductImage($companyId, $imageFile, $input);
             $imagePath = $newUploadedImagePath;
-        } elseif ($removeImage) {
-            $imagePath = null;
+        } else {
+            $newUploadedImagePath = $this->storeProductImage($companyId, null, $input);
+            if ($newUploadedImagePath !== null) {
+                $imagePath = $newUploadedImagePath;
+            }
         }
 
         $data = $this->normalizeBaseProductInput($companyId, $input, $imagePath, $productId);
         $this->products->updateById($companyId, $productId, $data);
 
         $oldImagePath = $existing['image_path'] !== null ? (string) $existing['image_path'] : null;
-        if ($oldImagePath !== null) {
-            $mustDeleteOld = ($removeImage && $newUploadedImagePath === null) || ($newUploadedImagePath !== null && $newUploadedImagePath !== $oldImagePath);
-            if ($mustDeleteOld) {
-                $this->deleteLocalUploadedImage($oldImagePath);
-            }
+        if ($oldImagePath !== null && $newUploadedImagePath !== null && $newUploadedImagePath !== $oldImagePath) {
+            $this->deleteLocalUploadedImage($oldImagePath);
         }
     }
 
@@ -164,6 +163,19 @@ final class ProductService
         if ($imagePath !== null) {
             $this->deleteLocalUploadedImage($imagePath);
         }
+    }
+
+    public function removeImage(int $companyId, int $productId): void
+    {
+        $product = $this->findForEdit($companyId, $productId);
+        $currentImagePath = $product['image_path'] !== null ? (string) $product['image_path'] : null;
+
+        if ($currentImagePath === null || trim($currentImagePath) === '') {
+            throw new ValidationException('Este produto nao possui imagem para remover.');
+        }
+
+        $this->products->setImagePathById($companyId, $productId, null);
+        $this->deleteLocalUploadedImage($currentImagePath);
     }
 
     public function createCategory(int $companyId, array $input): int
@@ -283,8 +295,23 @@ final class ProductService
             throw new ValidationException('Informe um limite maximo de adicionais por item maior ou igual a 1.');
         }
 
-        $isRequired = isset($input['is_required']);
+        $requiredMode = trim((string) ($input['rule_required_mode'] ?? ''));
+        if ($requiredMode !== '') {
+            $isRequired = $requiredMode === 'obrigatorio';
+        } else {
+            $isRequired = isset($input['is_required']);
+        }
+
         $minSelection = $isRequired ? 1 : 0;
+        if (array_key_exists('min_selection', $input) && trim((string) ($input['min_selection'] ?? '')) !== '') {
+            $minSelection = (int) $input['min_selection'];
+        }
+        if ($minSelection < 0) {
+            throw new ValidationException('A quantidade minima de adicionais nao pode ser negativa.');
+        }
+        if ($isRequired && $minSelection < 1) {
+            $minSelection = 1;
+        }
         if ($minSelection > $maxSelection) {
             throw new ValidationException('A quantidade minima nao pode ser maior que a maxima.');
         }
@@ -487,6 +514,20 @@ final class ProductService
 
         $description = trim((string) ($input['description'] ?? ''));
         $sku = trim((string) ($input['sku'] ?? ''));
+        $operationalStatus = trim((string) ($input['operational_status'] ?? ''));
+
+        $isActive = isset($input['is_active']) ? 1 : 0;
+        $isPaused = isset($input['is_paused']) ? 1 : 0;
+        if ($operationalStatus === 'ativo') {
+            $isActive = 1;
+            $isPaused = 0;
+        } elseif ($operationalStatus === 'pausado') {
+            $isActive = 1;
+            $isPaused = 1;
+        } elseif ($operationalStatus === 'inativo') {
+            $isActive = 0;
+            $isPaused = 0;
+        }
 
         $normalizedSlug = $this->slugify($slug);
         if ($normalizedSlug === '') {
@@ -505,12 +546,12 @@ final class ProductService
             'slug' => $normalizedSlug,
             'description' => $description !== '' ? $description : null,
             'sku' => $sku !== '' ? $sku : null,
-            'image_path' => $imagePath,
+            'image_path' => $this->normalizeImagePathForStorage($imagePath),
             'price' => $price,
             'promotional_price' => $promotionalPrice,
             'is_featured' => isset($input['is_featured']) ? 1 : 0,
-            'is_active' => isset($input['is_active']) ? 1 : 0,
-            'is_paused' => isset($input['is_paused']) ? 1 : 0,
+            'is_active' => $isActive,
+            'is_paused' => $isPaused,
             'allows_notes' => isset($input['allows_notes']) ? 1 : 0,
             'has_additionals' => isset($input['has_additionals']) ? 1 : 0,
             'display_order' => $displayOrder,
@@ -532,25 +573,27 @@ final class ProductService
         return $file;
     }
 
-    private function storeProductImage(int $companyId, ?array $file): ?string
+    private function storeProductImage(int $companyId, ?array $file, array $input = []): ?string
     {
         if ($file === null) {
-            return null;
+            return $this->storeProductImageFromBase64($companyId, $input);
         }
 
         $error = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
         if ($error !== UPLOAD_ERR_OK) {
-            throw new ValidationException('Falha no envio da imagem do produto.');
+            throw new ValidationException($this->uploadErrorMessage($error));
         }
 
         $tmpName = (string) ($file['tmp_name'] ?? '');
-        if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+        $isUploadedFile = $tmpName !== '' && is_uploaded_file($tmpName);
+        $isLocalEnv = strtolower((string) getenv('APP_ENV')) === 'local';
+        if (!$isUploadedFile && !($isLocalEnv && $tmpName !== '' && is_file($tmpName))) {
             throw new ValidationException('Arquivo de imagem invalido.');
         }
 
         $size = (int) ($file['size'] ?? 0);
         if ($size <= 0 || $size > self::MAX_IMAGE_SIZE_BYTES) {
-            throw new ValidationException('A imagem deve ter ate 5MB.');
+            throw new ValidationException('A imagem deve ter ate 10MB.');
         }
 
         $imageInfo = @getimagesize($tmpName);
@@ -577,7 +620,70 @@ final class ProductService
         $filename = 'prd_' . date('YmdHis') . '_' . bin2hex(random_bytes(5)) . '.' . $extensions[$mime];
         $targetPath = $baseDir . '/' . $filename;
 
-        if (!move_uploaded_file($tmpName, $targetPath)) {
+        $moved = move_uploaded_file($tmpName, $targetPath);
+        if (!$moved && $isLocalEnv && is_file($tmpName)) {
+            $moved = @rename($tmpName, $targetPath);
+            if (!$moved) {
+                $moved = @copy($tmpName, $targetPath);
+                if ($moved && is_file($tmpName)) {
+                    @unlink($tmpName);
+                }
+            }
+        }
+
+        if (!$moved) {
+            throw new ValidationException('Nao foi possivel salvar a imagem enviada.');
+        }
+
+        return '/uploads/products/' . $companyId . '/' . $filename;
+    }
+
+    private function storeProductImageFromBase64(int $companyId, array $input): ?string
+    {
+        $base64 = trim((string) ($input['image_data_base64'] ?? ''));
+        if ($base64 === '') {
+            return null;
+        }
+
+        if (!preg_match('#^data:image/([a-zA-Z0-9.+-]+);base64,#', $base64, $matches)) {
+            throw new ValidationException('Formato de imagem invalido enviado pelo formulario.');
+        }
+
+        $payload = substr($base64, (int) strpos($base64, ',') + 1);
+        $binary = base64_decode($payload, true);
+        if ($binary === false || $binary === '') {
+            throw new ValidationException('Falha ao decodificar a imagem enviada.');
+        }
+
+        $size = strlen($binary);
+        if ($size <= 0 || $size > self::MAX_IMAGE_SIZE_BYTES) {
+            throw new ValidationException('A imagem deve ter ate 10MB.');
+        }
+
+        $imageInfo = @getimagesizefromstring($binary);
+        if (!is_array($imageInfo) || empty($imageInfo['mime'])) {
+            throw new ValidationException('Conteudo enviado nao e uma imagem valida.');
+        }
+
+        $mime = strtolower((string) $imageInfo['mime']);
+        $extensions = [
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            'image/gif' => 'gif',
+        ];
+        if (!isset($extensions[$mime])) {
+            throw new ValidationException('Formato de imagem nao suportado. Use JPG, PNG, WEBP ou GIF.');
+        }
+
+        $baseDir = BASE_PATH . '/public/uploads/products/' . $companyId;
+        if (!is_dir($baseDir) && !mkdir($baseDir, 0775, true) && !is_dir($baseDir)) {
+            throw new ValidationException('Nao foi possivel preparar pasta de upload.');
+        }
+
+        $filename = 'prd_' . date('YmdHis') . '_' . bin2hex(random_bytes(5)) . '.' . $extensions[$mime];
+        $targetPath = $baseDir . '/' . $filename;
+        if (@file_put_contents($targetPath, $binary) === false) {
             throw new ValidationException('Nao foi possivel salvar a imagem enviada.');
         }
 
@@ -586,15 +692,50 @@ final class ProductService
 
     private function deleteLocalUploadedImage(string $imagePath): void
     {
-        if (!str_starts_with($imagePath, '/uploads/products/')) {
+        $normalizedPath = '/' . ltrim(str_replace('\\', '/', trim($imagePath)), '/');
+        if (str_starts_with($normalizedPath, '/public/')) {
+            $normalizedPath = '/' . ltrim(substr($normalizedPath, strlen('/public/')), '/');
+        }
+
+        if (!str_starts_with($normalizedPath, '/uploads/products/')) {
             return;
         }
 
-        $relativePath = str_replace('\\', '/', $imagePath);
-        $absolutePath = BASE_PATH . '/public' . $relativePath;
+        $absolutePath = BASE_PATH . '/public' . $normalizedPath;
         if (is_file($absolutePath)) {
             @unlink($absolutePath);
         }
+    }
+
+    private function normalizeImagePathForStorage(?string $path): ?string
+    {
+        $value = trim((string) ($path ?? ''));
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('#^(https?:)?//#i', $value) === 1) {
+            return $value;
+        }
+
+        $normalized = '/' . ltrim(str_replace('\\', '/', $value), '/');
+        if (str_starts_with($normalized, '/public/')) {
+            $normalized = '/' . ltrim(substr($normalized, strlen('/public/')), '/');
+        }
+
+        return $normalized;
+    }
+
+    private function uploadErrorMessage(int $error): string
+    {
+        return match ($error) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'A imagem excede o limite permitido pelo servidor. Tente um arquivo menor que 10MB.',
+            UPLOAD_ERR_PARTIAL => 'O upload da imagem foi interrompido. Tente novamente.',
+            UPLOAD_ERR_NO_TMP_DIR => 'Servidor sem pasta temporaria para upload de imagem.',
+            UPLOAD_ERR_CANT_WRITE => 'Servidor sem permissao para gravar o upload da imagem.',
+            UPLOAD_ERR_EXTENSION => 'Uma extensao do PHP bloqueou o upload da imagem.',
+            default => 'Falha no envio da imagem do produto.',
+        };
     }
 
     private function slugify(string $value): string
