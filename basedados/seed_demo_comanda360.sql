@@ -205,7 +205,39 @@ description = VALUES(description);
 DELETE FROM role_permissions;
 
 INSERT INTO role_permissions (role_id, permission_id)
-SELECT 1, id FROM permissions;
+SELECT 1, id FROM permissions
+WHERE slug IN (
+    'dashboard.view',
+    'products.view',
+    'products.create',
+    'products.edit',
+    'products.pause',
+    'categories.view',
+    'categories.create',
+    'categories.edit',
+    'additionals.view',
+    'additionals.create',
+    'additionals.edit',
+    'tables.view',
+    'tables.manage',
+    'commands.view',
+    'commands.create',
+    'commands.edit',
+    'orders.view',
+    'orders.create',
+    'orders.status',
+    'orders.cancel',
+    'payments.view',
+    'payments.create',
+    'cash_registers.open',
+    'cash_registers.close',
+    'reports.view',
+    'users.view',
+    'users.create',
+    'users.edit',
+    'settings.edit',
+    'themes.edit'
+);
 
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT 2, id FROM permissions

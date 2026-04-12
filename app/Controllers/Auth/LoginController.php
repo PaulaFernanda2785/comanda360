@@ -15,7 +15,8 @@ final class LoginController extends Controller
     public function show(Request $request): Response
     {
         if (Auth::check()) {
-            return $this->redirect('/admin/dashboard');
+            $user = Auth::user() ?? [];
+            return $this->redirect($this->resolveLandingRoute($user));
         }
 
         return $this->view('auth/login', [
@@ -39,7 +40,7 @@ final class LoginController extends Controller
 
             Auth::login($user);
 
-            return $this->redirect('/admin/dashboard');
+            return $this->redirect($this->resolveLandingRoute($user));
         } catch (RuntimeException $e) {
             return $this->view('auth/login', [
                 'title' => 'Login',
@@ -52,5 +53,17 @@ final class LoginController extends Controller
     {
         Auth::logout();
         return $this->redirect('/login');
+    }
+
+    private function resolveLandingRoute(array $user): string
+    {
+        if ((int) ($user['is_saas_user'] ?? 0) === 1 || (string) ($user['role_context'] ?? '') === 'saas') {
+            return '/saas/dashboard';
+        }
+
+        return match ((string) ($user['role_slug'] ?? '')) {
+            'waiter', 'kitchen', 'delivery' => '/admin/orders',
+            default => '/admin/dashboard',
+        };
     }
 }

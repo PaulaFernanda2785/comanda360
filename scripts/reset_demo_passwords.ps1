@@ -125,8 +125,8 @@ if ($null -eq $php) {
     throw 'PHP nao encontrado no PATH. Necessario para gerar o hash bcrypt.'
 }
 
-$passwordForPhp = $Password.Replace('\', '\\').Replace("'", "\'")
-$hash = (& php -r "echo password_hash('$passwordForPhp', PASSWORD_BCRYPT);").Trim()
+$passwordBase64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($Password))
+$hash = (& php -r "echo password_hash(base64_decode('$passwordBase64'), PASSWORD_BCRYPT);").Trim()
 if ($LASTEXITCODE -ne 0 -or $hash -eq '') {
     throw 'Falha ao gerar hash bcrypt da senha.'
 }

@@ -37,8 +37,9 @@ final class Router
             throw new HttpException('404 - Página não encontrada', 404);
         }
 
-        foreach ($route['middlewares'] as $middlewareClass) {
-            $middleware = new $middlewareClass();
+        foreach ($route['middlewares'] as $middlewareDefinition) {
+            [$middlewareClass, $args] = $this->resolveMiddleware($middlewareDefinition);
+            $middleware = new $middlewareClass(...$args);
             $result = $middleware->handle($request);
 
             if ($result instanceof Response) {
@@ -56,5 +57,19 @@ final class Router
         $controller = new $controllerClass();
 
         return $controller->$method($request);
+    }
+
+    private function resolveMiddleware(mixed $middlewareDefinition): array
+    {
+        if (is_string($middlewareDefinition)) {
+            return [$middlewareDefinition, []];
+        }
+
+        if (is_array($middlewareDefinition) && isset($middlewareDefinition[0]) && is_string($middlewareDefinition[0])) {
+            $args = array_slice($middlewareDefinition, 1);
+            return [$middlewareDefinition[0], $args];
+        }
+
+        throw new HttpException('500 - Middleware inválido na rota.', 500);
     }
 }

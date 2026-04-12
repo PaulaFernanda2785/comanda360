@@ -21,7 +21,8 @@ final class UserRepository
                 u.status,
                 u.is_saas_user,
                 r.slug AS role_slug,
-                r.name AS role_name
+                r.name AS role_name,
+                r.context AS role_context
             FROM users u
             INNER JOIN roles r ON r.id = u.role_id
             WHERE u.email = :email
