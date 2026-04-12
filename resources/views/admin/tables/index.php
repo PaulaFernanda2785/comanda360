@@ -3,7 +3,7 @@
         <h1>Mesas</h1>
         <p>Listagem de mesas vinculadas à empresa autenticada.</p>
     </div>
-    <a class="btn" href="/admin/tables/create">Nova mesa</a>
+    <a class="btn" href="<?= htmlspecialchars(base_url('/admin/tables/create')) ?>">Nova mesa</a>
 </div>
 
 <div class="card">

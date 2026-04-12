@@ -3,11 +3,11 @@
         <h1>Abrir Comanda</h1>
         <p>Abertura manual de comanda por mesa.</p>
     </div>
-    <a class="btn secondary" href="/admin/commands">Voltar</a>
+    <a class="btn secondary" href="<?= htmlspecialchars(base_url('/admin/commands')) ?>">Voltar</a>
 </div>
 
 <div class="card">
-    <form method="POST" action="/admin/commands/store">
+    <form method="POST" action="<?= htmlspecialchars(base_url('/admin/commands/store')) ?>">
         <div class="grid two">
             <div class="field">
                 <label for="table_id">Mesa</label>

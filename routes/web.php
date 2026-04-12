@@ -6,6 +6,7 @@ use App\Controllers\Admin\DashboardController;
 use App\Controllers\Admin\ProductController;
 use App\Controllers\Admin\TableController;
 use App\Controllers\Admin\CommandController;
+use App\Controllers\Admin\OrderController;
 use App\Middlewares\AuthMiddleware;
 
 /** @var \App\Core\Router $router */
@@ -28,3 +29,7 @@ $router->post('/admin/tables/store', [TableController::class, 'store'], [AuthMid
 $router->get('/admin/commands', [CommandController::class, 'index'], [AuthMiddleware::class]);
 $router->get('/admin/commands/create', [CommandController::class, 'create'], [AuthMiddleware::class]);
 $router->post('/admin/commands/store', [CommandController::class, 'store'], [AuthMiddleware::class]);
+
+$router->get('/admin/orders', [OrderController::class, 'index'], [AuthMiddleware::class]);
+$router->get('/admin/orders/create', [OrderController::class, 'create'], [AuthMiddleware::class]);
+$router->post('/admin/orders/store', [OrderController::class, 'store'], [AuthMiddleware::class]);

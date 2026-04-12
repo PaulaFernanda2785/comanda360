@@ -73,4 +73,29 @@ final class CommandRepository extends BaseRepository
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
     }
+
+    public function findOpenById(int $companyId, int $commandId): ?array
+    {
+        $stmt = $this->db()->prepare("
+            SELECT
+                id,
+                company_id,
+                table_id,
+                customer_id,
+                customer_name,
+                status
+            FROM commands
+            WHERE company_id = :company_id
+              AND id = :id
+              AND status = 'aberta'
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'id' => $commandId,
+        ]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
 }

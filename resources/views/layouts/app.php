@@ -32,12 +32,13 @@
 <body>
 <div class="shell">
     <aside>
-        <h2>SaaS Menu</h2>
-        <a href="/admin/dashboard">Dashboard</a>
-        <a href="/admin/products">Produtos</a>
-        <a href="/admin/tables">Mesas</a>
-        <a href="/admin/commands">Comandas</a>
-        <a href="/logout">Sair</a>
+        <h2>Comanda360</h2>
+        <a href="<?= htmlspecialchars(base_url('/admin/dashboard')) ?>">Dashboard</a>
+        <a href="<?= htmlspecialchars(base_url('/admin/products')) ?>">Produtos</a>
+        <a href="<?= htmlspecialchars(base_url('/admin/tables')) ?>">Mesas</a>
+        <a href="<?= htmlspecialchars(base_url('/admin/commands')) ?>">Comandas</a>
+        <a href="<?= htmlspecialchars(base_url('/admin/orders')) ?>">Pedidos</a>
+        <a href="<?= htmlspecialchars(base_url('/logout')) ?>">Sair</a>
     </aside>
     <main>
         <?php if (!empty($flashSuccess)): ?>

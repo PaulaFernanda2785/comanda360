@@ -3,7 +3,7 @@
         <h1>Comandas Abertas</h1>
         <p>Listagem de comandas abertas da empresa autenticada.</p>
     </div>
-    <a class="btn" href="/admin/commands/create">Abrir comanda</a>
+    <a class="btn" href="<?= htmlspecialchars(base_url('/admin/commands/create')) ?>">Abrir comanda</a>
 </div>
 
 <div class="card">

@@ -3,11 +3,11 @@
         <h1>Novo Produto</h1>
         <p>Cadastro inicial do módulo de produtos.</p>
     </div>
-    <a class="btn secondary" href="/admin/products">Voltar</a>
+    <a class="btn secondary" href="<?= htmlspecialchars(base_url('/admin/products')) ?>">Voltar</a>
 </div>
 
 <div class="card">
-    <form method="POST" action="/admin/products/store">
+    <form method="POST" action="<?= htmlspecialchars(base_url('/admin/products/store')) ?>">
         <div class="grid two">
             <div class="field">
                 <label for="name">Nome</label>

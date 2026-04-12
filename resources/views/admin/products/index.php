@@ -3,7 +3,7 @@
         <h1>Produtos</h1>
         <p>Listagem inicial do módulo administrativo de produtos.</p>
     </div>
-    <a class="btn" href="/admin/products/create">Novo produto</a>
+    <a class="btn" href="<?= htmlspecialchars(base_url('/admin/products/create')) ?>">Novo produto</a>
 </div>
 
 <div class="card">

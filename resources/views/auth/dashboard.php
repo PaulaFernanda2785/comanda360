@@ -8,8 +8,9 @@
     <p><strong>Empresa ID:</strong> <?= htmlspecialchars((string)($user['company_id'] ?? 'N/A')) ?></p>
 
     <p>
-        <a href="/admin/products">Produtos</a> |
-        <a href="/admin/tables">Mesas</a> |
-        <a href="/admin/commands">Comandas</a>
+        <a href="<?= htmlspecialchars(base_url('/admin/products')) ?>">Produtos</a> |
+        <a href="<?= htmlspecialchars(base_url('/admin/tables')) ?>">Mesas</a> |
+        <a href="<?= htmlspecialchars(base_url('/admin/commands')) ?>">Comandas</a> |
+        <a href="<?= htmlspecialchars(base_url('/admin/orders')) ?>">Pedidos</a>
     </p>
 </div>

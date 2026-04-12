@@ -72,4 +72,30 @@ final class ProductRepository extends BaseRepository
 
         return (int) $this->db()->lastInsertId();
     }
+
+    public function findByIdForCompany(int $companyId, int $productId): ?array
+    {
+        $stmt = $this->db()->prepare("
+            SELECT
+                id,
+                company_id,
+                name,
+                price,
+                promotional_price,
+                is_active,
+                is_paused
+            FROM products
+            WHERE company_id = :company_id
+              AND id = :id
+              AND deleted_at IS NULL
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'id' => $productId,
+        ]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
 }

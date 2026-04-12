@@ -5,7 +5,7 @@
     <div class="error"><?= htmlspecialchars($error) ?></div>
 <?php endif; ?>
 
-<form method="POST" action="/login">
+<form method="POST" action="<?= htmlspecialchars(base_url('/login')) ?>">
     <label for="email">E-mail</label>
     <input id="email" name="email" type="email" required>
 
