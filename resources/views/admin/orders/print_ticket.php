@@ -2,29 +2,44 @@
 $context = is_array($context ?? null) ? $context : [];
 $order = is_array($context['order'] ?? null) ? $context['order'] : [];
 $items = is_array($context['items'] ?? null) ? $context['items'] : [];
+$ordersContext = is_array($context['orders'] ?? null) ? $context['orders'] : [];
+$group = is_array($context['group'] ?? null) ? $context['group'] : [];
+$isGrouped = !empty($context['is_grouped']);
 $generatedAt = (string) ($context['generated_at'] ?? date('Y-m-d H:i:s'));
+
+if ($ordersContext === [] && $order !== []) {
+    $ordersContext = [[
+        'order' => $order,
+        'items' => $items,
+    ]];
+}
 
 $companyName = trim((string) ($order['company_name'] ?? 'Empresa'));
 $companyLogoPath = trim((string) ($order['company_logo_path'] ?? ''));
 $companyLogoUrl = $companyLogoPath !== '' ? asset_url($companyLogoPath) : '';
 
-$orderNumber = (string) ($order['order_number'] ?? '-');
-$tableNumber = $order['table_number'] !== null ? (int) $order['table_number'] : null;
-$commandId = $order['command_id'] !== null ? (int) $order['command_id'] : null;
-$customerName = trim((string) ($order['customer_name'] ?? ''));
+$groupOrderNumbers = is_array($group['order_numbers'] ?? null) ? $group['order_numbers'] : [];
+$orderNumber = $isGrouped
+    ? 'Agrupado (' . count($ordersContext) . ' pedidos)'
+    : (string) ($order['order_number'] ?? '-');
+$tableNumber = $group['table_number'] ?? ($order['table_number'] ?? null);
+$tableNumber = $tableNumber !== null ? (int) $tableNumber : null;
+$commandId = $group['command_id'] ?? ($order['command_id'] ?? null);
+$commandId = $commandId !== null ? (int) $commandId : null;
+$customerName = trim((string) ($group['customer_name'] ?? ($order['customer_name'] ?? '')));
 $createdAt = (string) ($order['created_at'] ?? '-');
-$statusValue = (string) ($order['status'] ?? '');
-$paymentStatusValue = (string) ($order['payment_status'] ?? '');
-$notes = trim((string) ($order['notes'] ?? ''));
+$statusValue = (string) ($group['status'] ?? ($order['status'] ?? ''));
+$paymentStatusValue = (string) ($group['payment_status'] ?? ($order['payment_status'] ?? ''));
+$notes = trim((string) ($group['notes'] ?? ($order['notes'] ?? '')));
 $returnOrderId = isset($_GET['return_order_id']) ? (int) $_GET['return_order_id'] : 0;
 $backToOrdersUrl = $returnOrderId > 0
     ? base_url('/admin/orders?open_order_id=' . $returnOrderId)
     : base_url('/admin/orders');
 
-$subtotal = (float) ($order['subtotal_amount'] ?? 0);
-$discount = (float) ($order['discount_amount'] ?? 0);
-$deliveryFee = (float) ($order['delivery_fee'] ?? 0);
-$total = (float) ($order['total_amount'] ?? 0);
+$subtotal = (float) ($group['subtotal_amount'] ?? ($order['subtotal_amount'] ?? 0));
+$discount = (float) ($group['discount_amount'] ?? ($order['discount_amount'] ?? 0));
+$deliveryFee = (float) ($group['delivery_fee'] ?? ($order['delivery_fee'] ?? 0));
+$total = (float) ($group['total_amount'] ?? ($order['total_amount'] ?? 0));
 ?>
 
 <style>
@@ -60,6 +75,9 @@ $total = (float) ($order['total_amount'] ?? 0);
     .ticket-item-meta{font-size:11px;color:#334155}
     .ticket-additional{padding-left:10px;font-size:11px;color:#334155;overflow-wrap:anywhere}
     .ticket-total{font-size:14px;font-weight:700}
+    .ticket-order-section{padding:6px 0;border-bottom:1px dashed #cbd5e1}
+    .ticket-order-section:last-child{border-bottom:0}
+    .ticket-order-title{font-size:12px;font-weight:700;color:#0f172a}
 
     @page { size: 80mm auto; margin: 4mm; }
 
@@ -111,10 +129,18 @@ $total = (float) ($order['total_amount'] ?? 0);
                 <div class="ticket-meta-item"><strong>Mesa</strong><span><?= $tableNumber !== null ? 'Mesa ' . $tableNumber : '-' ?></span></div>
                 <div class="ticket-meta-item"><strong>Comanda</strong><span><?= $commandId !== null ? '#' . $commandId : '-' ?></span></div>
                 <div class="ticket-meta-item"><strong>Cliente</strong><span><?= htmlspecialchars($customerName !== '' ? $customerName : '-') ?></span></div>
+                <div class="ticket-meta-item"><strong>Pedidos</strong><span><?= count($ordersContext) ?></span></div>
                 <div class="ticket-meta-item"><strong>Criado em</strong><span><?= htmlspecialchars($createdAt) ?></span></div>
                 <div class="ticket-meta-item"><strong>Subtotal</strong><span>R$ <?= number_format($subtotal, 2, ',', '.') ?></span></div>
                 <div class="ticket-meta-item"><strong>Total</strong><span>R$ <?= number_format($total, 2, ',', '.') ?></span></div>
             </div>
+
+            <?php if ($isGrouped && $groupOrderNumbers !== []): ?>
+                <div class="ticket-order-notes">
+                    <strong>Pedidos agrupados</strong>
+                    <span><?= htmlspecialchars(implode(' | ', array_map(static fn (mixed $value): string => (string) $value, $groupOrderNumbers))) ?></span>
+                </div>
+            <?php endif; ?>
 
             <?php if ($notes !== ''): ?>
                 <div class="ticket-order-notes">
@@ -149,36 +175,58 @@ $total = (float) ($order['total_amount'] ?? 0);
                     <div class="ticket-row"><span>Data</span><span><?= htmlspecialchars($createdAt) ?></span></div>
                     <div class="ticket-row"><span>Status</span><span><?= htmlspecialchars(status_label('order_status', $statusValue)) ?></span></div>
                     <div class="ticket-row"><span>Pagamento</span><span><?= htmlspecialchars(status_label('order_payment_status', $paymentStatusValue)) ?></span></div>
+                    <div class="ticket-row"><span>Pedidos no ticket</span><span><?= count($ordersContext) ?></span></div>
 
                     <div class="ticket-divider"></div>
 
-                    <?php if (empty($items)): ?>
-                        <div class="ticket-muted">Sem itens para este pedido.</div>
+                    <?php if (empty($ordersContext)): ?>
+                        <div class="ticket-muted">Sem pedidos para este ticket.</div>
                     <?php else: ?>
-                        <?php foreach ($items as $item): ?>
+                        <?php foreach ($ordersContext as $bundle): ?>
                             <?php
-                            $itemAdditionals = is_array($item['additionals'] ?? null) ? $item['additionals'] : [];
-                            $itemName = (string) ($item['name'] ?? 'Produto');
-                            $itemQty = (int) ($item['quantity'] ?? 0);
-                            $itemSubtotal = (float) ($item['line_subtotal'] ?? 0);
-                            $itemUnitPrice = (float) ($item['unit_price'] ?? 0);
-                            $itemNotes = trim((string) ($item['notes'] ?? ''));
+                            $bundleOrder = is_array($bundle['order'] ?? null) ? $bundle['order'] : [];
+                            $bundleItems = is_array($bundle['items'] ?? null) ? $bundle['items'] : [];
+                            $bundleOrderNumber = (string) ($bundleOrder['order_number'] ?? '-');
+                            $bundleCreatedAt = (string) ($bundleOrder['created_at'] ?? '-');
+                            $bundleStatus = (string) ($bundleOrder['status'] ?? '');
+                            $bundlePaymentStatus = (string) ($bundleOrder['payment_status'] ?? '');
                             ?>
-                            <div class="ticket-item">
+                            <div class="ticket-order-section">
                                 <div class="ticket-row">
-                                    <span class="ticket-item-name"><?= $itemQty ?>x <?= htmlspecialchars($itemName) ?></span>
-                                    <strong>R$ <?= number_format($itemSubtotal, 2, ',', '.') ?></strong>
+                                    <span class="ticket-order-title"><?= htmlspecialchars($bundleOrderNumber) ?></span>
+                                    <strong>R$ <?= number_format((float) ($bundleOrder['total_amount'] ?? 0), 2, ',', '.') ?></strong>
                                 </div>
-                                <div class="ticket-item-meta">Unitario: R$ <?= number_format($itemUnitPrice, 2, ',', '.') ?></div>
-                                <?php if ($itemNotes !== ''): ?>
-                                    <div class="ticket-item-meta">Obs.: <?= htmlspecialchars($itemNotes) ?></div>
+                                <div class="ticket-item-meta">Data: <?= htmlspecialchars($bundleCreatedAt) ?> | Status: <?= htmlspecialchars(status_label('order_status', $bundleStatus)) ?> | Pagamento: <?= htmlspecialchars(status_label('order_payment_status', $bundlePaymentStatus)) ?></div>
+                                <?php if (empty($bundleItems)): ?>
+                                    <div class="ticket-item-meta">Sem itens detalhados neste pedido.</div>
+                                <?php else: ?>
+                                    <?php foreach ($bundleItems as $item): ?>
+                                        <?php
+                                        $itemAdditionals = is_array($item['additionals'] ?? null) ? $item['additionals'] : [];
+                                        $itemName = (string) ($item['name'] ?? 'Produto');
+                                        $itemQty = (int) ($item['quantity'] ?? 0);
+                                        $itemSubtotal = (float) ($item['line_subtotal'] ?? 0);
+                                        $itemUnitPrice = (float) ($item['unit_price'] ?? 0);
+                                        $itemNotes = trim((string) ($item['notes'] ?? ''));
+                                        ?>
+                                        <div class="ticket-item">
+                                            <div class="ticket-row">
+                                                <span class="ticket-item-name"><?= $itemQty ?>x <?= htmlspecialchars($itemName) ?></span>
+                                                <strong>R$ <?= number_format($itemSubtotal, 2, ',', '.') ?></strong>
+                                            </div>
+                                            <div class="ticket-item-meta">Unitario: R$ <?= number_format($itemUnitPrice, 2, ',', '.') ?></div>
+                                            <?php if ($itemNotes !== ''): ?>
+                                                <div class="ticket-item-meta">Obs.: <?= htmlspecialchars($itemNotes) ?></div>
+                                            <?php endif; ?>
+                                            <?php foreach ($itemAdditionals as $additional): ?>
+                                                <div class="ticket-additional">
+                                                    + <?= (int) ($additional['quantity'] ?? 0) ?>x <?= htmlspecialchars((string) ($additional['name'] ?? 'Adicional')) ?>
+                                                    (R$ <?= number_format((float) ($additional['line_subtotal'] ?? 0), 2, ',', '.') ?>)
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endforeach; ?>
                                 <?php endif; ?>
-                                <?php foreach ($itemAdditionals as $additional): ?>
-                                    <div class="ticket-additional">
-                                        + <?= (int) ($additional['quantity'] ?? 0) ?>x <?= htmlspecialchars((string) ($additional['name'] ?? 'Adicional')) ?>
-                                        (R$ <?= number_format((float) ($additional['line_subtotal'] ?? 0), 2, ',', '.') ?>)
-                                    </div>
-                                <?php endforeach; ?>
                             </div>
                         <?php endforeach; ?>
                     <?php endif; ?>

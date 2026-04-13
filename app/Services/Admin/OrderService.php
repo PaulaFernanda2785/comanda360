@@ -137,6 +137,13 @@ final class OrderService
             $groups[$groupKey]['amount_total'] = round(((float) $groups[$groupKey]['amount_total']) + $totalAmount, 2);
         }
 
+        foreach ($groups as &$group) {
+            $tableOrders = is_array($group['orders'] ?? null) ? $group['orders'] : [];
+            $group['customer_cards'] = $this->groupOrdersByCustomer($tableOrders);
+            $group['customer_cards_count'] = count($group['customer_cards']);
+        }
+        unset($group);
+
         $tables = array_values($groups);
         usort($tables, static function (array $left, array $right): int {
             $leftNumber = $left['table_number'];
@@ -266,24 +273,122 @@ final class OrderService
 
     public function ticketPrintContext(int $companyId, int $orderId): array
     {
-        if ($orderId <= 0) {
+        return $this->ticketPrintContextByOrderIds($companyId, [$orderId]);
+    }
+
+    public function ticketPrintContextByOrderIds(int $companyId, array $orderIds): array
+    {
+        $orderIds = array_values(array_unique(array_map(static fn (mixed $id): int => (int) $id, $orderIds)));
+        $orderIds = array_values(array_filter($orderIds, static fn (int $id): bool => $id > 0));
+
+        if ($orderIds === []) {
             throw new ValidationException('Pedido invalido para impressao.');
         }
 
-        $order = $this->orders->findWithContextById($companyId, $orderId);
-        if ($order === null) {
-            throw new ValidationException('Pedido nao pertence a empresa autenticada.');
+        $orders = [];
+        foreach ($orderIds as $orderId) {
+            $order = $this->orders->findWithContextById($companyId, $orderId);
+            if ($order === null) {
+                throw new ValidationException('Pedido nao pertence a empresa autenticada.');
+            }
+            $orders[] = $order;
         }
 
-        $itemsRows = $this->orderItems->activeItemsByOrderIds($companyId, [$orderId]);
+        $itemsRows = $this->orderItems->activeItemsByOrderIds($companyId, $orderIds);
         $orderItemIds = array_map(static fn (array $item): int => (int) ($item['id'] ?? 0), $itemsRows);
         $additionalRows = $this->orderItems->additionalsByOrderItemIds($companyId, $orderItemIds);
         $additionalsByOrderItemId = $this->indexAdditionalsByOrderItemId($additionalRows);
         $itemsByOrderId = $this->indexItemsByOrderId($itemsRows, $additionalsByOrderItemId);
 
+        usort($orders, static function (array $left, array $right): int {
+            $leftDate = (string) ($left['created_at'] ?? '');
+            $rightDate = (string) ($right['created_at'] ?? '');
+            if ($leftDate === $rightDate) {
+                return ((int) ($left['id'] ?? 0)) <=> ((int) ($right['id'] ?? 0));
+            }
+            return $leftDate <=> $rightDate;
+        });
+
+        $ordersWithItems = [];
+        foreach ($orders as $order) {
+            $currentOrderId = (int) ($order['id'] ?? 0);
+            $ordersWithItems[] = [
+                'order' => $order,
+                'items' => is_array($itemsByOrderId[$currentOrderId] ?? null) ? $itemsByOrderId[$currentOrderId] : [],
+            ];
+        }
+
+        $firstOrder = $orders[0];
+        $isGrouped = count($orders) > 1;
+        $groupTotals = [
+            'subtotal_amount' => 0.0,
+            'discount_amount' => 0.0,
+            'delivery_fee' => 0.0,
+            'total_amount' => 0.0,
+        ];
+        foreach ($orders as $order) {
+            $groupTotals['subtotal_amount'] = round($groupTotals['subtotal_amount'] + (float) ($order['subtotal_amount'] ?? 0), 2);
+            $groupTotals['discount_amount'] = round($groupTotals['discount_amount'] + (float) ($order['discount_amount'] ?? 0), 2);
+            $groupTotals['delivery_fee'] = round($groupTotals['delivery_fee'] + (float) ($order['delivery_fee'] ?? 0), 2);
+            $groupTotals['total_amount'] = round($groupTotals['total_amount'] + (float) ($order['total_amount'] ?? 0), 2);
+        }
+
+        $commandIds = [];
+        $customerNames = [];
+        $tableNumbers = [];
+        $notesList = [];
+        $statuses = [];
+        $paymentStatuses = [];
+        $orderNumbers = [];
+        foreach ($orders as $order) {
+            $commandRaw = $order['command_id'] ?? null;
+            if ($commandRaw !== null) {
+                $commandIds[(int) $commandRaw] = true;
+            }
+            $customerName = trim((string) ($order['customer_name'] ?? ''));
+            if ($customerName !== '') {
+                $customerNames[$customerName] = true;
+            }
+            $tableRaw = $order['table_number'] ?? null;
+            if ($tableRaw !== null) {
+                $tableNumbers[(int) $tableRaw] = true;
+            }
+            $notes = trim((string) ($order['notes'] ?? ''));
+            if ($notes !== '') {
+                $notesList[] = $notes;
+            }
+            $statuses[] = (string) ($order['status'] ?? '');
+            $paymentStatuses[] = (string) ($order['payment_status'] ?? '');
+            $orderNumbers[] = (string) ($order['order_number'] ?? '-');
+        }
+
+        $groupCustomerName = count($customerNames) === 1 ? (string) array_key_first($customerNames) : '';
+        $groupCommandId = count($commandIds) === 1 ? (int) array_key_first($commandIds) : null;
+        $groupTableNumber = count($tableNumbers) === 1 ? (int) array_key_first($tableNumbers) : null;
+        $groupStatus = $this->resolveGroupOperationalStatus($statuses);
+        $groupPaymentStatus = $this->resolveGroupPaymentStatus($paymentStatuses);
+        $groupNotes = $notesList !== [] ? implode(' | ', $notesList) : null;
+
         return [
-            'order' => $order,
-            'items' => is_array($itemsByOrderId[$orderId] ?? null) ? $itemsByOrderId[$orderId] : [],
+            'order' => $firstOrder,
+            'items' => is_array($itemsByOrderId[(int) ($firstOrder['id'] ?? 0)] ?? null) ? $itemsByOrderId[(int) ($firstOrder['id'] ?? 0)] : [],
+            'orders' => $ordersWithItems,
+            'is_grouped' => $isGrouped,
+            'group' => [
+                'order_ids' => $orderIds,
+                'order_numbers' => $orderNumbers,
+                'orders_count' => count($orders),
+                'customer_name' => $groupCustomerName,
+                'command_id' => $groupCommandId,
+                'table_number' => $groupTableNumber,
+                'status' => $groupStatus,
+                'payment_status' => $groupPaymentStatus,
+                'notes' => $groupNotes,
+                'subtotal_amount' => $groupTotals['subtotal_amount'],
+                'discount_amount' => $groupTotals['discount_amount'],
+                'delivery_fee' => $groupTotals['delivery_fee'],
+                'total_amount' => $groupTotals['total_amount'],
+            ],
             'generated_at' => date('Y-m-d H:i:s'),
         ];
     }
@@ -735,5 +840,189 @@ final class OrderService
             'partial' => 'partial',
             default => 'canceled',
         };
+    }
+
+    private function groupOrdersByCustomer(array $orders): array
+    {
+        $cards = [];
+
+        foreach ($orders as $order) {
+            if (!is_array($order)) {
+                continue;
+            }
+
+            $orderId = (int) ($order['id'] ?? 0);
+            if ($orderId <= 0) {
+                continue;
+            }
+
+            $commandId = $order['command_id'] !== null ? (int) $order['command_id'] : null;
+            $customerName = trim((string) ($order['customer_name'] ?? ''));
+            $groupKey = $this->customerCardGroupKey($orderId, $commandId, $customerName);
+
+            if (!isset($cards[$groupKey])) {
+                $cards[$groupKey] = [
+                    'key' => $groupKey,
+                    'anchor_order_id' => $orderId,
+                    'command_id' => $commandId,
+                    'customer_name' => $customerName,
+                    'orders' => [],
+                    'order_ids' => [],
+                    'orders_count' => 0,
+                    'items_total' => 0,
+                    'amount_total' => 0.0,
+                    'latest_created_at' => null,
+                    'latest_status_changed_at' => null,
+                    'is_paid_waiting_production' => false,
+                    'can_send_kitchen' => false,
+                ];
+            }
+
+            $cards[$groupKey]['orders'][] = $order;
+            $cards[$groupKey]['order_ids'][] = $orderId;
+            $cards[$groupKey]['orders_count']++;
+            $cards[$groupKey]['items_total'] += (int) ($order['items_count'] ?? 0);
+            $cards[$groupKey]['amount_total'] = round(((float) $cards[$groupKey]['amount_total']) + (float) ($order['total_amount'] ?? 0), 2);
+            $cards[$groupKey]['is_paid_waiting_production'] = $cards[$groupKey]['is_paid_waiting_production'] || !empty($order['is_paid_waiting_production']);
+            $cards[$groupKey]['can_send_kitchen'] = $cards[$groupKey]['can_send_kitchen'] || !empty($order['can_send_kitchen']);
+
+            $createdAt = (string) ($order['created_at'] ?? '');
+            $latestChangedAt = (string) ($order['latest_status_changed_at'] ?? '');
+            if ($createdAt !== '' && (($cards[$groupKey]['latest_created_at'] ?? '') === '' || $createdAt > (string) $cards[$groupKey]['latest_created_at'])) {
+                $cards[$groupKey]['latest_created_at'] = $createdAt;
+                $cards[$groupKey]['anchor_order_id'] = $orderId;
+            }
+            if ($latestChangedAt !== '' && (($cards[$groupKey]['latest_status_changed_at'] ?? '') === '' || $latestChangedAt > (string) $cards[$groupKey]['latest_status_changed_at'])) {
+                $cards[$groupKey]['latest_status_changed_at'] = $latestChangedAt;
+            }
+        }
+
+        foreach ($cards as &$card) {
+            $cardOrders = is_array($card['orders'] ?? null) ? $card['orders'] : [];
+            usort($cardOrders, static function (array $left, array $right): int {
+                $leftCreated = (string) ($left['created_at'] ?? '');
+                $rightCreated = (string) ($right['created_at'] ?? '');
+                if ($leftCreated === $rightCreated) {
+                    return ((int) ($right['id'] ?? 0)) <=> ((int) ($left['id'] ?? 0));
+                }
+                return $rightCreated <=> $leftCreated;
+            });
+            $card['orders'] = $cardOrders;
+
+            $statuses = [];
+            $paymentStatuses = [];
+            foreach ($cardOrders as $order) {
+                $statuses[] = (string) ($order['status'] ?? '');
+                $paymentStatuses[] = (string) ($order['payment_status'] ?? '');
+            }
+
+            $resolvedStatus = $this->resolveGroupOperationalStatus($statuses);
+            $card['status'] = $resolvedStatus;
+            $card['payment_status'] = $this->resolveGroupPaymentStatus($paymentStatuses);
+            $card['status_border_class'] = in_array($resolvedStatus, ['pending', 'received', 'preparing', 'ready', 'delivered'], true)
+                ? 'status-op-' . $resolvedStatus
+                : 'status-op-pending';
+            $card['customer_label'] = $card['customer_name'] !== '' ? (string) $card['customer_name'] : 'Nao informado';
+            $card['command_label'] = $card['command_id'] !== null
+                ? 'Comanda ativa #' . (int) $card['command_id']
+                : 'Pedido sem comanda';
+            $card['order_ids_csv'] = implode(',', array_map(static fn (mixed $id): string => (string) ((int) $id), $card['order_ids']));
+        }
+        unset($card);
+
+        $cards = array_values($cards);
+        usort($cards, static function (array $left, array $right): int {
+            $leftCreated = (string) ($left['latest_created_at'] ?? '');
+            $rightCreated = (string) ($right['latest_created_at'] ?? '');
+            if ($leftCreated === $rightCreated) {
+                return ((int) ($right['anchor_order_id'] ?? 0)) <=> ((int) ($left['anchor_order_id'] ?? 0));
+            }
+            return $rightCreated <=> $leftCreated;
+        });
+
+        return $cards;
+    }
+
+    private function customerCardGroupKey(int $orderId, ?int $commandId, string $customerName): string
+    {
+        if ($commandId !== null && $commandId > 0) {
+            return 'command_' . $commandId;
+        }
+
+        if ($customerName !== '') {
+            return 'customer_' . $this->normalizeGroupToken($customerName);
+        }
+
+        return 'order_' . $orderId;
+    }
+
+    private function normalizeGroupToken(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+        $normalized = preg_replace('/\s+/', '_', $normalized) ?? '';
+        $normalized = preg_replace('/[^a-z0-9_]/', '', $normalized) ?? '';
+
+        if ($normalized !== '') {
+            return $normalized;
+        }
+
+        return md5($value);
+    }
+
+    private function resolveGroupOperationalStatus(array $statuses): string
+    {
+        $priority = [
+            'pending' => 1,
+            'received' => 2,
+            'preparing' => 3,
+            'ready' => 4,
+            'delivered' => 5,
+        ];
+
+        $resolvedStatus = 'pending';
+        $resolvedPriority = PHP_INT_MAX;
+
+        foreach ($statuses as $statusRaw) {
+            $status = (string) $statusRaw;
+            $statusPriority = $priority[$status] ?? PHP_INT_MAX;
+            if ($statusPriority < $resolvedPriority) {
+                $resolvedPriority = $statusPriority;
+                $resolvedStatus = $status;
+            }
+        }
+
+        return in_array($resolvedStatus, ['pending', 'received', 'preparing', 'ready', 'delivered'], true)
+            ? $resolvedStatus
+            : 'pending';
+    }
+
+    private function resolveGroupPaymentStatus(array $paymentStatuses): string
+    {
+        $hasPending = false;
+        $hasPartial = false;
+        $hasPaid = false;
+
+        foreach ($paymentStatuses as $paymentStatusRaw) {
+            $paymentStatus = (string) $paymentStatusRaw;
+            if ($paymentStatus === 'pending') {
+                $hasPending = true;
+            } elseif ($paymentStatus === 'partial') {
+                $hasPartial = true;
+            } elseif ($paymentStatus === 'paid') {
+                $hasPaid = true;
+            }
+        }
+
+        if ($hasPending) {
+            return 'pending';
+        }
+        if ($hasPartial) {
+            return 'partial';
+        }
+        if ($hasPaid) {
+            return 'paid';
+        }
+
+        return 'pending';
     }
 }

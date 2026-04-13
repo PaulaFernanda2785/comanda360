@@ -122,6 +122,13 @@ foreach ($ordersByTable as $tablePanel) {
     .order-modal-feedback{padding:10px;border-radius:8px;font-size:13px}
     .order-modal-feedback.success{background:#dcfce7;color:#166534}
     .order-modal-feedback.error{background:#fee2e2;color:#991b1b}
+    .modal-orders-stack{display:grid;gap:12px}
+    .modal-order-card{border:1px solid #dbeafe;border-radius:12px;background:#fff;padding:12px;display:grid;gap:10px}
+    .modal-order-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+    .modal-order-head-title{display:grid;gap:4px}
+    .modal-order-head-title strong{font-size:15px;color:#0f172a;overflow-wrap:anywhere}
+    .modal-order-head-title span{font-size:12px;color:#475569}
+    .modal-order-empty{border:1px dashed #cbd5e1;border-radius:10px;padding:12px;color:#64748b;background:#f8fafc}
     .modal-footer{display:flex;justify-content:flex-end;padding-top:2px}
 
     @media (max-width:1160px){
@@ -193,10 +200,10 @@ foreach ($ordersByTable as $tablePanel) {
 
     <div class="card">
         <div class="search-row">
-            <input id="orderSearch" type="text" placeholder="Buscar por mesa, numero do pedido, status, pagamento, comanda ou horario">
+            <input id="orderSearch" type="text" placeholder="Digite o numero da mesa (ex.: 10) ou use filtros: status:pronto pagamento:pago cliente:ana">
             <button id="clearOrderSearch" class="btn secondary" type="button">Limpar</button>
         </div>
-        <div id="orderSearchInfo" class="search-info">Digite para filtrar as comandas em tempo real.</div>
+        <div id="orderSearchInfo" class="search-info">Digite apenas o numero da mesa para filtrar rapido, ou use busca livre/filtros por campo.</div>
     </div>
 
     <?php if (empty($ordersByTable)): ?>
@@ -204,13 +211,17 @@ foreach ($ordersByTable as $tablePanel) {
     <?php else: ?>
         <div class="tables-stack" id="tablesStack">
             <?php foreach ($ordersByTable as $tablePanel): ?>
-                <?php $orders = is_array($tablePanel['orders'] ?? null) ? $tablePanel['orders'] : []; ?>
+                <?php
+                $orders = is_array($tablePanel['customer_cards'] ?? null) ? $tablePanel['customer_cards'] : [];
+                $ordersCountRaw = (int) ($tablePanel['orders_count'] ?? 0);
+                ?>
                 <section class="table-panel" data-table-panel>
                     <div class="table-panel-header">
                         <div>
                             <h3 class="table-panel-title"><?= htmlspecialchars((string) ($tablePanel['label'] ?? 'Mesa')) ?></h3>
                             <p class="table-panel-subtitle">
-                                Comandas: <?= (int) ($tablePanel['orders_count'] ?? 0) ?>
+                                Clientes/Comandas: <?= count($orders) ?>
+                                | Pedidos: <?= $ordersCountRaw ?>
                                 | Itens: <?= (int) ($tablePanel['items_total'] ?? 0) ?>
                                 | Total em aberto: R$ <?= number_format((float) ($tablePanel['amount_total'] ?? 0), 2, ',', '.') ?>
                             </p>
@@ -220,21 +231,13 @@ foreach ($ordersByTable as $tablePanel) {
                     <div class="orders-grid">
                         <?php foreach ($orders as $order): ?>
                             <?php
-                            $nextStatuses = $order['next_statuses'] ?? [];
-                            if (!is_array($nextStatuses)) {
-                                $nextStatuses = [];
+                            $cardOrders = is_array($order['orders'] ?? null) ? $order['orders'] : [];
+                            $orderId = (int) ($order['anchor_order_id'] ?? 0);
+                            if ($orderId <= 0 && isset($cardOrders[0]) && is_array($cardOrders[0])) {
+                                $orderId = (int) ($cardOrders[0]['id'] ?? 0);
                             }
-                            if (!$canCancelOrder) {
-                                $nextStatuses = array_values(array_filter(
-                                    $nextStatuses,
-                                    static fn (mixed $status): bool => (string) $status !== 'canceled'
-                                ));
-                            }
-                            if (!empty($order['can_send_kitchen'])) {
-                                $nextStatuses = array_values(array_filter(
-                                    $nextStatuses,
-                                    static fn (mixed $status): bool => (string) $status !== 'received'
-                                ));
+                            if ($orderId <= 0) {
+                                continue;
                             }
 
                             $statusValue = (string) ($order['status'] ?? 'pending');
@@ -242,40 +245,117 @@ foreach ($ordersByTable as $tablePanel) {
                                 ? 'status-op-' . $statusValue
                                 : 'status-op-pending';
 
-                            $orderItems = is_array($order['items'] ?? null) ? $order['items'] : [];
                             $orderItemsSearchParts = [];
-                            foreach ($orderItems as $searchItem) {
-                                if (!is_array($searchItem)) {
+                            $orderNumbersParts = [];
+                            $orderStatusesRawParts = [];
+                            $orderStatusesLabelParts = [];
+                            $paymentStatusesRawParts = [];
+                            $paymentStatusesLabelParts = [];
+                            $latestCreatedCandidates = [];
+                            $latestChangedCandidates = [];
+                            foreach ($cardOrders as $cardOrder) {
+                                if (!is_array($cardOrder)) {
                                     continue;
                                 }
-                                $orderItemsSearchParts[] = (string) ($searchItem['name'] ?? $searchItem['product_name_snapshot'] ?? '');
-                                $orderItemsSearchParts[] = (string) ($searchItem['notes'] ?? '');
-                                $searchAdditionals = is_array($searchItem['additionals'] ?? null) ? $searchItem['additionals'] : [];
-                                foreach ($searchAdditionals as $searchAdditional) {
-                                    if (!is_array($searchAdditional)) {
+                                $orderNumbersParts[] = (string) ($cardOrder['order_number'] ?? '');
+                                $currentStatusRaw = (string) ($cardOrder['status'] ?? '');
+                                $orderStatusesRawParts[] = $currentStatusRaw;
+                                $orderStatusesLabelParts[] = (string) status_label('order_status', $currentStatusRaw);
+                                $currentPaymentRaw = (string) ($cardOrder['payment_status'] ?? '');
+                                $paymentStatusesRawParts[] = $currentPaymentRaw;
+                                $paymentStatusesLabelParts[] = (string) status_label('order_payment_status', $currentPaymentRaw);
+                                $latestCreatedCandidates[] = (string) ($cardOrder['created_at'] ?? '');
+                                $latestChangedCandidates[] = (string) ($cardOrder['latest_status_changed_at'] ?? '');
+                                $cardItems = is_array($cardOrder['items'] ?? null) ? $cardOrder['items'] : [];
+                                foreach ($cardItems as $searchItem) {
+                                    if (!is_array($searchItem)) {
                                         continue;
                                     }
-                                    $orderItemsSearchParts[] = (string) ($searchAdditional['name'] ?? '');
+                                    $orderItemsSearchParts[] = (string) ($searchItem['name'] ?? $searchItem['product_name_snapshot'] ?? '');
+                                    $orderItemsSearchParts[] = (string) ($searchItem['notes'] ?? '');
+                                    $searchAdditionals = is_array($searchItem['additionals'] ?? null) ? $searchItem['additionals'] : [];
+                                    foreach ($searchAdditionals as $searchAdditional) {
+                                        if (!is_array($searchAdditional)) {
+                                            continue;
+                                        }
+                                        $orderItemsSearchParts[] = (string) ($searchAdditional['name'] ?? '');
+                                    }
                                 }
                             }
-                            $hasOperationalActions = ($canSendKitchen && !empty($order['can_send_kitchen'])) || ($canUpdateStatus && !empty($nextStatuses));
 
-                            $searchText = strtolower(trim(implode(' ', [
-                                (string) ($tablePanel['label'] ?? ''),
-                                (string) ($order['order_number'] ?? ''),
-                                (string) ($order['customer_name'] ?? ''),
-                                (string) ($order['status'] ?? ''),
-                                (string) status_label('order_status', $order['status'] ?? null),
-                                (string) ($order['payment_status'] ?? ''),
-                                (string) status_label('order_payment_status', $order['payment_status'] ?? null),
-                                (string) ($order['created_at'] ?? ''),
-                                (string) ($order['latest_status_changed_at'] ?? ''),
-                                number_format((float) ($order['total_amount'] ?? 0), 2, '.', ''),
-                                implode(' ', $orderItemsSearchParts),
-                            ])));
-                            ?>
-                            <?php
-                            $orderId = (int) ($order['id'] ?? 0);
+                            $tableLabel = (string) ($tablePanel['label'] ?? '');
+                            $tableNumberMatches = [];
+                            preg_match_all('/\d+/', $tableLabel, $tableNumberMatches);
+                            $tableNumberSearch = trim(implode(' ', is_array($tableNumberMatches[0] ?? null) ? $tableNumberMatches[0] : []));
+                            $orderNumberValue = trim(implode(' ', array_values(array_filter($orderNumbersParts, static fn (mixed $value): bool => trim((string) $value) !== ''))));
+                            $customerNameValue = (string) ($order['customer_name'] ?? '');
+                            $orderStatusRawValue = trim(implode(' ', array_values(array_unique(array_filter(array_merge(
+                                [(string) ($order['status'] ?? '')],
+                                $orderStatusesRawParts
+                            ), static fn (mixed $value): bool => trim((string) $value) !== '')))));
+                            $orderStatusLabelValue = trim(implode(' ', array_values(array_unique(array_filter(array_merge(
+                                [(string) status_label('order_status', $order['status'] ?? null)],
+                                $orderStatusesLabelParts
+                            ), static fn (mixed $value): bool => trim((string) $value) !== '')))));
+                            $paymentStatusRawValue = trim(implode(' ', array_values(array_unique(array_filter(array_merge(
+                                [(string) ($order['payment_status'] ?? '')],
+                                $paymentStatusesRawParts
+                            ), static fn (mixed $value): bool => trim((string) $value) !== '')))));
+                            $paymentStatusLabelValue = trim(implode(' ', array_values(array_unique(array_filter(array_merge(
+                                [(string) status_label('order_payment_status', $order['payment_status'] ?? null)],
+                                $paymentStatusesLabelParts
+                            ), static fn (mixed $value): bool => trim((string) $value) !== '')))));
+                            $paymentStatusDisplayValue = (string) ($order['payment_status'] ?? 'pending');
+                            if ($paymentStatusDisplayValue === '') {
+                                $paymentStatusDisplayValue = 'pending';
+                            }
+                            $createdAtValue = (string) ($order['latest_created_at'] ?? '');
+                            if ($createdAtValue === '' && $latestCreatedCandidates !== []) {
+                                $latestCreatedCandidates = array_values(array_filter($latestCreatedCandidates, static fn (mixed $value): bool => trim((string) $value) !== ''));
+                                $createdAtValue = $latestCreatedCandidates !== [] ? (string) max($latestCreatedCandidates) : '';
+                            }
+                            $latestStatusChangedAtValue = (string) ($order['latest_status_changed_at'] ?? '');
+                            if ($latestStatusChangedAtValue === '' && $latestChangedCandidates !== []) {
+                                $latestChangedCandidates = array_values(array_filter($latestChangedCandidates, static fn (mixed $value): bool => trim((string) $value) !== ''));
+                                $latestStatusChangedAtValue = $latestChangedCandidates !== [] ? (string) max($latestChangedCandidates) : '';
+                            }
+                            $totalAmountSearchValue = number_format((float) ($order['amount_total'] ?? 0), 2, '.', '');
+                            $orderItemsSearchText = implode(' ', $orderItemsSearchParts);
+                            $commandSearchValue = ($order['command_id'] ?? null) !== null ? (string) ((int) $order['command_id']) : '';
+                            $commandSearchText = ($order['command_id'] ?? null) !== null
+                                ? 'comanda ' . $commandSearchValue . ' ativa'
+                                : 'sem comanda';
+                            $searchText = trim(implode(' ', [
+                                $tableLabel,
+                                $orderNumberValue,
+                                $customerNameValue,
+                                $orderStatusRawValue,
+                                $orderStatusLabelValue,
+                                $paymentStatusRawValue,
+                                $paymentStatusLabelValue,
+                                $createdAtValue,
+                                $latestStatusChangedAtValue,
+                                $totalAmountSearchValue,
+                                $commandSearchText,
+                                $orderItemsSearchText,
+                            ]));
+                            $ordersCount = (int) ($order['orders_count'] ?? count($cardOrders));
+                            $itemsTotal = (int) ($order['items_total'] ?? 0);
+                            $cardTotalAmount = (float) ($order['amount_total'] ?? 0);
+                            $orderIdsCsv = trim((string) ($order['order_ids_csv'] ?? ''));
+                            if ($orderIdsCsv === '') {
+                                $orderIdsList = [];
+                                foreach ($cardOrders as $orderRow) {
+                                    if (!is_array($orderRow)) {
+                                        continue;
+                                    }
+                                    $currentOrderId = (int) ($orderRow['id'] ?? 0);
+                                    if ($currentOrderId > 0) {
+                                        $orderIdsList[] = $currentOrderId;
+                                    }
+                                }
+                                $orderIdsCsv = implode(',', $orderIdsList);
+                            }
                             $commandLabel = ($order['command_id'] ?? null) !== null
                                 ? 'Comanda ativa #' . (int) $order['command_id']
                                 : 'Pedido sem comanda';
@@ -288,19 +368,29 @@ foreach ($ordersByTable as $tablePanel) {
                                 data-search="<?= htmlspecialchars($searchText) ?>"
                                 data-order-id="<?= $orderId ?>"
                                 data-status-class="<?= htmlspecialchars($orderBorderClass) ?>"
+                                data-search-table="<?= htmlspecialchars($tableLabel) ?>"
+                                data-search-table-number="<?= htmlspecialchars($tableNumberSearch) ?>"
+                                data-search-order="<?= htmlspecialchars($orderNumberValue) ?>"
+                                data-search-customer="<?= htmlspecialchars($customerNameValue) ?>"
+                                data-search-status="<?= htmlspecialchars(trim($orderStatusRawValue . ' ' . $orderStatusLabelValue)) ?>"
+                                data-search-payment="<?= htmlspecialchars(trim($paymentStatusRawValue . ' ' . $paymentStatusLabelValue)) ?>"
+                                data-search-command="<?= htmlspecialchars(trim($commandSearchText . ' ' . $commandSearchValue)) ?>"
+                                data-search-time="<?= htmlspecialchars(trim($createdAtValue . ' ' . $latestStatusChangedAtValue)) ?>"
+                                data-search-items="<?= htmlspecialchars($orderItemsSearchText) ?>"
                             >
                                 <div class="order-card-top">
-                                    <span class="order-card-number"><?= htmlspecialchars((string) ($order['order_number'] ?? '-')) ?></span>
-                                    <span class="badge <?= htmlspecialchars(status_badge_class('order_status', $order['status'] ?? null)) ?>">
-                                        <?= htmlspecialchars(status_label('order_status', $order['status'] ?? null)) ?>
+                                    <span class="order-card-number"><?= htmlspecialchars($customerLabel) ?></span>
+                                    <span class="badge <?= htmlspecialchars(status_badge_class('order_status', $statusValue)) ?>">
+                                        <?= htmlspecialchars(status_label('order_status', $statusValue)) ?>
                                     </span>
                                 </div>
-                                <span class="order-card-line">Criado em: <?= htmlspecialchars((string) ($order['created_at'] ?? '-')) ?></span>
+                                <span class="order-card-line">Pedidos: <?= $ordersCount ?> | Itens: <?= $itemsTotal ?> | Total: <?= htmlspecialchars($formatMoney($cardTotalAmount)) ?></span>
+                                <span class="order-card-line">Ultimo pedido: <?= htmlspecialchars($createdAtValue !== '' ? $createdAtValue : '-') ?></span>
                                 <span class="order-card-line"><?= htmlspecialchars($commandLabel) ?></span>
                                 <span class="order-card-customer">Cliente: <?= htmlspecialchars($customerLabel) ?></span>
                                 <div class="order-card-badges">
-                                    <span class="badge <?= htmlspecialchars(status_badge_class('order_payment_status', $order['payment_status'] ?? null)) ?>">
-                                        <?= htmlspecialchars(status_label('order_payment_status', $order['payment_status'] ?? null)) ?>
+                                    <span class="badge <?= htmlspecialchars(status_badge_class('order_payment_status', $paymentStatusDisplayValue)) ?>">
+                                        <?= htmlspecialchars(status_label('order_payment_status', $paymentStatusDisplayValue)) ?>
                                     </span>
                                     <?php if (!empty($order['is_paid_waiting_production'])): ?>
                                         <span class="badge <?= htmlspecialchars(status_badge_class('order_operational_flag', 'paid_waiting_production')) ?>">
@@ -308,24 +398,25 @@ foreach ($ordersByTable as $tablePanel) {
                                         </span>
                                     <?php endif; ?>
                                 </div>
-                                <span class="order-card-hint">Abrir detalhes</span>
+                                <span class="order-card-hint">Abrir resumo do cliente (<?= $ordersCount ?> pedido(s))</span>
                             </button>
 
                             <template id="order-modal-template-<?= $orderId ?>">
                                 <div class="modal-header">
                                     <div>
-                                        <h3><?= htmlspecialchars((string) ($order['order_number'] ?? '-')) ?></h3>
+                                        <h3><?= htmlspecialchars($customerLabel) ?></h3>
                                         <p>
                                             <?= htmlspecialchars((string) ($tablePanel['label'] ?? 'Mesa')) ?>
-                                            | Criado em: <?= htmlspecialchars((string) ($order['created_at'] ?? '-')) ?>
+                                            | <?= htmlspecialchars($commandLabel) ?>
+                                            | Pedidos agrupados: <?= $ordersCount ?>
                                         </p>
                                     </div>
                                     <div class="order-card-badges">
-                                        <span class="badge <?= htmlspecialchars(status_badge_class('order_status', $order['status'] ?? null)) ?>">
-                                            <?= htmlspecialchars(status_label('order_status', $order['status'] ?? null)) ?>
+                                        <span class="badge <?= htmlspecialchars(status_badge_class('order_status', $statusValue)) ?>">
+                                            <?= htmlspecialchars(status_label('order_status', $statusValue)) ?>
                                         </span>
-                                        <span class="badge <?= htmlspecialchars(status_badge_class('order_payment_status', $order['payment_status'] ?? null)) ?>">
-                                            <?= htmlspecialchars(status_label('order_payment_status', $order['payment_status'] ?? null)) ?>
+                                        <span class="badge <?= htmlspecialchars(status_badge_class('order_payment_status', $paymentStatusDisplayValue)) ?>">
+                                            <?= htmlspecialchars(status_label('order_payment_status', $paymentStatusDisplayValue)) ?>
                                         </span>
                                         <?php if (!empty($order['is_paid_waiting_production'])): ?>
                                             <span class="badge <?= htmlspecialchars(status_badge_class('order_operational_flag', 'paid_waiting_production')) ?>">
@@ -338,104 +429,161 @@ foreach ($ordersByTable as $tablePanel) {
                                 <div class="modal-meta-grid">
                                     <div class="modal-meta-item"><strong>Comanda</strong><span><?= htmlspecialchars($commandLabel) ?></span></div>
                                     <div class="modal-meta-item"><strong>Cliente</strong><span><?= htmlspecialchars($customerLabel) ?></span></div>
-                                    <div class="modal-meta-item"><strong>Itens</strong><span><?= (int) ($order['items_count'] ?? 0) ?></span></div>
-                                    <div class="modal-meta-item"><strong>Total</strong><span><?= htmlspecialchars($formatMoney((float) ($order['total_amount'] ?? 0))) ?></span></div>
-                                    <div class="modal-meta-item"><strong>Ultima mudanca</strong><span><?= htmlspecialchars((string) ($order['latest_status_changed_at'] ?? '-')) ?></span></div>
-                                    <div class="modal-meta-item"><strong>Pagamento</strong><span><?= htmlspecialchars(status_label('order_payment_status', $order['payment_status'] ?? null)) ?></span></div>
-                                    <div class="modal-meta-item"><strong>Status operacional</strong><span><?= htmlspecialchars(status_label('order_status', $order['status'] ?? null)) ?></span></div>
+                                    <div class="modal-meta-item"><strong>Pedidos</strong><span><?= $ordersCount ?></span></div>
+                                    <div class="modal-meta-item"><strong>Itens</strong><span><?= $itemsTotal ?></span></div>
+                                    <div class="modal-meta-item"><strong>Total geral</strong><span><?= htmlspecialchars($formatMoney($cardTotalAmount)) ?></span></div>
+                                    <div class="modal-meta-item"><strong>Ultimo pedido</strong><span><?= htmlspecialchars($createdAtValue !== '' ? $createdAtValue : '-') ?></span></div>
+                                    <div class="modal-meta-item"><strong>Ultima mudanca</strong><span><?= htmlspecialchars($latestStatusChangedAtValue !== '' ? $latestStatusChangedAtValue : '-') ?></span></div>
                                     <div class="modal-meta-item"><strong>Atualizacao</strong><span>Automatica em 30s</span></div>
-                                </div>
-
-                                <div class="modal-items">
-                                    <span class="modal-items-title">Produtos e adicionais</span>
-                                    <?php if (empty($orderItems)): ?>
-                                        <span class="muted">Nenhum item detalhado para este pedido.</span>
-                                    <?php else: ?>
-                                        <div class="modal-items-list">
-                                            <?php foreach ($orderItems as $item): ?>
-                                                <?php
-                                                $itemName = (string) ($item['name'] ?? $item['product_name_snapshot'] ?? 'Item');
-                                                $itemQuantity = (int) ($item['quantity'] ?? 0);
-                                                $itemUnitPrice = (float) ($item['unit_price'] ?? 0);
-                                                $itemLineSubtotal = (float) ($item['line_subtotal'] ?? 0);
-                                                $itemNotes = trim((string) ($item['notes'] ?? ''));
-                                                $itemAdditionals = is_array($item['additionals'] ?? null) ? $item['additionals'] : [];
-                                                ?>
-                                                <div class="modal-item">
-                                                    <div class="modal-item-main">
-                                                        <span class="modal-item-name"><?= $itemQuantity ?>x <?= htmlspecialchars($itemName) ?></span>
-                                                        <span class="modal-item-prices">
-                                                            <span class="modal-pill">Unit: <?= htmlspecialchars($formatMoney($itemUnitPrice)) ?></span>
-                                                            <span class="modal-pill">Total: <?= htmlspecialchars($formatMoney($itemLineSubtotal)) ?></span>
-                                                        </span>
-                                                    </div>
-
-                                                    <?php if ($itemAdditionals !== []): ?>
-                                                        <div class="modal-item-additionals">
-                                                            <?php foreach ($itemAdditionals as $additional): ?>
-                                                                <div class="modal-item-additional">
-                                                                    <strong>
-                                                                        + <?= (int) ($additional['quantity'] ?? 0) ?>x <?= htmlspecialchars((string) ($additional['name'] ?? 'Adicional')) ?>
-                                                                    </strong>
-                                                                    <span class="modal-item-prices">
-                                                                        <span class="modal-pill">Unit: <?= htmlspecialchars($formatMoney((float) ($additional['unit_price'] ?? 0))) ?></span>
-                                                                        <span class="modal-pill">Total: <?= htmlspecialchars($formatMoney((float) ($additional['line_subtotal'] ?? 0))) ?></span>
-                                                                    </span>
-                                                                </div>
-                                                            <?php endforeach; ?>
-                                                        </div>
-                                                    <?php endif; ?>
-
-                                                    <?php if ($itemNotes !== ''): ?>
-                                                        <div class="modal-item-note">Obs.: <?= htmlspecialchars($itemNotes) ?></div>
-                                                    <?php endif; ?>
-                                                </div>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    <?php endif; ?>
                                 </div>
 
                                 <div class="modal-actions">
                                     <div class="order-modal-feedback" data-modal-feedback hidden></div>
                                     <div class="modal-action-block">
                                         <div class="modal-actions-row">
-                                            <a class="btn secondary" href="<?= htmlspecialchars(base_url('/admin/orders/print-ticket?order_id=' . $orderId . '&return_order_id=' . $orderId)) ?>">Imprimir ticket</a>
+                                            <a class="btn secondary" href="<?= htmlspecialchars(base_url('/admin/orders/print-ticket?order_ids=' . urlencode($orderIdsCsv) . '&return_order_id=' . $orderId)) ?>">Imprimir ticket geral</a>
                                         </div>
                                     </div>
-
-                                    <?php if ($canSendKitchen && !empty($order['can_send_kitchen'])): ?>
-                                        <div class="modal-action-block">
-                                            <form class="js-modal-action-form" method="POST" action="<?= htmlspecialchars(base_url('/admin/orders/send-kitchen')) ?>">
-                                                <input type="hidden" name="order_id" value="<?= $orderId ?>">
-                                                <button class="btn secondary" type="submit">Enviar para cozinha</button>
-                                            </form>
-                                        </div>
-                                    <?php endif; ?>
-
-                                    <?php if ($canUpdateStatus && !empty($nextStatuses)): ?>
-                                        <div class="modal-action-block">
-                                            <form class="js-modal-action-form" method="POST" action="<?= htmlspecialchars(base_url('/admin/orders/status')) ?>">
-                                                <input type="hidden" name="order_id" value="<?= $orderId ?>">
-                                                <div class="modal-actions-row modal-actions-row-status-select">
-                                                    <select name="new_status" required>
-                                                        <option value="">Selecione o novo status</option>
-                                                        <?php foreach ($nextStatuses as $status): ?>
-                                                            <option value="<?= htmlspecialchars((string) $status) ?>"><?= htmlspecialchars(status_label('order_status', $status)) ?></option>
-                                                        <?php endforeach; ?>
-                                                    </select>
-                                                </div>
-                                                <div class="modal-actions-row modal-actions-row-status-submit">
-                                                    <input name="status_notes" type="text" placeholder="Observacao (opcional)">
-                                                    <button class="btn secondary" type="submit">Atualizar status</button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    <?php endif; ?>
-
-                                    <?php if (!$hasOperationalActions): ?>
-                                        <span class="badge status-default">Sem acoes operacionais disponiveis</span>
-                                    <?php endif; ?>
                                 </div>
+
+                                <?php if (empty($cardOrders)): ?>
+                                    <div class="modal-order-empty">Nenhum pedido detalhado para este cliente/comanda.</div>
+                                <?php else: ?>
+                                    <div class="modal-orders-stack">
+                                        <?php foreach ($cardOrders as $orderRow): ?>
+                                            <?php
+                                            if (!is_array($orderRow)) {
+                                                continue;
+                                            }
+                                            $rowOrderId = (int) ($orderRow['id'] ?? 0);
+                                            $rowNextStatuses = $orderRow['next_statuses'] ?? [];
+                                            if (!is_array($rowNextStatuses)) {
+                                                $rowNextStatuses = [];
+                                            }
+                                            if (!$canCancelOrder) {
+                                                $rowNextStatuses = array_values(array_filter(
+                                                    $rowNextStatuses,
+                                                    static fn (mixed $status): bool => (string) $status !== 'canceled'
+                                                ));
+                                            }
+                                            if (!empty($orderRow['can_send_kitchen'])) {
+                                                $rowNextStatuses = array_values(array_filter(
+                                                    $rowNextStatuses,
+                                                    static fn (mixed $status): bool => (string) $status !== 'received'
+                                                ));
+                                            }
+                                            $rowHasOperationalActions = ($canSendKitchen && !empty($orderRow['can_send_kitchen'])) || ($canUpdateStatus && !empty($rowNextStatuses));
+                                            $rowItems = is_array($orderRow['items'] ?? null) ? $orderRow['items'] : [];
+                                            ?>
+                                            <article class="modal-order-card">
+                                                <div class="modal-order-head">
+                                                    <div class="modal-order-head-title">
+                                                        <strong><?= htmlspecialchars((string) ($orderRow['order_number'] ?? '-')) ?></strong>
+                                                        <span>Criado em: <?= htmlspecialchars((string) ($orderRow['created_at'] ?? '-')) ?> | Itens: <?= (int) ($orderRow['items_count'] ?? 0) ?> | Total: <?= htmlspecialchars($formatMoney((float) ($orderRow['total_amount'] ?? 0))) ?></span>
+                                                    </div>
+                                                    <div class="order-card-badges">
+                                                        <span class="badge <?= htmlspecialchars(status_badge_class('order_status', $orderRow['status'] ?? null)) ?>">
+                                                            <?= htmlspecialchars(status_label('order_status', $orderRow['status'] ?? null)) ?>
+                                                        </span>
+                                                        <span class="badge <?= htmlspecialchars(status_badge_class('order_payment_status', $orderRow['payment_status'] ?? null)) ?>">
+                                                            <?= htmlspecialchars(status_label('order_payment_status', $orderRow['payment_status'] ?? null)) ?>
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="modal-items">
+                                                    <span class="modal-items-title">Produtos e adicionais do pedido</span>
+                                                    <?php if (empty($rowItems)): ?>
+                                                        <span class="muted">Nenhum item detalhado para este pedido.</span>
+                                                    <?php else: ?>
+                                                        <div class="modal-items-list">
+                                                            <?php foreach ($rowItems as $item): ?>
+                                                                <?php
+                                                                $itemName = (string) ($item['name'] ?? $item['product_name_snapshot'] ?? 'Item');
+                                                                $itemQuantity = (int) ($item['quantity'] ?? 0);
+                                                                $itemUnitPrice = (float) ($item['unit_price'] ?? 0);
+                                                                $itemLineSubtotal = (float) ($item['line_subtotal'] ?? 0);
+                                                                $itemNotes = trim((string) ($item['notes'] ?? ''));
+                                                                $itemAdditionals = is_array($item['additionals'] ?? null) ? $item['additionals'] : [];
+                                                                ?>
+                                                                <div class="modal-item">
+                                                                    <div class="modal-item-main">
+                                                                        <span class="modal-item-name"><?= $itemQuantity ?>x <?= htmlspecialchars($itemName) ?></span>
+                                                                        <span class="modal-item-prices">
+                                                                            <span class="modal-pill">Unit: <?= htmlspecialchars($formatMoney($itemUnitPrice)) ?></span>
+                                                                            <span class="modal-pill">Total: <?= htmlspecialchars($formatMoney($itemLineSubtotal)) ?></span>
+                                                                        </span>
+                                                                    </div>
+
+                                                                    <?php if ($itemAdditionals !== []): ?>
+                                                                        <div class="modal-item-additionals">
+                                                                            <?php foreach ($itemAdditionals as $additional): ?>
+                                                                                <div class="modal-item-additional">
+                                                                                    <strong>
+                                                                                        + <?= (int) ($additional['quantity'] ?? 0) ?>x <?= htmlspecialchars((string) ($additional['name'] ?? 'Adicional')) ?>
+                                                                                    </strong>
+                                                                                    <span class="modal-item-prices">
+                                                                                        <span class="modal-pill">Unit: <?= htmlspecialchars($formatMoney((float) ($additional['unit_price'] ?? 0))) ?></span>
+                                                                                        <span class="modal-pill">Total: <?= htmlspecialchars($formatMoney((float) ($additional['line_subtotal'] ?? 0))) ?></span>
+                                                                                    </span>
+                                                                                </div>
+                                                                            <?php endforeach; ?>
+                                                                        </div>
+                                                                    <?php endif; ?>
+
+                                                                    <?php if ($itemNotes !== ''): ?>
+                                                                        <div class="modal-item-note">Obs.: <?= htmlspecialchars($itemNotes) ?></div>
+                                                                    <?php endif; ?>
+                                                                </div>
+                                                            <?php endforeach; ?>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </div>
+
+                                                <div class="modal-actions">
+                                                    <div class="modal-action-block">
+                                                        <div class="modal-actions-row">
+                                                            <a class="btn secondary" href="<?= htmlspecialchars(base_url('/admin/orders/print-ticket?order_id=' . $rowOrderId . '&return_order_id=' . $orderId)) ?>">Imprimir ticket do pedido</a>
+                                                        </div>
+                                                    </div>
+
+                                                    <?php if ($canSendKitchen && !empty($orderRow['can_send_kitchen'])): ?>
+                                                        <div class="modal-action-block">
+                                                            <form class="js-modal-action-form" method="POST" action="<?= htmlspecialchars(base_url('/admin/orders/send-kitchen')) ?>">
+                                                                <input type="hidden" name="order_id" value="<?= $rowOrderId ?>">
+                                                                <button class="btn secondary" type="submit">Enviar para cozinha</button>
+                                                            </form>
+                                                        </div>
+                                                    <?php endif; ?>
+
+                                                    <?php if ($canUpdateStatus && !empty($rowNextStatuses)): ?>
+                                                        <div class="modal-action-block">
+                                                            <form class="js-modal-action-form" method="POST" action="<?= htmlspecialchars(base_url('/admin/orders/status')) ?>">
+                                                                <input type="hidden" name="order_id" value="<?= $rowOrderId ?>">
+                                                                <div class="modal-actions-row modal-actions-row-status-select">
+                                                                    <select name="new_status" required>
+                                                                        <option value="">Selecione o novo status</option>
+                                                                        <?php foreach ($rowNextStatuses as $status): ?>
+                                                                            <option value="<?= htmlspecialchars((string) $status) ?>"><?= htmlspecialchars(status_label('order_status', $status)) ?></option>
+                                                                        <?php endforeach; ?>
+                                                                    </select>
+                                                                </div>
+                                                                <div class="modal-actions-row modal-actions-row-status-submit">
+                                                                    <input name="status_notes" type="text" placeholder="Observacao (opcional)">
+                                                                    <button class="btn secondary" type="submit">Atualizar status</button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    <?php endif; ?>
+
+                                                    <?php if (!$rowHasOperationalActions): ?>
+                                                        <span class="badge status-default">Sem acoes operacionais disponiveis para este pedido</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </article>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
 
                                 <div class="modal-footer">
                                     <button type="button" class="btn secondary" data-modal-close>Fechar</button>
@@ -474,6 +622,139 @@ foreach ($ordersByTable as $tablePanel) {
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '');
+
+    const filterAliases = {
+        table: ['mesa', 'm', 'table'],
+        order: ['pedido', 'ped', 'numero', 'num', 'id', 'ordem'],
+        customer: ['cliente', 'cl', 'nome'],
+        status: ['status', 'st', 'situacao'],
+        payment: ['pagamento', 'pag', 'pg', 'payment'],
+        command: ['comanda', 'cmd'],
+        items: ['item', 'itens', 'produto', 'prod', 'adicional', 'add'],
+        time: ['data', 'hora', 'horario', 'dt', 'criado', 'alterado'],
+    };
+    const filterKeyToField = {};
+    Object.entries(filterAliases).forEach(([field, aliases]) => {
+        aliases.forEach((alias) => {
+            filterKeyToField[normalize(alias)] = field;
+        });
+    });
+    const cardSearchIndex = new Map(cards.map((card) => [card, {
+        all: String(card.getAttribute('data-search') || ''),
+        table: String(card.getAttribute('data-search-table') || ''),
+        tableNumber: String(card.getAttribute('data-search-table-number') || ''),
+        order: String(card.getAttribute('data-search-order') || ''),
+        customer: String(card.getAttribute('data-search-customer') || ''),
+        status: String(card.getAttribute('data-search-status') || ''),
+        payment: String(card.getAttribute('data-search-payment') || ''),
+        command: String(card.getAttribute('data-search-command') || ''),
+        items: String(card.getAttribute('data-search-items') || ''),
+        time: String(card.getAttribute('data-search-time') || ''),
+    }]));
+    const filterFieldLabel = {
+        table: 'mesa',
+        tableNumber: 'mesa',
+        order: 'pedido',
+        customer: 'cliente',
+        status: 'status',
+        payment: 'pagamento',
+        command: 'comanda',
+        items: 'item',
+        time: 'data/hora',
+    };
+    const resetSearchInfoText = 'Digite apenas o numero da mesa para filtrar rapido, ou use busca livre/filtros por campo.';
+
+    const splitQueryTokens = (rawQuery) => String(rawQuery || '').trim().split(/\s+/).filter(Boolean);
+    const compact = (value) => normalize(value).replace(/[^a-z0-9]/g, '');
+    const isSubsequence = (haystack, needle) => {
+        let index = 0;
+        for (let i = 0; i < haystack.length && index < needle.length; i += 1) {
+            if (haystack[i] === needle[index]) {
+                index += 1;
+            }
+        }
+        return index === needle.length;
+    };
+    const smartIncludes = (haystackValue, needleValue) => {
+        const haystack = normalize(haystackValue);
+        const needle = normalize(needleValue);
+        if (needle === '') {
+            return true;
+        }
+        if (haystack.includes(needle)) {
+            return true;
+        }
+
+        const haystackCompact = compact(haystack);
+        const needleCompact = compact(needle);
+        if (needleCompact.length >= 3 && haystackCompact.includes(needleCompact)) {
+            return true;
+        }
+        if (needleCompact.length >= 3 && isSubsequence(haystackCompact, needleCompact)) {
+            return true;
+        }
+
+        if (needle.length >= 2) {
+            const words = haystack.split(/\s+/).filter(Boolean);
+            if (words.some((word) => word.startsWith(needle))) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+    const parseSearchQuery = (rawQuery) => {
+        const filters = [];
+        const freeTokens = [];
+
+        splitQueryTokens(rawQuery).forEach((rawToken) => {
+            const normalizedToken = normalize(rawToken);
+            const tokenParts = normalizedToken.match(/^([^:=]+)[:=](.+)$/);
+            if (!tokenParts) {
+                if (/^\d+$/.test(normalizedToken)) {
+                    filters.push({ field: 'tableNumber', value: normalizedToken });
+                    return;
+                }
+                freeTokens.push(normalizedToken);
+                return;
+            }
+
+            const key = normalize(tokenParts[1] || '');
+            const value = normalize(tokenParts[2] || '');
+            const field = filterKeyToField[key] || null;
+            if (!field || value === '') {
+                const expanded = normalize(rawToken.replace(/[:=]/g, ' ')).split(/\s+/).filter(Boolean);
+                freeTokens.push(...expanded);
+                return;
+            }
+
+            filters.push({ field, value });
+        });
+
+        return { filters, freeTokens };
+    };
+    const doesCardMatchQuery = (card, parsedQuery) => {
+        const searchIndex = cardSearchIndex.get(card);
+        if (!searchIndex) {
+            return false;
+        }
+
+        const filtersMatch = parsedQuery.filters.every((filter) => {
+            if (filter.field === 'table') {
+                return smartIncludes(searchIndex.table || '', filter.value)
+                    || smartIncludes(searchIndex.tableNumber || '', filter.value);
+            }
+            if (filter.field === 'tableNumber') {
+                return smartIncludes(searchIndex.tableNumber || '', filter.value);
+            }
+            return smartIncludes(searchIndex[filter.field] || '', filter.value);
+        });
+        if (!filtersMatch) {
+            return false;
+        }
+
+        return parsedQuery.freeTokens.every((token) => smartIncludes(searchIndex.all || '', token));
+    };
 
     const findCardByOrderId = (orderId) => cards.find((card) => Number(card.getAttribute('data-order-id') || 0) === Number(orderId || 0)) || null;
 
@@ -630,7 +911,7 @@ foreach ($ordersByTable as $tablePanel) {
 
     const applyFilter = () => {
         const rawQuery = searchInput ? searchInput.value : '';
-        const tokens = normalize(rawQuery).split(/\s+/).filter(Boolean);
+        const parsedQuery = parseSearchQuery(rawQuery);
         let visibleCards = 0;
         let firstVisibleCard = null;
 
@@ -640,8 +921,7 @@ foreach ($ordersByTable as $tablePanel) {
 
             panelCards.forEach((card) => {
                 card.classList.remove('search-hit');
-                const haystack = normalize(card.getAttribute('data-search') || '');
-                const match = tokens.every((token) => haystack.includes(token));
+                const match = doesCardMatchQuery(card, parsedQuery);
                 card.style.display = match ? '' : 'none';
 
                 if (match) {
@@ -661,12 +941,19 @@ foreach ($ordersByTable as $tablePanel) {
         }
 
         if (searchInfo) {
-            if (tokens.length === 0) {
-                searchInfo.textContent = 'Digite para filtrar as comandas em tempo real.';
+            const hasFilters = parsedQuery.filters.length > 0;
+            const hasFreeTokens = parsedQuery.freeTokens.length > 0;
+            if (!hasFilters && !hasFreeTokens) {
+                searchInfo.textContent = resetSearchInfoText;
             } else {
+                const filterInfo = parsedQuery.filters
+                    .map((filter) => `${filterFieldLabel[filter.field] || filter.field}:${filter.value}`)
+                    .join(', ');
+                const freeInfo = parsedQuery.freeTokens.join(' ');
+                const criteriaInfo = [filterInfo, freeInfo].filter(Boolean).join(' | ');
                 searchInfo.textContent = visibleCards > 0
-                    ? `Filtro ativo: ${visibleCards} comanda(s) encontrada(s).`
-                    : 'Nenhuma comanda encontrada para o filtro informado.';
+                    ? `Filtro ativo (${criteriaInfo}): ${visibleCards} comanda(s) encontrada(s).`
+                    : `Nenhuma comanda encontrada para: ${criteriaInfo}.`;
             }
         }
     };

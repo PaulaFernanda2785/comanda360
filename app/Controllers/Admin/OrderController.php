@@ -57,12 +57,28 @@ final class OrderController extends Controller
         $user = Auth::user();
         $companyId = (int) ($user['company_id'] ?? 0);
         $orderId = (int) ($request->input('order_id', 0));
+        $orderIdsRaw = trim((string) ($request->input('order_ids', '')));
+        $orderIds = [];
+
+        if ($orderIdsRaw !== '') {
+            $tokens = preg_split('/[\s,;|]+/', $orderIdsRaw) ?: [];
+            foreach ($tokens as $token) {
+                $candidate = (int) trim((string) $token);
+                if ($candidate > 0) {
+                    $orderIds[$candidate] = true;
+                }
+            }
+        }
 
         try {
+            $context = $orderIds !== []
+                ? $this->service->ticketPrintContextByOrderIds($companyId, array_keys($orderIds))
+                : $this->service->ticketPrintContext($companyId, $orderId);
+
             return $this->view('admin/orders/print_ticket', [
                 'title' => 'Imprimir Ticket do Pedido',
                 'user' => $user,
-                'context' => $this->service->ticketPrintContext($companyId, $orderId),
+                'context' => $context,
             ]);
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), '/admin/orders');
