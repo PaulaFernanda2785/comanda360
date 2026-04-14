@@ -32,6 +32,7 @@ final class PaymentController extends Controller
     {
         $user = Auth::user();
         $companyId = (int) ($user['company_id'] ?? 0);
+        $selectedOrderId = (int) $request->input('order_id', 0);
 
         return $this->view('admin/payments/create', [
             'title' => 'Registrar Pagamento',
@@ -39,11 +40,17 @@ final class PaymentController extends Controller
             'hasOpenCashRegister' => $this->service->hasOpenCashRegister($companyId),
             'orders' => $this->service->payableOrders($companyId),
             'paymentMethods' => $this->service->paymentMethods($companyId),
+            'selectedOrderId' => $selectedOrderId > 0 ? $selectedOrderId : null,
         ]);
     }
 
     public function store(Request $request): Response
     {
+        $guard = $this->guardSingleSubmit($request, 'payments.store', '/admin/payments/create');
+        if ($guard !== null) {
+            return $guard;
+        }
+
         $user = Auth::user();
         $companyId = (int) ($user['company_id'] ?? 0);
         $userId = (int) ($user['id'] ?? 0);
@@ -56,4 +63,3 @@ final class PaymentController extends Controller
         }
     }
 }
-

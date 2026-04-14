@@ -24,10 +24,29 @@ final class PaymentRepository extends BaseRepository
                 p.received_by_user_id,
                 pm.name AS payment_method_name,
                 o.order_number,
+                o.status AS order_status,
+                o.payment_status AS order_payment_status,
+                o.customer_name AS order_customer_name,
+                o.subtotal_amount AS order_subtotal_amount,
+                o.discount_amount AS order_discount_amount,
+                o.delivery_fee AS order_delivery_fee,
+                o.total_amount AS order_total_amount,
+                o.notes AS order_notes,
+                o.created_at AS order_created_at,
+                t.number AS order_table_number,
+                (
+                    SELECT cm.description
+                    FROM cash_movements cm
+                    WHERE cm.company_id = p.company_id
+                      AND cm.payment_id = p.id
+                    ORDER BY cm.id DESC
+                    LIMIT 1
+                ) AS cash_movement_description,
                 u.name AS received_by_user_name
             FROM payments p
             INNER JOIN payment_methods pm ON pm.id = p.payment_method_id
             LEFT JOIN orders o ON o.id = p.order_id
+            LEFT JOIN tables t ON t.id = o.table_id
             LEFT JOIN users u ON u.id = p.received_by_user_id
             WHERE p.company_id = :company_id
             ORDER BY p.created_at DESC, p.id DESC
@@ -91,4 +110,3 @@ final class PaymentRepository extends BaseRepository
         return round((float) ($row['total_paid'] ?? 0), 2);
     }
 }
-

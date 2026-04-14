@@ -33,11 +33,13 @@ $paymentStatusValue = (string) ($group['payment_status'] ?? ($order['payment_sta
 $notes = trim((string) ($group['notes'] ?? ($order['notes'] ?? '')));
 $returnOrderId = isset($_GET['return_order_id']) ? (int) $_GET['return_order_id'] : 0;
 $returnTo = strtolower(trim((string) ($_GET['return_to'] ?? 'orders')));
-$backToOrdersUrl = $returnTo === 'kitchen'
-    ? base_url('/admin/kitchen')
-    : ($returnOrderId > 0
+$backToOrdersUrl = match ($returnTo) {
+    'kitchen' => base_url('/admin/kitchen'),
+    'payments' => base_url('/admin/payments'),
+    default => $returnOrderId > 0
         ? base_url('/admin/orders?open_order_id=' . $returnOrderId)
-        : base_url('/admin/orders'));
+        : base_url('/admin/orders'),
+};
 
 $subtotal = (float) ($group['subtotal_amount'] ?? ($order['subtotal_amount'] ?? 0));
 $discount = (float) ($group['discount_amount'] ?? ($order['discount_amount'] ?? 0));

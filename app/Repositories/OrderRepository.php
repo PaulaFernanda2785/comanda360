@@ -54,6 +54,7 @@ final class OrderRepository extends BaseRepository
                 order_number,
                 status,
                 payment_status,
+                discount_amount,
                 total_amount
             FROM orders
             WHERE company_id = :company_id
@@ -67,6 +68,24 @@ final class OrderRepository extends BaseRepository
 
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
+    }
+
+    public function updateFinancialTotals(int $companyId, int $orderId, float $discountAmount, float $totalAmount): void
+    {
+        $stmt = $this->db()->prepare("
+            UPDATE orders
+            SET discount_amount = :discount_amount,
+                total_amount = :total_amount,
+                updated_at = NOW()
+            WHERE company_id = :company_id
+              AND id = :id
+        ");
+        $stmt->execute([
+            'discount_amount' => round($discountAmount, 2),
+            'total_amount' => round($totalAmount, 2),
+            'company_id' => $companyId,
+            'id' => $orderId,
+        ]);
     }
 
     public function findWithContextById(int $companyId, int $orderId): ?array
