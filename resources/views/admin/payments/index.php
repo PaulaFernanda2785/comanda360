@@ -93,6 +93,7 @@ body.modal-open{overflow:hidden}
 .payment-actions{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
 .payments-empty{border:1px dashed #cbd5e1;border-radius:12px;padding:18px;color:#334155;background:#fff}
 .payments-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.payments-pagination-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .payments-page-btn{border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:8px;padding:7px 10px;cursor:pointer;min-width:36px}
 .payments-page-btn.is-active{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
 .payment-modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.6);display:grid;place-items:center;padding:14px;z-index:1300}

@@ -93,6 +93,12 @@ foreach ($commandOperational as $row) {
     .legend-group{border:1px solid #e2e8f0;border-radius:10px;padding:10px;background:#f8fafc}
     .legend-title{display:block;font-size:12px;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
     .legend-row{display:flex;gap:8px;flex-wrap:wrap}
+    .commands-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .commands-pagination-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .commands-page-btn{border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:8px;padding:7px 10px;cursor:pointer;min-width:36px}
+    .commands-page-btn[disabled]{opacity:.5;cursor:not-allowed}
+    .commands-page-btn.is-active{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+    .commands-empty{border:1px dashed #cbd5e1;border-radius:12px;padding:18px;color:#334155;background:#fff}
     @media (max-width:1080px){
         .kpi-grid{grid-template-columns:repeat(3,minmax(120px,1fr))}
         .commands-grid{grid-template-columns:repeat(2,minmax(220px,1fr))}
@@ -319,6 +325,14 @@ foreach ($commandOperational as $row) {
             <?php endforeach; ?>
         <?php endif; ?>
     </div>
+
+    <?php if (!empty($commands)): ?>
+        <section class="card commands-pagination" id="commandsPagination" hidden>
+            <span id="commandsPaginationInfo"></span>
+            <div id="commandsPaginationControls" class="commands-pagination-controls"></div>
+        </section>
+        <div id="commandsNoResults" class="commands-empty" hidden>Nenhuma comanda encontrada para o filtro informado.</div>
+    <?php endif; ?>
 </div>
 
 <script>
@@ -327,36 +341,98 @@ foreach ($commandOperational as $row) {
     const searchInput = document.getElementById('commandSearch');
     const clearButton = document.getElementById('clearCommandSearch');
     const searchInfo = document.getElementById('commandSearchInfo');
+    const pagination = document.getElementById('commandsPagination');
+    const paginationInfo = document.getElementById('commandsPaginationInfo');
+    const paginationControls = document.getElementById('commandsPaginationControls');
+    const noResults = document.getElementById('commandsNoResults');
     const pageRefreshMs = 30000;
+    const pageSize = 10;
+    let currentPage = 1;
 
     const normalize = (value) => String(value || '')
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '');
 
-    const applyFilter = () => {
+    const renderPagination = (totalFiltered) => {
+        if (!pagination || !paginationInfo || !paginationControls) {
+            return;
+        }
+        if (totalFiltered <= 0) {
+            pagination.hidden = true;
+            paginationInfo.textContent = '';
+            paginationControls.innerHTML = '';
+            return;
+        }
+
+        pagination.hidden = false;
+        const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+        if (currentPage > totalPages) {
+            currentPage = 1;
+        }
+
+        const start = (currentPage - 1) * pageSize + 1;
+        const end = Math.min(currentPage * pageSize, totalFiltered);
+        paginationInfo.textContent = `Mostrando ${start}-${end} de ${totalFiltered} comanda(s).`;
+        paginationControls.innerHTML = '';
+
+        const addButton = (label, page, disabled, active = false) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `commands-page-btn${active ? ' is-active' : ''}`;
+            button.textContent = label;
+            button.disabled = disabled;
+            button.addEventListener('click', () => {
+                if (!disabled && page !== currentPage) {
+                    currentPage = page;
+                    applyFilter(false);
+                }
+            });
+            paginationControls.appendChild(button);
+        };
+
+        addButton('Anterior', Math.max(1, currentPage - 1), currentPage <= 1);
+        const maxButtons = 5;
+        const half = Math.floor(maxButtons / 2);
+        let first = Math.max(1, currentPage - half);
+        let last = Math.min(totalPages, first + maxButtons - 1);
+        first = Math.max(1, last - maxButtons + 1);
+        for (let page = first; page <= last; page += 1) {
+            addButton(String(page), page, false, page === currentPage);
+        }
+        addButton('Proxima', Math.min(totalPages, currentPage + 1), currentPage >= totalPages);
+    };
+
+    const applyFilter = (resetPage = true) => {
         const rawQuery = searchInput ? searchInput.value : '';
         const tokens = normalize(rawQuery).split(/\s+/).filter(Boolean);
-        let visibleCount = 0;
-        let firstVisibleCard = null;
+        const filteredCards = [];
 
         cards.forEach((card) => {
             card.classList.remove('search-hit');
             const haystack = normalize(card.getAttribute('data-search') || '');
             const match = tokens.every((token) => haystack.includes(token));
-            card.style.display = match ? '' : 'none';
             if (match) {
-                visibleCount++;
-                if (firstVisibleCard === null) {
-                    firstVisibleCard = card;
-                }
+                filteredCards.push(card);
             }
         });
 
-        if (firstVisibleCard) {
-            firstVisibleCard.classList.add('search-hit');
+        if (resetPage) {
+            currentPage = 1;
         }
 
+        const from = (currentPage - 1) * pageSize;
+        const visibleCards = filteredCards.slice(from, from + pageSize);
+        const visibleSet = new Set(visibleCards);
+        cards.forEach((card) => {
+            card.style.display = visibleSet.has(card) ? '' : 'none';
+        });
+
+        if (visibleCards[0]) {
+            visibleCards[0].classList.add('search-hit');
+        }
+
+        const visibleCount = filteredCards.length;
         if (searchInfo) {
             if (tokens.length === 0) {
                 searchInfo.textContent = 'Digite para filtrar as comandas em tempo real.';
@@ -366,6 +442,12 @@ foreach ($commandOperational as $row) {
                     : 'Nenhuma comanda encontrada para o filtro informado.';
             }
         }
+
+        if (noResults) {
+            noResults.hidden = visibleCount > 0;
+        }
+
+        renderPagination(visibleCount);
     };
 
     if (searchInput) {
