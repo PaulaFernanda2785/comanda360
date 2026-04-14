@@ -59,17 +59,19 @@ final class CashRegisterRepository extends BaseRepository
     {
         $stmt = $this->db()->prepare("
             SELECT
-                id,
-                company_id,
-                opened_by_user_id,
-                opened_at,
-                opening_amount,
-                notes,
-                status
-            FROM cash_registers
-            WHERE company_id = :company_id
-              AND status = 'open'
-            ORDER BY opened_at DESC, id DESC
+                cr.id,
+                cr.company_id,
+                cr.opened_by_user_id,
+                cr.opened_at,
+                cr.opening_amount,
+                cr.notes,
+                cr.status,
+                uo.name AS opened_by_user_name
+            FROM cash_registers cr
+            LEFT JOIN users uo ON uo.id = cr.opened_by_user_id
+            WHERE cr.company_id = :company_id
+              AND cr.status = 'open'
+            ORDER BY cr.opened_at DESC, cr.id DESC
             LIMIT 1
         ");
         $stmt->execute(['company_id' => $companyId]);
@@ -95,6 +97,113 @@ final class CashRegisterRepository extends BaseRepository
             ORDER BY opened_at DESC, id DESC
             LIMIT 1
             FOR UPDATE
+        ");
+        $stmt->execute(['company_id' => $companyId]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public function findDetailedByIdForCompany(int $companyId, int $cashRegisterId): ?array
+    {
+        $stmt = $this->db()->prepare("
+            SELECT
+                cr.id,
+                cr.company_id,
+                cr.opened_by_user_id,
+                cr.closed_by_user_id,
+                cr.opened_at,
+                cr.closed_at,
+                cr.opening_amount,
+                cr.closing_amount_reported,
+                cr.closing_amount_calculated,
+                cr.status,
+                cr.notes,
+                uo.name AS opened_by_user_name,
+                uc.name AS closed_by_user_name,
+                c.name AS company_name,
+                ct.logo_path AS company_logo_path,
+                COALESCE((
+                    SELECT SUM(cm.amount)
+                    FROM cash_movements cm
+                    WHERE cm.cash_register_id = cr.id
+                      AND cm.type = 'income'
+                ), 0) AS total_income,
+                COALESCE((
+                    SELECT SUM(cm.amount)
+                    FROM cash_movements cm
+                    WHERE cm.cash_register_id = cr.id
+                      AND cm.type = 'expense'
+                ), 0) AS total_expense,
+                COALESCE((
+                    SELECT SUM(cm.amount)
+                    FROM cash_movements cm
+                    WHERE cm.cash_register_id = cr.id
+                      AND cm.type = 'adjustment'
+                ), 0) AS total_adjustment
+            FROM cash_registers cr
+            INNER JOIN companies c ON c.id = cr.company_id
+            LEFT JOIN company_themes ct ON ct.company_id = c.id
+            INNER JOIN users uo ON uo.id = cr.opened_by_user_id
+            LEFT JOIN users uc ON uc.id = cr.closed_by_user_id
+            WHERE cr.company_id = :company_id
+              AND cr.id = :cash_register_id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'cash_register_id' => $cashRegisterId,
+        ]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public function latestDetailedByCompany(int $companyId): ?array
+    {
+        $stmt = $this->db()->prepare("
+            SELECT
+                cr.id,
+                cr.company_id,
+                cr.opened_by_user_id,
+                cr.closed_by_user_id,
+                cr.opened_at,
+                cr.closed_at,
+                cr.opening_amount,
+                cr.closing_amount_reported,
+                cr.closing_amount_calculated,
+                cr.status,
+                cr.notes,
+                uo.name AS opened_by_user_name,
+                uc.name AS closed_by_user_name,
+                c.name AS company_name,
+                ct.logo_path AS company_logo_path,
+                COALESCE((
+                    SELECT SUM(cm.amount)
+                    FROM cash_movements cm
+                    WHERE cm.cash_register_id = cr.id
+                      AND cm.type = 'income'
+                ), 0) AS total_income,
+                COALESCE((
+                    SELECT SUM(cm.amount)
+                    FROM cash_movements cm
+                    WHERE cm.cash_register_id = cr.id
+                      AND cm.type = 'expense'
+                ), 0) AS total_expense,
+                COALESCE((
+                    SELECT SUM(cm.amount)
+                    FROM cash_movements cm
+                    WHERE cm.cash_register_id = cr.id
+                      AND cm.type = 'adjustment'
+                ), 0) AS total_adjustment
+            FROM cash_registers cr
+            INNER JOIN companies c ON c.id = cr.company_id
+            LEFT JOIN company_themes ct ON ct.company_id = c.id
+            INNER JOIN users uo ON uo.id = cr.opened_by_user_id
+            LEFT JOIN users uc ON uc.id = cr.closed_by_user_id
+            WHERE cr.company_id = :company_id
+            ORDER BY cr.opened_at DESC, cr.id DESC
+            LIMIT 1
         ");
         $stmt->execute(['company_id' => $companyId]);
 
@@ -160,4 +269,3 @@ final class CashRegisterRepository extends BaseRepository
         ]);
     }
 }
-

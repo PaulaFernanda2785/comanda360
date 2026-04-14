@@ -31,6 +31,11 @@ final class CashRegisterController extends Controller
 
     public function open(Request $request): Response
     {
+        $guard = $this->guardSingleSubmit($request, 'cash_registers.open', '/admin/cash-registers');
+        if ($guard !== null) {
+            return $guard;
+        }
+
         $user = Auth::user();
         $companyId = (int) ($user['company_id'] ?? 0);
         $userId = (int) ($user['id'] ?? 0);
@@ -45,6 +50,11 @@ final class CashRegisterController extends Controller
 
     public function close(Request $request): Response
     {
+        $guard = $this->guardSingleSubmit($request, 'cash_registers.close', '/admin/cash-registers');
+        if ($guard !== null) {
+            return $guard;
+        }
+
         $user = Auth::user();
         $companyId = (int) ($user['company_id'] ?? 0);
         $userId = (int) ($user['id'] ?? 0);
@@ -56,5 +66,21 @@ final class CashRegisterController extends Controller
             return $this->backWithError($e->getMessage(), '/admin/cash-registers');
         }
     }
-}
 
+    public function printTicket(Request $request): Response
+    {
+        $user = Auth::user();
+        $companyId = (int) ($user['company_id'] ?? 0);
+        $cashRegisterId = (int) $request->input('cash_register_id', 0);
+
+        try {
+            return $this->view('admin/cash_registers/print_ticket', [
+                'title' => 'Ticket de Caixa',
+                'user' => $user,
+                'context' => $this->service->ticketPrintContext($companyId, $cashRegisterId),
+            ]);
+        } catch (ValidationException $e) {
+            return $this->backWithError($e->getMessage(), '/admin/cash-registers');
+        }
+    }
+}

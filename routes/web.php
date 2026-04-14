@@ -86,6 +86,7 @@ $router->get('/admin/payments/create', [PaymentController::class, 'create'], $co
 $router->post('/admin/payments/store', [PaymentController::class, 'store'], $companyAccess('payments.create'));
 
 $router->get('/admin/cash-registers', [CashRegisterController::class, 'index'], $companyAccess('cash_registers.open'));
+$router->get('/admin/cash-registers/print-ticket', [CashRegisterController::class, 'printTicket'], $companyAccess('cash_registers.open'));
 $router->post('/admin/cash-registers/open', [CashRegisterController::class, 'open'], $companyAccess('cash_registers.open'));
 $router->post('/admin/cash-registers/close', [CashRegisterController::class, 'close'], $companyAccess('cash_registers.close'));
 

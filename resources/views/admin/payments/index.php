@@ -299,7 +299,7 @@ body.modal-open{overflow:hidden}
                         <?php endif; ?>
 
                         <div class="payment-modal-actions">
-                            <a class="btn" href="<?= htmlspecialchars(base_url('/admin/orders/print-ticket?order_id=' . $orderId . '&return_to=payments')) ?>" target="_blank" rel="noopener">Emitir ticket (previa/impressao)</a>
+                            <a class="btn" href="<?= htmlspecialchars(base_url('/admin/orders/print-ticket?order_id=' . $orderId . '&return_to=payments')) ?>">Emitir ticket (previa/impressao)</a>
                             <button class="btn secondary" type="button" data-close-payment-modal>Fechar</button>
                         </div>
                     </template>

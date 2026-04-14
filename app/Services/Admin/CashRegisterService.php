@@ -120,6 +120,51 @@ final class CashRegisterService
         }
     }
 
+    public function ticketPrintContext(int $companyId, int $cashRegisterId = 0): array
+    {
+        $cashRegister = null;
+
+        if ($cashRegisterId > 0) {
+            $cashRegister = $this->cashRegisters->findDetailedByIdForCompany($companyId, $cashRegisterId);
+            if ($cashRegister === null) {
+                throw new ValidationException('Caixa nao encontrado para impressao.');
+            }
+        } else {
+            $open = $this->cashRegisters->findOpenByCompany($companyId);
+            if ($open !== null) {
+                $cashRegister = $this->cashRegisters->findDetailedByIdForCompany($companyId, (int) ($open['id'] ?? 0));
+            }
+
+            if ($cashRegister === null) {
+                $cashRegister = $this->cashRegisters->latestDetailedByCompany($companyId);
+            }
+
+            if ($cashRegister === null) {
+                throw new ValidationException('Nenhum caixa disponivel para gerar ticket.');
+            }
+        }
+
+        $openingAmount = (float) ($cashRegister['opening_amount'] ?? 0);
+        $income = (float) ($cashRegister['total_income'] ?? 0);
+        $expense = (float) ($cashRegister['total_expense'] ?? 0);
+        $adjustment = (float) ($cashRegister['total_adjustment'] ?? 0);
+        $calculated = $cashRegister['closing_amount_calculated'] !== null
+            ? (float) $cashRegister['closing_amount_calculated']
+            : round($openingAmount + $income - $expense + $adjustment, 2);
+        $reported = $cashRegister['closing_amount_reported'] !== null
+            ? (float) $cashRegister['closing_amount_reported']
+            : null;
+        $difference = $reported !== null ? round($reported - $calculated, 2) : null;
+
+        $cashRegister['current_calculated_amount'] = $calculated;
+        $cashRegister['difference_amount'] = $difference;
+
+        return [
+            'cash_register' => $cashRegister,
+            'generated_at' => date('Y-m-d H:i:s'),
+        ];
+    }
+
     private function parseMoney(mixed $value): float
     {
         if (is_float($value) || is_int($value)) {
@@ -145,4 +190,3 @@ final class CashRegisterService
         return $text !== '' ? $text : null;
     }
 }
-
