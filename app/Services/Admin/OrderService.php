@@ -6,6 +6,10 @@ namespace App\Services\Admin;
 use App\Core\Database;
 use App\Exceptions\ValidationException;
 use App\Repositories\CommandRepository;
+use App\Repositories\CustomerRepository;
+use App\Repositories\DeliveryAddressRepository;
+use App\Repositories\DeliveryRepository;
+use App\Repositories\DeliveryZoneRepository;
 use App\Repositories\OrderItemRepository;
 use App\Repositories\OrderRepository;
 use App\Repositories\OrderStatusHistoryRepository;
@@ -22,6 +26,10 @@ final class OrderService
         private readonly OrderStatusHistoryRepository $statusHistory = new OrderStatusHistoryRepository(),
         private readonly CommandRepository $commands = new CommandRepository(),
         private readonly ProductRepository $products = new ProductRepository(),
+        private readonly DeliveryZoneRepository $deliveryZones = new DeliveryZoneRepository(),
+        private readonly CustomerRepository $customers = new CustomerRepository(),
+        private readonly DeliveryAddressRepository $deliveryAddresses = new DeliveryAddressRepository(),
+        private readonly DeliveryRepository $deliveries = new DeliveryRepository(),
         private readonly CommandLifecycleService $commandLifecycle = new CommandLifecycleService()
     ) {}
 
@@ -172,28 +180,99 @@ final class OrderService
 
     public function createFromCommand(int $companyId, int $userId, array $input): int
     {
-        $commandId = (int) ($input['command_id'] ?? 0);
-        if ($commandId <= 0) {
-            throw new ValidationException('Selecione uma comanda aberta valida.');
-        }
+        $input['channel'] = 'table';
+        return $this->create($companyId, $userId, $input);
+    }
 
-        $command = $this->commands->findOpenById($companyId, $commandId);
-        if ($command === null) {
-            throw new ValidationException('A comanda selecionada nao esta aberta ou nao pertence a empresa.');
+    public function create(int $companyId, int $userId, array $input): int
+    {
+        $channel = strtolower(trim((string) ($input['channel'] ?? 'table')));
+        $validChannels = ['table', 'delivery', 'pickup', 'counter'];
+        if (!in_array($channel, $validChannels, true)) {
+            throw new ValidationException('Canal de pedido invalido.');
         }
 
         $discountAmount = $this->parseMoney($input['discount_amount'] ?? 0);
-        $deliveryFee = $this->parseMoney($input['delivery_fee'] ?? 0);
-
         if ($discountAmount < 0) {
             throw new ValidationException('O desconto nao pode ser negativo.');
         }
 
-        if ($deliveryFee < 0) {
-            throw new ValidationException('A taxa de entrega nao pode ser negativa.');
-        }
-
         [$items, $subtotal] = $this->normalizeItems($companyId, $input);
+        $orderNotes = $this->normalizeNullableText($input['notes'] ?? null);
+        $deliveryFee = 0.0;
+        $placedBy = $channel === 'table' ? 'waiter' : 'cashier';
+        $commandId = null;
+        $tableId = null;
+        $customerId = null;
+        $customerName = $this->normalizeNullableText($input['customer_name'] ?? null);
+        $deliveryPayload = null;
+
+        if ($channel === 'table') {
+            $commandIdInput = (int) ($input['command_id'] ?? 0);
+            if ($commandIdInput <= 0) {
+                throw new ValidationException('Selecione uma comanda aberta valida para o canal mesa.');
+            }
+
+            $command = $this->commands->findOpenById($companyId, $commandIdInput);
+            if ($command === null) {
+                throw new ValidationException('A comanda selecionada nao esta aberta ou nao pertence a empresa.');
+            }
+
+            $commandId = (int) $command['id'];
+            $tableId = $command['table_id'] !== null ? (int) $command['table_id'] : null;
+            $customerId = $command['customer_id'] !== null ? (int) $command['customer_id'] : null;
+            $customerName = $command['customer_name'] !== null
+                ? $this->normalizeNullableText((string) $command['customer_name'])
+                : $customerName;
+            $deliveryFee = $this->parseMoney($input['delivery_fee'] ?? 0);
+            if ($deliveryFee < 0) {
+                throw new ValidationException('A taxa de entrega nao pode ser negativa.');
+            }
+        } elseif ($channel === 'delivery') {
+            $customerName = $this->normalizeRequiredText(
+                $input['customer_name'] ?? null,
+                'Informe o nome do cliente para pedidos de entrega.'
+            );
+            $customerPhone = $this->normalizeNullableText($input['customer_phone'] ?? null);
+            $zoneId = (int) ($input['delivery_zone_id'] ?? 0);
+            if ($zoneId <= 0) {
+                throw new ValidationException('Selecione uma zona de entrega valida.');
+            }
+
+            $zone = $this->deliveryZones->findByIdForCompany($companyId, $zoneId);
+            if ($zone === null || (string) ($zone['status'] ?? '') !== 'ativo') {
+                throw new ValidationException('Zona de entrega invalida ou inativa para esta empresa.');
+            }
+
+            $deliveryFee = round((float) ($zone['fee_amount'] ?? 0), 2);
+            if ($deliveryFee < 0) {
+                throw new ValidationException('A taxa da zona de entrega nao pode ser negativa.');
+            }
+
+            $baseForMinimum = round($subtotal - $discountAmount, 2);
+            $minimumOrderAmount = $zone['minimum_order_amount'] !== null ? (float) $zone['minimum_order_amount'] : null;
+            if ($minimumOrderAmount !== null && $baseForMinimum < $minimumOrderAmount) {
+                throw new ValidationException(
+                    'Pedido abaixo do minimo da zona selecionada: R$ ' . number_format($minimumOrderAmount, 2, ',', '.')
+                );
+            }
+
+            $address = $this->normalizeDeliveryAddressInput($input);
+            $deliveryPayload = [
+                'zone' => $zone,
+                'customer_phone' => $customerPhone,
+                'address' => $address,
+                'delivery_notes' => $this->normalizeNullableText($input['delivery_notes'] ?? null),
+            ];
+        } else {
+            $deliveryFee = 0.0;
+            if ($channel === 'pickup') {
+                $customerName = $this->normalizeRequiredText(
+                    $input['customer_name'] ?? null,
+                    'Informe o nome do cliente para retirada.'
+                );
+            }
+        }
 
         $totalAmount = round(($subtotal - $discountAmount) + $deliveryFee, 2);
         if ($totalAmount < 0) {
@@ -204,21 +283,29 @@ final class OrderService
         $db->beginTransaction();
 
         try {
+            if ($channel === 'delivery' && $deliveryPayload !== null) {
+                $customerId = $this->resolveDeliveryCustomerId(
+                    $companyId,
+                    (string) $customerName,
+                    $deliveryPayload['customer_phone']
+                );
+            }
+
             $orderId = $this->createOrderWithUniqueNumber([
                 'company_id' => $companyId,
-                'command_id' => (int) $command['id'],
-                'table_id' => $command['table_id'] !== null ? (int) $command['table_id'] : null,
-                'customer_id' => $command['customer_id'] !== null ? (int) $command['customer_id'] : null,
-                'channel' => 'table',
+                'command_id' => $commandId,
+                'table_id' => $tableId,
+                'customer_id' => $customerId,
+                'channel' => $channel,
                 'status' => 'pending',
                 'payment_status' => 'pending',
-                'customer_name' => $command['customer_name'] !== null ? trim((string) $command['customer_name']) : null,
+                'customer_name' => $customerName,
                 'subtotal_amount' => $subtotal,
                 'discount_amount' => $discountAmount,
                 'delivery_fee' => $deliveryFee,
                 'total_amount' => $totalAmount,
-                'notes' => $this->normalizeNullableText($input['notes'] ?? null),
-                'placed_by' => 'waiter',
+                'notes' => $orderNotes,
+                'placed_by' => $placedBy,
                 'placed_by_user_id' => $userId > 0 ? $userId : null,
             ]);
 
@@ -229,8 +316,40 @@ final class OrderService
                 'old_status' => null,
                 'new_status' => 'pending',
                 'changed_by_user_id' => $userId > 0 ? $userId : null,
-                'notes' => 'Pedido criado.',
+                'notes' => 'Pedido criado (' . $channel . ').',
             ]);
+
+            if ($channel === 'delivery' && $deliveryPayload !== null && $customerId !== null) {
+                $zone = is_array($deliveryPayload['zone'] ?? null) ? $deliveryPayload['zone'] : [];
+                $address = is_array($deliveryPayload['address'] ?? null) ? $deliveryPayload['address'] : [];
+                $addressId = $this->deliveryAddresses->create([
+                    'company_id' => $companyId,
+                    'customer_id' => $customerId,
+                    'label' => $address['label'] ?? null,
+                    'street' => $address['street'] ?? '',
+                    'number' => $address['number'] ?? '',
+                    'complement' => $address['complement'] ?? null,
+                    'neighborhood' => $address['neighborhood'] ?? '',
+                    'city' => $address['city'] ?? '',
+                    'state' => $address['state'] ?? '',
+                    'zip_code' => $address['zip_code'] ?? null,
+                    'reference' => $address['reference'] ?? null,
+                    'delivery_zone_id' => (int) ($zone['id'] ?? 0),
+                ]);
+
+                $this->deliveries->create([
+                    'company_id' => $companyId,
+                    'order_id' => $orderId,
+                    'delivery_address_id' => $addressId,
+                    'delivery_user_id' => null,
+                    'status' => 'pending',
+                    'delivery_fee' => $deliveryFee,
+                    'assigned_at' => null,
+                    'left_at' => null,
+                    'delivered_at' => null,
+                    'notes' => $deliveryPayload['delivery_notes'] ?? null,
+                ]);
+            }
 
             $db->commit();
             return $orderId;
@@ -339,6 +458,7 @@ final class OrderService
         $notesList = [];
         $statuses = [];
         $paymentStatuses = [];
+        $channels = [];
         $orderNumbers = [];
         foreach ($orders as $order) {
             $commandRaw = $order['command_id'] ?? null;
@@ -359,6 +479,7 @@ final class OrderService
             }
             $statuses[] = (string) ($order['status'] ?? '');
             $paymentStatuses[] = (string) ($order['payment_status'] ?? '');
+            $channels[] = (string) ($order['channel'] ?? '');
             $orderNumbers[] = (string) ($order['order_number'] ?? '-');
         }
 
@@ -367,6 +488,7 @@ final class OrderService
         $groupTableNumber = count($tableNumbers) === 1 ? (int) array_key_first($tableNumbers) : null;
         $groupStatus = $this->resolveGroupOperationalStatus($statuses);
         $groupPaymentStatus = $this->resolveGroupPaymentStatus($paymentStatuses);
+        $groupChannel = $this->resolveGroupChannel($channels);
         $groupNotes = $notesList !== [] ? implode(' | ', $notesList) : null;
 
         return [
@@ -383,6 +505,7 @@ final class OrderService
                 'table_number' => $groupTableNumber,
                 'status' => $groupStatus,
                 'payment_status' => $groupPaymentStatus,
+                'channel' => $groupChannel,
                 'notes' => $groupNotes,
                 'subtotal_amount' => $groupTotals['subtotal_amount'],
                 'discount_amount' => $groupTotals['discount_amount'],
@@ -722,10 +845,64 @@ final class OrderService
         return round((float) $normalized, 2);
     }
 
+    private function normalizeRequiredText(mixed $value, string $errorMessage): string
+    {
+        $text = trim((string) ($value ?? ''));
+        if ($text === '') {
+            throw new ValidationException($errorMessage);
+        }
+        return $text;
+    }
+
     private function normalizeNullableText(mixed $value): ?string
     {
         $text = trim((string) ($value ?? ''));
         return $text !== '' ? $text : null;
+    }
+
+    private function normalizeDeliveryAddressInput(array $input): array
+    {
+        $stateRaw = strtoupper(trim((string) ($input['delivery_state'] ?? '')));
+        $state = preg_replace('/[^A-Z]/', '', $stateRaw) ?? '';
+        if (strlen($state) > 2) {
+            $state = substr($state, 0, 2);
+        }
+
+        $address = [
+            'label' => $this->normalizeNullableText($input['delivery_label'] ?? null),
+            'street' => $this->normalizeRequiredText($input['delivery_street'] ?? null, 'Informe o logradouro da entrega.'),
+            'number' => $this->normalizeRequiredText($input['delivery_number'] ?? null, 'Informe o numero do endereco de entrega.'),
+            'complement' => $this->normalizeNullableText($input['delivery_complement'] ?? null),
+            'neighborhood' => $this->normalizeRequiredText($input['delivery_neighborhood'] ?? null, 'Informe o bairro da entrega.'),
+            'city' => $this->normalizeRequiredText($input['delivery_city'] ?? null, 'Informe a cidade da entrega.'),
+            'state' => $state,
+            'zip_code' => $this->normalizeNullableText($input['delivery_zip_code'] ?? null),
+            'reference' => $this->normalizeNullableText($input['delivery_reference'] ?? null),
+        ];
+
+        if (strlen($address['state']) !== 2) {
+            throw new ValidationException('Informe uma UF valida (2 letras) para entrega.');
+        }
+
+        return $address;
+    }
+
+    private function resolveDeliveryCustomerId(int $companyId, string $customerName, ?string $customerPhone): int
+    {
+        if ($customerPhone !== null) {
+            $existing = $this->customers->findByPhoneForCompany($companyId, $customerPhone);
+            if ($existing !== null) {
+                return (int) ($existing['id'] ?? 0);
+            }
+        }
+
+        return $this->customers->create([
+            'company_id' => $companyId,
+            'name' => $customerName,
+            'phone' => $customerPhone,
+            'email' => null,
+            'notes' => null,
+        ]);
     }
 
     private function indexAdditionalsByOrderItemId(array $rows): array
@@ -1024,5 +1201,22 @@ final class OrderService
         }
 
         return 'pending';
+    }
+
+    private function resolveGroupChannel(array $channels): string
+    {
+        $normalized = [];
+        foreach ($channels as $channelRaw) {
+            $channel = strtolower(trim((string) $channelRaw));
+            if (in_array($channel, ['table', 'delivery', 'pickup', 'counter'], true)) {
+                $normalized[$channel] = true;
+            }
+        }
+
+        if (count($normalized) === 1) {
+            return (string) array_key_first($normalized);
+        }
+
+        return 'table';
     }
 }

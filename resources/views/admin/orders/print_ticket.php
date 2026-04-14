@@ -30,12 +30,14 @@ $customerName = trim((string) ($group['customer_name'] ?? ($order['customer_name
 $createdAt = (string) ($order['created_at'] ?? '-');
 $statusValue = (string) ($group['status'] ?? ($order['status'] ?? ''));
 $paymentStatusValue = (string) ($group['payment_status'] ?? ($order['payment_status'] ?? ''));
+$channelValue = (string) ($group['channel'] ?? ($order['channel'] ?? 'table'));
 $notes = trim((string) ($group['notes'] ?? ($order['notes'] ?? '')));
 $returnOrderId = isset($_GET['return_order_id']) ? (int) $_GET['return_order_id'] : 0;
 $returnTo = strtolower(trim((string) ($_GET['return_to'] ?? 'orders')));
 $backToOrdersUrl = match ($returnTo) {
     'kitchen' => base_url('/admin/kitchen'),
     'payments' => base_url('/admin/payments'),
+    'deliveries' => base_url('/admin/deliveries'),
     default => $returnOrderId > 0
         ? base_url('/admin/orders?open_order_id=' . $returnOrderId)
         : base_url('/admin/orders'),
@@ -135,6 +137,7 @@ $total = (float) ($group['total_amount'] ?? ($order['total_amount'] ?? 0));
                 <div class="ticket-meta-item"><strong>Comanda</strong><span><?= $commandId !== null ? '#' . $commandId : '-' ?></span></div>
                 <div class="ticket-meta-item"><strong>Cliente</strong><span><?= htmlspecialchars($customerName !== '' ? $customerName : '-') ?></span></div>
                 <div class="ticket-meta-item"><strong>Pedidos</strong><span><?= count($ordersContext) ?></span></div>
+                <div class="ticket-meta-item"><strong>Canal</strong><span><?= htmlspecialchars(status_label('order_channel', $channelValue)) ?></span></div>
                 <div class="ticket-meta-item"><strong>Criado em</strong><span><?= htmlspecialchars($createdAt) ?></span></div>
                 <div class="ticket-meta-item"><strong>Subtotal</strong><span>R$ <?= number_format($subtotal, 2, ',', '.') ?></span></div>
                 <div class="ticket-meta-item"><strong>Total</strong><span>R$ <?= number_format($total, 2, ',', '.') ?></span></div>
@@ -180,6 +183,7 @@ $total = (float) ($group['total_amount'] ?? ($order['total_amount'] ?? 0));
                     <div class="ticket-row"><span>Data</span><span><?= htmlspecialchars($createdAt) ?></span></div>
                     <div class="ticket-row"><span>Status</span><span><?= htmlspecialchars(status_label('order_status', $statusValue)) ?></span></div>
                     <div class="ticket-row"><span>Pagamento</span><span><?= htmlspecialchars(status_label('order_payment_status', $paymentStatusValue)) ?></span></div>
+                    <div class="ticket-row"><span>Canal</span><span><?= htmlspecialchars(status_label('order_channel', $channelValue)) ?></span></div>
                     <div class="ticket-row"><span>Pedidos no ticket</span><span><?= count($ordersContext) ?></span></div>
 
                     <div class="ticket-divider"></div>

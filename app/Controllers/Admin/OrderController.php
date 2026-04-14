@@ -10,6 +10,7 @@ use App\Core\Response;
 use App\Exceptions\ValidationException;
 use App\Repositories\PermissionRepository;
 use App\Services\Admin\CommandService;
+use App\Services\Admin\DeliveryZoneService;
 use App\Services\Admin\OrderService;
 use App\Services\Admin\ProductService;
 
@@ -19,6 +20,7 @@ final class OrderController extends Controller
         private readonly OrderService $service = new OrderService(),
         private readonly CommandService $commandService = new CommandService(),
         private readonly ProductService $productService = new ProductService(),
+        private readonly DeliveryZoneService $deliveryZoneService = new DeliveryZoneService(),
         private readonly PermissionRepository $permissions = new PermissionRepository()
     ) {}
 
@@ -49,6 +51,7 @@ final class OrderController extends Controller
             'user' => $user,
             'commands' => $this->commandService->listOpen($companyId),
             'products' => $this->productService->listForOrderForm($companyId),
+            'deliveryZones' => $this->deliveryZoneService->listActive($companyId),
         ]);
     }
 
@@ -97,7 +100,7 @@ final class OrderController extends Controller
         $userId = (int) ($user['id'] ?? 0);
 
         try {
-            $this->service->createFromCommand($companyId, $userId, $request->all());
+            $this->service->create($companyId, $userId, $request->all());
             return $this->backWithSuccess('Pedido criado com sucesso.', '/admin/orders');
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), '/admin/orders/create');

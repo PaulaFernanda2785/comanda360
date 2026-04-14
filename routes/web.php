@@ -11,6 +11,8 @@ use App\Controllers\Admin\OrderController;
 use App\Controllers\Admin\PaymentController;
 use App\Controllers\Admin\CashRegisterController;
 use App\Controllers\Admin\KitchenController;
+use App\Controllers\Admin\DeliveryZoneController;
+use App\Controllers\Admin\DeliveryController;
 use App\Controllers\Saas\DashboardController as SaasDashboardController;
 use App\Controllers\Saas\CompanyController as SaasCompanyController;
 use App\Controllers\Saas\PlanController as SaasPlanController;
@@ -80,6 +82,14 @@ $router->post('/admin/orders/send-kitchen', [OrderController::class, 'sendToKitc
 $router->get('/admin/kitchen', [KitchenController::class, 'index'], $companyAccess('orders.view'));
 $router->post('/admin/kitchen/status', [KitchenController::class, 'updateStatus'], $companyAccess('orders.status'));
 $router->post('/admin/kitchen/emit-ticket', [KitchenController::class, 'emitTicket'], $companyAccess('orders.view'));
+
+$router->get('/admin/delivery-zones', [DeliveryZoneController::class, 'index'], $companyAccess('orders.create'));
+$router->post('/admin/delivery-zones/store', [DeliveryZoneController::class, 'store'], $companyAccess('orders.create'));
+$router->post('/admin/delivery-zones/update', [DeliveryZoneController::class, 'update'], $companyAccess('orders.create'));
+$router->post('/admin/delivery-zones/delete', [DeliveryZoneController::class, 'delete'], $companyAccess('orders.create'));
+
+$router->get('/admin/deliveries', [DeliveryController::class, 'index'], $companyAccess('orders.view'));
+$router->post('/admin/deliveries/update', [DeliveryController::class, 'update'], $companyAccess('orders.status'));
 
 $router->get('/admin/payments', [PaymentController::class, 'index'], $companyAccess('payments.view'));
 $router->get('/admin/payments/create', [PaymentController::class, 'create'], $companyAccess('payments.create'));

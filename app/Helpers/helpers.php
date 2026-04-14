@@ -279,6 +279,12 @@ if (!function_exists('status_label')) {
                 'paid' => 'Pago',
                 'canceled' => 'Cancelado',
             ],
+            'order_channel' => [
+                'table' => 'Mesa',
+                'delivery' => 'Entrega',
+                'pickup' => 'Retirada',
+                'counter' => 'Balcao',
+            ],
             'order_operational_flag' => [
                 'paid_waiting_production' => 'Pago aguardando producao',
             ],
@@ -307,6 +313,18 @@ if (!function_exists('status_label')) {
                 'ocupada' => 'Ocupada',
                 'aguardando_fechamento' => 'Aguardando fechamento',
                 'bloqueada' => 'Bloqueada',
+            ],
+            'delivery_status' => [
+                'pending' => 'Pendente',
+                'assigned' => 'Atribuida',
+                'in_route' => 'Em rota',
+                'delivered' => 'Entregue',
+                'failed' => 'Falhou',
+                'canceled' => 'Cancelada',
+            ],
+            'delivery_zone_status' => [
+                'ativo' => 'Ativa',
+                'inativo' => 'Inativa',
             ],
             'company_status' => [
                 'ativa' => 'Ativa',
@@ -385,6 +403,12 @@ if (!function_exists('status_badge_class')) {
                 'paid' => 'status-paid',
                 'canceled' => 'status-canceled',
             ],
+            'order_channel' => [
+                'table' => 'status-received',
+                'delivery' => 'status-ready',
+                'pickup' => 'status-partial',
+                'counter' => 'status-default',
+            ],
             'order_operational_flag' => [
                 'paid_waiting_production' => 'status-paid-waiting-production',
             ],
@@ -413,6 +437,18 @@ if (!function_exists('status_badge_class')) {
                 'ocupada' => 'status-busy',
                 'aguardando_fechamento' => 'status-waiting',
                 'bloqueada' => 'status-blocked',
+            ],
+            'delivery_status' => [
+                'pending' => 'status-pending',
+                'assigned' => 'status-received',
+                'in_route' => 'status-preparing',
+                'delivered' => 'status-delivered',
+                'failed' => 'status-failed',
+                'canceled' => 'status-canceled',
+            ],
+            'delivery_zone_status' => [
+                'ativo' => 'status-active',
+                'inativo' => 'status-inactive',
             ],
             'subscription_status' => [
                 'ativa' => 'status-active',

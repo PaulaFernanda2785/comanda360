@@ -200,7 +200,7 @@ foreach ($ordersByTable as $tablePanel) {
 
     <div class="card">
         <div class="search-row">
-            <input id="orderSearch" type="text" placeholder="Digite o numero da mesa (ex.: 10) ou use filtros: status:pronto pagamento:pago cliente:ana">
+            <input id="orderSearch" type="text" placeholder="Digite o numero da mesa (ex.: 10) ou use filtros: status:pronto pagamento:pago canal:entrega cliente:ana">
             <button id="clearOrderSearch" class="btn secondary" type="button">Limpar</button>
         </div>
         <div id="orderSearchInfo" class="search-info">Digite apenas o numero da mesa para filtrar rapido, ou use busca livre/filtros por campo.</div>
@@ -251,6 +251,8 @@ foreach ($ordersByTable as $tablePanel) {
                             $orderStatusesLabelParts = [];
                             $paymentStatusesRawParts = [];
                             $paymentStatusesLabelParts = [];
+                            $channelRawParts = [];
+                            $channelLabelParts = [];
                             $latestCreatedCandidates = [];
                             $latestChangedCandidates = [];
                             foreach ($cardOrders as $cardOrder) {
@@ -264,6 +266,9 @@ foreach ($ordersByTable as $tablePanel) {
                                 $currentPaymentRaw = (string) ($cardOrder['payment_status'] ?? '');
                                 $paymentStatusesRawParts[] = $currentPaymentRaw;
                                 $paymentStatusesLabelParts[] = (string) status_label('order_payment_status', $currentPaymentRaw);
+                                $currentChannelRaw = (string) ($cardOrder['channel'] ?? '');
+                                $channelRawParts[] = $currentChannelRaw;
+                                $channelLabelParts[] = (string) status_label('order_channel', $currentChannelRaw);
                                 $latestCreatedCandidates[] = (string) ($cardOrder['created_at'] ?? '');
                                 $latestChangedCandidates[] = (string) ($cardOrder['latest_status_changed_at'] ?? '');
                                 $cardItems = is_array($cardOrder['items'] ?? null) ? $cardOrder['items'] : [];
@@ -305,6 +310,13 @@ foreach ($ordersByTable as $tablePanel) {
                                 [(string) status_label('order_payment_status', $order['payment_status'] ?? null)],
                                 $paymentStatusesLabelParts
                             ), static fn (mixed $value): bool => trim((string) $value) !== '')))));
+                            $channelRawValue = trim(implode(' ', array_values(array_unique(array_filter($channelRawParts, static fn (mixed $value): bool => trim((string) $value) !== '')))));
+                            $channelLabelValue = trim(implode(' ', array_values(array_unique(array_filter($channelLabelParts, static fn (mixed $value): bool => trim((string) $value) !== '')))));
+                            $channelUniqueRaw = array_values(array_unique(array_filter($channelRawParts, static fn (mixed $value): bool => trim((string) $value) !== '')));
+                            $channelDisplayValue = count($channelUniqueRaw) === 1 ? (string) $channelUniqueRaw[0] : 'mixed';
+                            $channelDisplayLabel = count($channelUniqueRaw) === 1
+                                ? status_label('order_channel', (string) $channelUniqueRaw[0])
+                                : 'Misto';
                             $paymentStatusDisplayValue = (string) ($order['payment_status'] ?? 'pending');
                             if ($paymentStatusDisplayValue === '') {
                                 $paymentStatusDisplayValue = 'pending';
@@ -337,6 +349,8 @@ foreach ($ordersByTable as $tablePanel) {
                                 $latestStatusChangedAtValue,
                                 $totalAmountSearchValue,
                                 $commandSearchText,
+                                $channelRawValue,
+                                $channelLabelValue,
                                 $orderItemsSearchText,
                             ]));
                             $ordersCount = (int) ($order['orders_count'] ?? count($cardOrders));
@@ -375,6 +389,7 @@ foreach ($ordersByTable as $tablePanel) {
                                 data-search-status="<?= htmlspecialchars(trim($orderStatusRawValue . ' ' . $orderStatusLabelValue)) ?>"
                                 data-search-payment="<?= htmlspecialchars(trim($paymentStatusRawValue . ' ' . $paymentStatusLabelValue)) ?>"
                                 data-search-command="<?= htmlspecialchars(trim($commandSearchText . ' ' . $commandSearchValue)) ?>"
+                                data-search-channel="<?= htmlspecialchars(trim($channelRawValue . ' ' . $channelLabelValue)) ?>"
                                 data-search-time="<?= htmlspecialchars(trim($createdAtValue . ' ' . $latestStatusChangedAtValue)) ?>"
                                 data-search-items="<?= htmlspecialchars($orderItemsSearchText) ?>"
                             >
@@ -391,6 +406,9 @@ foreach ($ordersByTable as $tablePanel) {
                                 <div class="order-card-badges">
                                     <span class="badge <?= htmlspecialchars(status_badge_class('order_payment_status', $paymentStatusDisplayValue)) ?>">
                                         <?= htmlspecialchars(status_label('order_payment_status', $paymentStatusDisplayValue)) ?>
+                                    </span>
+                                    <span class="badge <?= htmlspecialchars($channelDisplayValue === 'mixed' ? 'status-default' : status_badge_class('order_channel', $channelDisplayValue)) ?>">
+                                        <?= htmlspecialchars((string) $channelDisplayLabel) ?>
                                     </span>
                                     <?php if (!empty($order['is_paid_waiting_production'])): ?>
                                         <span class="badge <?= htmlspecialchars(status_badge_class('order_operational_flag', 'paid_waiting_production')) ?>">
@@ -432,6 +450,7 @@ foreach ($ordersByTable as $tablePanel) {
                                     <div class="modal-meta-item"><strong>Pedidos</strong><span><?= $ordersCount ?></span></div>
                                     <div class="modal-meta-item"><strong>Itens</strong><span><?= $itemsTotal ?></span></div>
                                     <div class="modal-meta-item"><strong>Total geral</strong><span><?= htmlspecialchars($formatMoney($cardTotalAmount)) ?></span></div>
+                                    <div class="modal-meta-item"><strong>Canal</strong><span><?= htmlspecialchars((string) $channelDisplayLabel) ?></span></div>
                                     <div class="modal-meta-item"><strong>Ultimo pedido</strong><span><?= htmlspecialchars($createdAtValue !== '' ? $createdAtValue : '-') ?></span></div>
                                     <div class="modal-meta-item"><strong>Ultima mudanca</strong><span><?= htmlspecialchars($latestStatusChangedAtValue !== '' ? $latestStatusChangedAtValue : '-') ?></span></div>
                                     <div class="modal-meta-item"><strong>Atualizacao</strong><span>Automatica em 30s</span></div>
@@ -487,6 +506,9 @@ foreach ($ordersByTable as $tablePanel) {
                                                         </span>
                                                         <span class="badge <?= htmlspecialchars(status_badge_class('order_payment_status', $orderRow['payment_status'] ?? null)) ?>">
                                                             <?= htmlspecialchars(status_label('order_payment_status', $orderRow['payment_status'] ?? null)) ?>
+                                                        </span>
+                                                        <span class="badge <?= htmlspecialchars(status_badge_class('order_channel', $orderRow['channel'] ?? 'table')) ?>">
+                                                            <?= htmlspecialchars(status_label('order_channel', $orderRow['channel'] ?? 'table')) ?>
                                                         </span>
                                                     </div>
                                                 </div>
@@ -630,6 +652,7 @@ foreach ($ordersByTable as $tablePanel) {
         status: ['status', 'st', 'situacao'],
         payment: ['pagamento', 'pag', 'pg', 'payment'],
         command: ['comanda', 'cmd'],
+        channel: ['canal', 'channel', 'origem'],
         items: ['item', 'itens', 'produto', 'prod', 'adicional', 'add'],
         time: ['data', 'hora', 'horario', 'dt', 'criado', 'alterado'],
     };
@@ -648,6 +671,7 @@ foreach ($ordersByTable as $tablePanel) {
         status: String(card.getAttribute('data-search-status') || ''),
         payment: String(card.getAttribute('data-search-payment') || ''),
         command: String(card.getAttribute('data-search-command') || ''),
+        channel: String(card.getAttribute('data-search-channel') || ''),
         items: String(card.getAttribute('data-search-items') || ''),
         time: String(card.getAttribute('data-search-time') || ''),
     }]));
@@ -659,6 +683,7 @@ foreach ($ordersByTable as $tablePanel) {
         status: 'status',
         payment: 'pagamento',
         command: 'comanda',
+        channel: 'canal',
         items: 'item',
         time: 'data/hora',
     };

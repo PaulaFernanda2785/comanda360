@@ -1,21 +1,26 @@
 <?php
 $commands = is_array($commands ?? null) ? $commands : [];
 $products = is_array($products ?? null) ? $products : [];
+$deliveryZones = is_array($deliveryZones ?? null) ? $deliveryZones : [];
 
 $productsJson = json_encode($products, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 if (!is_string($productsJson)) {
     $productsJson = '[]';
 }
+$deliveryZonesJson = json_encode($deliveryZones, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+if (!is_string($deliveryZonesJson)) {
+    $deliveryZonesJson = '[]';
+}
 
 $totalCommands = count($commands);
 $totalProducts = count($products);
 $productsWithAdditionals = count(array_filter($products, static fn (array $product): bool => (int) ($product['has_additionals'] ?? 0) === 1));
-$canCreateOrder = $totalCommands > 0 && $totalProducts > 0;
+$canCreateOrder = $totalProducts > 0;
 ?>
 
 <style>
     .order-create-page{display:grid;gap:16px}
-    .kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:12px}
+    .kpi-grid{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:12px}
     .kpi-item{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px}
     .kpi-item strong{display:block;font-size:24px;line-height:1.1}
     .kpi-item span{color:#64748b;font-size:12px}
@@ -64,11 +69,18 @@ $canCreateOrder = $totalCommands > 0 && $totalProducts > 0;
     .total-highlight{border-color:#bfdbfe;background:#eff6ff}
     .total-highlight span{font-size:18px;font-weight:700;color:#1d4ed8}
     .actions-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+    .channel-section{border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;padding:10px;display:grid;gap:10px}
+    .channel-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+    .channel-hidden{display:none !important}
+    .delivery-fields-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
     @media (max-width:1080px){
-        .kpi-grid{grid-template-columns:repeat(2,minmax(130px,1fr))}
+        .kpi-grid{grid-template-columns:repeat(3,minmax(120px,1fr))}
         .order-form-layout{grid-template-columns:1fr}
         .items-table{min-width:680px}
+        .channel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+        .delivery-fields-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
     }
+    @media (max-width:760px){.delivery-fields-grid{grid-template-columns:1fr}}
 </style>
 
 <div class="order-create-page">
@@ -82,16 +94,16 @@ $canCreateOrder = $totalCommands > 0 && $totalProducts > 0;
 
     <div class="kpi-grid">
         <div class="kpi-item"><strong><?= $totalCommands ?></strong><span>Comandas abertas</span></div>
+        <div class="kpi-item"><strong><?= count($deliveryZones) ?></strong><span>Zonas de entrega</span></div>
         <div class="kpi-item"><strong><?= $totalProducts ?></strong><span>Produtos disponiveis</span></div>
         <div class="kpi-item"><strong><?= $productsWithAdditionals ?></strong><span>Produtos com adicionais</span></div>
+        <div class="kpi-item"><strong><?= $totalCommands > 0 ? 'OK' : 'Atenção' ?></strong><span>Canal mesa</span></div>
+        <div class="kpi-item"><strong><?= count($deliveryZones) > 0 ? 'OK' : 'Atenção' ?></strong><span>Canal entrega</span></div>
         <div class="kpi-item"><strong><?= $canCreateOrder ? 'OK' : 'Pendente' ?></strong><span>Pronto para criar pedido</span></div>
     </div>
 
     <?php if (!$canCreateOrder): ?>
         <div class="warning-strip">
-            <?php if ($totalCommands <= 0): ?>
-                Nenhuma comanda aberta encontrada. Abra uma comanda antes de criar o pedido.
-            <?php endif; ?>
             <?php if ($totalProducts <= 0): ?>
                 Nenhum produto disponivel. Cadastre/ative produtos para continuar.
             <?php endif; ?>
@@ -104,40 +116,116 @@ $canCreateOrder = $totalCommands > 0 && $totalProducts > 0;
         <div class="order-form-layout">
             <div class="order-form-card">
                 <div class="steps">
-                    <span class="step-pill">1. Comanda e dados gerais</span>
+                    <span class="step-pill">1. Canal e dados gerais</span>
                     <span class="step-pill">2. Itens e adicionais</span>
                 </div>
 
-                <div class="grid two">
-                    <div class="field">
-                        <label for="command_id">Comanda aberta</label>
-                        <select id="command_id" name="command_id" required <?= $canCreateOrder ? '' : 'disabled' ?>>
-                            <option value="">Selecione</option>
-                            <?php foreach ($commands as $command): ?>
-                                <option value="<?= (int) $command['id'] ?>">
-                                    <?= $command['table_number'] !== null ? 'Mesa ' . (int) $command['table_number'] : 'Comanda sem mesa' ?>
-                                    <?= !empty($command['customer_name']) ? '- ' . htmlspecialchars((string) $command['customer_name']) : '' ?>
-                                    <?= !empty($command['opened_at']) ? '- Aberta em ' . htmlspecialchars((string) $command['opened_at']) : '' ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                <div class="channel-section">
+                    <div class="channel-grid">
+                        <div class="field">
+                            <label for="channel">Canal do pedido</label>
+                            <select id="channel" name="channel" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                <option value="table">Mesa</option>
+                                <option value="delivery">Entrega</option>
+                                <option value="pickup">Retirada</option>
+                                <option value="counter">Balcao</option>
+                            </select>
+                        </div>
+                        <div class="field" id="commandField">
+                            <label for="command_id">Comanda aberta</label>
+                            <select id="command_id" name="command_id" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                <option value="">Selecione</option>
+                                <?php foreach ($commands as $command): ?>
+                                    <option value="<?= (int) $command['id'] ?>">
+                                        <?= $command['table_number'] !== null ? 'Mesa ' . (int) $command['table_number'] : 'Comanda sem mesa' ?>
+                                        <?= !empty($command['customer_name']) ? '- ' . htmlspecialchars((string) $command['customer_name']) : '' ?>
+                                        <?= !empty($command['opened_at']) ? '- Aberta em ' . htmlspecialchars((string) $command['opened_at']) : '' ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <small id="commandWarning" style="color:#b91c1c;display:none">Sem comanda aberta no momento para canal mesa.</small>
+                        </div>
+                        <div class="field" id="customerNameField">
+                            <label for="customer_name">Cliente</label>
+                            <input id="customer_name" name="customer_name" type="text" placeholder="Nome do cliente" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                        </div>
+                        <div class="field" id="customerPhoneField">
+                            <label for="customer_phone">Telefone</label>
+                            <input id="customer_phone" name="customer_phone" type="text" placeholder="Opcional (delivery)" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                        </div>
                     </div>
 
-                    <div class="field">
-                        <label for="notes">Observacoes gerais</label>
-                        <textarea id="notes" name="notes" class="notes-textarea" rows="2" placeholder="Opcional" <?= $canCreateOrder ? '' : 'disabled' ?>></textarea>
+                    <div class="delivery-fields-grid channel-hidden" id="deliveryFields">
+                        <div class="field">
+                            <label for="delivery_zone_id">Zona de entrega</label>
+                            <select id="delivery_zone_id" name="delivery_zone_id" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                <option value="">Selecione</option>
+                                <?php foreach ($deliveryZones as $zone): ?>
+                                    <option
+                                        value="<?= (int) ($zone['id'] ?? 0) ?>"
+                                        data-fee="<?= htmlspecialchars(number_format((float) ($zone['fee_amount'] ?? 0), 2, '.', '')) ?>"
+                                        data-minimum="<?= $zone['minimum_order_amount'] !== null ? htmlspecialchars(number_format((float) $zone['minimum_order_amount'], 2, '.', '')) : '' ?>"
+                                    >
+                                        <?= htmlspecialchars((string) ($zone['name'] ?? 'Zona')) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <small id="deliveryZoneRule" style="color:#475569"></small>
+                        </div>
+                        <div class="field">
+                            <label for="delivery_label">Rótulo</label>
+                            <input id="delivery_label" name="delivery_label" type="text" placeholder="Casa, Trabalho..." <?= $canCreateOrder ? '' : 'disabled' ?>>
+                        </div>
+                        <div class="field">
+                            <label for="delivery_street">Logradouro</label>
+                            <input id="delivery_street" name="delivery_street" type="text" placeholder="Rua / Avenida" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                        </div>
+                        <div class="field">
+                            <label for="delivery_number">Numero</label>
+                            <input id="delivery_number" name="delivery_number" type="text" placeholder="123" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                        </div>
+                        <div class="field">
+                            <label for="delivery_complement">Complemento</label>
+                            <input id="delivery_complement" name="delivery_complement" type="text" placeholder="Opcional" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                        </div>
+                        <div class="field">
+                            <label for="delivery_neighborhood">Bairro</label>
+                            <input id="delivery_neighborhood" name="delivery_neighborhood" type="text" placeholder="Bairro" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                        </div>
+                        <div class="field">
+                            <label for="delivery_city">Cidade</label>
+                            <input id="delivery_city" name="delivery_city" type="text" placeholder="Cidade" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                        </div>
+                        <div class="field">
+                            <label for="delivery_state">UF</label>
+                            <input id="delivery_state" name="delivery_state" type="text" maxlength="2" placeholder="UF" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                        </div>
+                        <div class="field">
+                            <label for="delivery_zip_code">CEP</label>
+                            <input id="delivery_zip_code" name="delivery_zip_code" type="text" placeholder="Opcional" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                        </div>
+                        <div class="field" style="grid-column:1 / -1">
+                            <label for="delivery_reference">Referencia / observacao da entrega</label>
+                            <input id="delivery_reference" name="delivery_reference" type="text" placeholder="Opcional" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                        </div>
                     </div>
-                </div>
 
-                <div class="grid two">
-                    <div class="field">
-                        <label for="discount_amount">Desconto (R$)</label>
-                        <input id="discount_amount" name="discount_amount" type="number" step="0.01" min="0" value="0.00" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                    <div class="grid two">
+                        <div class="field">
+                            <label for="notes">Observacoes gerais</label>
+                            <textarea id="notes" name="notes" class="notes-textarea" rows="2" placeholder="Opcional" <?= $canCreateOrder ? '' : 'disabled' ?>></textarea>
+                        </div>
+                        <div class="field">
+                            <label for="discount_amount">Desconto (R$)</label>
+                            <input id="discount_amount" name="discount_amount" type="number" step="0.01" min="0" value="0.00" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                        </div>
                     </div>
 
-                    <div class="field">
-                        <label for="delivery_fee">Taxa de entrega (R$)</label>
-                        <input id="delivery_fee" name="delivery_fee" type="number" step="0.01" min="0" value="0.00" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                    <div class="grid two">
+                        <div class="field">
+                            <label for="delivery_fee">Taxa de entrega (R$)</label>
+                            <input id="delivery_fee" name="delivery_fee" type="number" step="0.01" min="0" value="0.00" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                        </div>
                     </div>
                 </div>
 
@@ -173,8 +261,12 @@ $canCreateOrder = $totalCommands > 0 && $totalProducts > 0;
 
                 <div class="summary-list">
                     <div class="summary-item">
+                        <strong>Canal</strong>
+                        <span id="summaryChannel">Mesa</span>
+                    </div>
+                    <div class="summary-item">
                         <strong>Comanda selecionada</strong>
-                        <span id="summaryCommand">Nao selecionada</span>
+                        <span id="summaryCommand">Nao aplicavel</span>
                     </div>
                     <div class="summary-item">
                         <strong>Itens totais</strong>
@@ -218,14 +310,32 @@ $canCreateOrder = $totalCommands > 0 && $totalProducts > 0;
 <script>
 (() => {
     const products = <?= $productsJson ?>;
+    const deliveryZones = <?= $deliveryZonesJson ?>;
     const canCreateOrder = <?= $canCreateOrder ? 'true' : 'false' ?>;
     const productsById = {};
+    const deliveryZonesById = {};
     const tbody = document.getElementById('itemsBody');
     const addItemBtn = document.getElementById('addItemBtn');
+    const channelSelect = document.getElementById('channel');
     const commandSelect = document.getElementById('command_id');
+    const commandField = document.getElementById('commandField');
+    const commandWarning = document.getElementById('commandWarning');
+    const customerNameField = document.getElementById('customerNameField');
+    const customerNameInput = document.getElementById('customer_name');
+    const customerPhoneField = document.getElementById('customerPhoneField');
+    const customerPhoneInput = document.getElementById('customer_phone');
+    const deliveryFields = document.getElementById('deliveryFields');
+    const deliveryZoneSelect = document.getElementById('delivery_zone_id');
+    const deliveryZoneRule = document.getElementById('deliveryZoneRule');
+    const deliveryStreetInput = document.getElementById('delivery_street');
+    const deliveryNumberInput = document.getElementById('delivery_number');
+    const deliveryNeighborhoodInput = document.getElementById('delivery_neighborhood');
+    const deliveryCityInput = document.getElementById('delivery_city');
+    const deliveryStateInput = document.getElementById('delivery_state');
     const notesInput = document.getElementById('notes');
     const discountInput = document.getElementById('discount_amount');
     const deliveryInput = document.getElementById('delivery_fee');
+    const summaryChannel = document.getElementById('summaryChannel');
     const summaryCommand = document.getElementById('summaryCommand');
     const summaryItems = document.getElementById('summaryItems');
     const summaryBase = document.getElementById('summaryBase');
@@ -235,6 +345,7 @@ $canCreateOrder = $totalCommands > 0 && $totalProducts > 0;
     const summaryTotal = document.getElementById('summaryTotal');
     const summaryNotes = document.getElementById('summaryNotes');
     const form = document.getElementById('orderCreateForm');
+    const submitOrderBtn = document.getElementById('submitOrderBtn');
 
     const money = (value) => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`;
     const parseMoney = (value) => {
@@ -269,6 +380,19 @@ $canCreateOrder = $totalCommands > 0 && $totalProducts > 0;
             productsById[productId] = product;
         }
     });
+    deliveryZones.forEach((zone) => {
+        const zoneId = Number(zone.id || 0);
+        if (zoneId > 0) {
+            deliveryZonesById[zoneId] = zone;
+        }
+    });
+
+    const channelLabel = (channel) => {
+        if (channel === 'delivery') return 'Entrega';
+        if (channel === 'pickup') return 'Retirada';
+        if (channel === 'counter') return 'Balcao';
+        return 'Mesa';
+    };
     const productSearchIndex = products
         .map((product) => {
             const productId = Number(product.id || 0);
@@ -535,6 +659,98 @@ $canCreateOrder = $totalCommands > 0 && $totalProducts > 0;
         return { quantity: product ? quantity : 0, base, additionals };
     };
 
+    const updateDeliveryZoneRule = () => {
+        if (!deliveryZoneSelect || !deliveryZoneRule) {
+            return;
+        }
+
+        const zoneId = Number(deliveryZoneSelect.value || 0);
+        const zone = deliveryZonesById[zoneId] || null;
+        if (!zone) {
+            deliveryZoneRule.textContent = '';
+            return;
+        }
+
+        const fee = Number(zone.fee_amount || 0);
+        const minimum = zone.minimum_order_amount !== null && zone.minimum_order_amount !== undefined && zone.minimum_order_amount !== ''
+            ? Number(zone.minimum_order_amount || 0)
+            : null;
+        deliveryZoneRule.textContent = minimum !== null
+            ? `Taxa ${money(fee)} | Pedido minimo ${money(minimum)}`
+            : `Taxa ${money(fee)} | Sem pedido minimo`;
+    };
+
+    const isTableChannelAvailable = () => Array.isArray(commandSelect?.options) && commandSelect.options.length > 1;
+
+    const setElementRequired = (element, required) => {
+        if (!element) {
+            return;
+        }
+        element.required = required;
+    };
+
+    const updateChannelUi = () => {
+        const channel = String(channelSelect ? channelSelect.value : 'table');
+        const isTable = channel === 'table';
+        const isDelivery = channel === 'delivery';
+        const isPickup = channel === 'pickup';
+
+        if (commandField) {
+            commandField.classList.toggle('channel-hidden', !isTable);
+        }
+        if (customerNameField) {
+            customerNameField.classList.toggle('channel-hidden', isTable);
+        }
+        if (customerPhoneField) {
+            customerPhoneField.classList.toggle('channel-hidden', !isDelivery);
+        }
+        if (deliveryFields) {
+            deliveryFields.classList.toggle('channel-hidden', !isDelivery);
+        }
+
+        setElementRequired(commandSelect, isTable);
+        setElementRequired(customerNameInput, isDelivery || isPickup);
+        setElementRequired(deliveryZoneSelect, isDelivery);
+        setElementRequired(deliveryStreetInput, isDelivery);
+        setElementRequired(deliveryNumberInput, isDelivery);
+        setElementRequired(deliveryNeighborhoodInput, isDelivery);
+        setElementRequired(deliveryCityInput, isDelivery);
+        setElementRequired(deliveryStateInput, isDelivery);
+
+        if (isTable && commandWarning) {
+            const unavailable = !isTableChannelAvailable();
+            commandWarning.style.display = unavailable ? '' : 'none';
+            if (submitOrderBtn) {
+                submitOrderBtn.disabled = unavailable || !canCreateOrder;
+            }
+        } else if (submitOrderBtn) {
+            submitOrderBtn.disabled = !canCreateOrder;
+        }
+
+        if (!isDelivery && deliveryZoneSelect) {
+            deliveryZoneSelect.value = '';
+            updateDeliveryZoneRule();
+            if (channel === 'pickup' || channel === 'counter') {
+                if (deliveryInput) {
+                    deliveryInput.value = '0.00';
+                }
+            }
+        }
+
+        if (isDelivery && deliveryZoneSelect) {
+            const zoneId = Number(deliveryZoneSelect.value || 0);
+            const zone = deliveryZonesById[zoneId] || null;
+            if (zone && deliveryInput) {
+                deliveryInput.value = Number(zone.fee_amount || 0).toFixed(2);
+            }
+            updateDeliveryZoneRule();
+        }
+
+        if (deliveryInput) {
+            deliveryInput.readOnly = isDelivery;
+        }
+    };
+
     const refreshSummary = () => {
         let totalItems = 0;
         let totalBase = 0;
@@ -558,9 +774,18 @@ $canCreateOrder = $totalCommands > 0 && $totalProducts > 0;
         if (summaryDelivery) summaryDelivery.textContent = money(delivery);
         if (summaryTotal) summaryTotal.textContent = money(total);
 
+        if (summaryChannel && channelSelect) {
+            summaryChannel.textContent = channelLabel(String(channelSelect.value || 'table'));
+        }
+
         if (summaryCommand && commandSelect) {
-            const label = commandSelect.options[commandSelect.selectedIndex]?.textContent || '';
-            summaryCommand.textContent = commandSelect.value ? String(label).trim() : 'Nao selecionada';
+            const channel = String(channelSelect ? channelSelect.value : 'table');
+            if (channel !== 'table') {
+                summaryCommand.textContent = 'Nao aplicavel';
+            } else {
+                const label = commandSelect.options[commandSelect.selectedIndex]?.textContent || '';
+                summaryCommand.textContent = commandSelect.value ? String(label).trim() : 'Nao selecionada';
+            }
         }
 
         if (summaryNotes && notesInput) {
@@ -718,15 +943,67 @@ $canCreateOrder = $totalCommands > 0 && $totalProducts > 0;
         });
     }
 
-    [commandSelect, notesInput, discountInput, deliveryInput].forEach((input) => {
+    [channelSelect, commandSelect, notesInput, discountInput, deliveryInput, customerNameInput, customerPhoneInput].forEach((input) => {
         if (input) {
             input.addEventListener('input', refreshSummary);
             input.addEventListener('change', refreshSummary);
         }
     });
 
+    if (channelSelect) {
+        channelSelect.addEventListener('change', () => {
+            updateChannelUi();
+            refreshSummary();
+        });
+    }
+
+    if (deliveryZoneSelect) {
+        deliveryZoneSelect.addEventListener('change', () => {
+            const zoneId = Number(deliveryZoneSelect.value || 0);
+            const zone = deliveryZonesById[zoneId] || null;
+            if (zone && deliveryInput) {
+                deliveryInput.value = Number(zone.fee_amount || 0).toFixed(2);
+            }
+            updateDeliveryZoneRule();
+            refreshSummary();
+        });
+    }
+
     if (form) {
         form.addEventListener('submit', (event) => {
+            const channel = String(channelSelect ? channelSelect.value : 'table');
+            if (channel === 'table') {
+                if (!commandSelect || String(commandSelect.value || '') === '') {
+                    event.preventDefault();
+                    alert('Selecione uma comanda para pedidos no canal mesa.');
+                    return;
+                }
+            } else if (channel === 'delivery') {
+                if (!deliveryZoneSelect || String(deliveryZoneSelect.value || '') === '') {
+                    event.preventDefault();
+                    alert('Selecione a zona de entrega.');
+                    return;
+                }
+                if (!customerNameInput || String(customerNameInput.value || '').trim() === '') {
+                    event.preventDefault();
+                    alert('Informe o nome do cliente para entrega.');
+                    return;
+                }
+                const requiredAddressInputs = [deliveryStreetInput, deliveryNumberInput, deliveryNeighborhoodInput, deliveryCityInput, deliveryStateInput];
+                const hasMissingAddress = requiredAddressInputs.some((input) => !input || String(input.value || '').trim() === '');
+                if (hasMissingAddress) {
+                    event.preventDefault();
+                    alert('Preencha os campos obrigatorios do endereco de entrega.');
+                    return;
+                }
+            } else if (channel === 'pickup') {
+                if (!customerNameInput || String(customerNameInput.value || '').trim() === '') {
+                    event.preventDefault();
+                    alert('Informe o nome do cliente para retirada.');
+                    return;
+                }
+            }
+
             const rows = Array.from(tbody.querySelectorAll('tr'));
             for (const row of rows) {
                 const productIdInput = row.querySelector('input[name="product_id[]"]');
@@ -757,6 +1034,8 @@ $canCreateOrder = $totalCommands > 0 && $totalProducts > 0;
     if (canCreateOrder && products.length > 0 && tbody.children.length === 0) {
         addRow();
     }
+    updateChannelUi();
+    updateDeliveryZoneRule();
     refreshSummary();
 })();
 </script>

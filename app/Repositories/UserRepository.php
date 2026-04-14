@@ -37,4 +37,59 @@ final class UserRepository
 
         return $user ?: null;
     }
+
+    public function deliveryUsersByCompany(int $companyId): array
+    {
+        $sql = "
+            SELECT
+                u.id,
+                u.company_id,
+                u.name,
+                u.email,
+                u.status,
+                r.slug AS role_slug,
+                r.name AS role_name
+            FROM users u
+            INNER JOIN roles r ON r.id = u.role_id
+            WHERE u.company_id = :company_id
+              AND u.deleted_at IS NULL
+              AND u.status = 'ativo'
+              AND r.context = 'company'
+              AND r.slug = 'delivery'
+            ORDER BY u.name ASC
+        ";
+
+        $stmt = Database::connection()->prepare($sql);
+        $stmt->execute(['company_id' => $companyId]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public function findActiveByIdForCompany(int $companyId, int $userId): ?array
+    {
+        $sql = "
+            SELECT
+                u.id,
+                u.company_id,
+                u.name,
+                u.status,
+                r.slug AS role_slug
+            FROM users u
+            INNER JOIN roles r ON r.id = u.role_id
+            WHERE u.company_id = :company_id
+              AND u.id = :id
+              AND u.deleted_at IS NULL
+              AND u.status = 'ativo'
+            LIMIT 1
+        ";
+
+        $stmt = Database::connection()->prepare($sql);
+        $stmt->execute([
+            'company_id' => $companyId,
+            'id' => $userId,
+        ]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
 }

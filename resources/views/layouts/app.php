@@ -67,6 +67,8 @@
         <a href="<?= htmlspecialchars(base_url('/admin/commands')) ?>">Comandas</a>
         <a href="<?= htmlspecialchars(base_url('/admin/orders')) ?>">Pedidos</a>
         <a href="<?= htmlspecialchars(base_url('/admin/kitchen')) ?>">Cozinha</a>
+        <a href="<?= htmlspecialchars(base_url('/admin/delivery-zones')) ?>">Zonas de Entrega</a>
+        <a href="<?= htmlspecialchars(base_url('/admin/deliveries')) ?>">Entregas</a>
         <a href="<?= htmlspecialchars(base_url('/admin/payments')) ?>">Pagamentos</a>
         <a href="<?= htmlspecialchars(base_url('/admin/cash-registers')) ?>">Caixa</a>
         <a href="<?= htmlspecialchars(base_url('/logout')) ?>">Sair</a>
