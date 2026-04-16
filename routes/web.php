@@ -47,8 +47,12 @@ $router->get('/admin/dashboard', [DashboardController::class, 'index'], $company
 $router->get('/admin/dashboard/report', [DashboardController::class, 'report'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/theme', [DashboardController::class, 'updateTheme'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/theme/restore', [DashboardController::class, 'restoreTheme'], $companyAccess('dashboard.view'));
+$router->post('/admin/dashboard/roles/store', [DashboardController::class, 'storeRole'], $companyAccess('dashboard.view'));
+$router->post('/admin/dashboard/roles/update', [DashboardController::class, 'updateRole'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/users/store', [DashboardController::class, 'storeUser'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/users/update', [DashboardController::class, 'updateUser'], $companyAccess('dashboard.view'));
+$router->post('/admin/dashboard/users/status', [DashboardController::class, 'updateUserStatus'], $companyAccess('dashboard.view'));
+$router->post('/admin/dashboard/users/password', [DashboardController::class, 'updateUserPassword'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/support/store', [DashboardController::class, 'storeSupportTicket'], $companyAccess('dashboard.view'));
 
 $router->get('/admin/products', [ProductController::class, 'index'], $companyAccess('products.view'));

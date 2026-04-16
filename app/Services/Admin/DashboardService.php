@@ -52,6 +52,10 @@ final class DashboardService
         'high',
         'urgent',
     ];
+    private const ALLOWED_PROFILE_SLUG_CHARS_PATTERN = '/[^a-z0-9]+/';
+    private const PROFILE_NAME_MAX_LENGTH = 100;
+    private const PROFILE_DESCRIPTION_MAX_LENGTH = 500;
+    private const USER_LIST_PER_PAGE_OPTIONS = [10, 20, 50];
 
     private const MAX_IMAGE_SIZE_BYTES = 10485760; // 10MB
     private const DEFAULT_PRIMARY_COLOR = '#1d4ed8';
@@ -158,6 +162,8 @@ final class DashboardService
             ];
         }
 
+        $usersModule = $this->buildUsersModule($companyId, $filters);
+
         return [
             'filters' => [
                 'start_date' => $period['start_date'],
@@ -173,8 +179,12 @@ final class DashboardService
             'company' => $companyProfile,
             'report_views' => $viewStatus,
             'analytics' => $analytics,
-            'users' => $this->repository->listUsersByCompany($companyId),
-            'roles' => $this->repository->companyRoles(),
+            'users' => $usersModule['users'],
+            'roles' => $usersModule['roles'],
+            'permissions_catalog' => $usersModule['permissions_catalog'],
+            'users_filters' => $usersModule['filters'],
+            'users_pagination' => $usersModule['pagination'],
+            'users_module' => $usersModule,
             'support_tickets' => $this->repository->supportTicketsByCompany($companyId),
         ];
     }
@@ -429,6 +439,80 @@ final class DashboardService
         }
     }
 
+    public function createInternalRole(int $companyId, array $input): int
+    {
+        if ($companyId <= 0) {
+            throw new ValidationException('Empresa invalida para cadastro de perfil.');
+        }
+
+        $name = trim((string) ($input['name'] ?? ''));
+        $description = trim((string) ($input['description'] ?? ''));
+        $permissionIds = $this->normalizePermissionIds($input['permission_ids'] ?? []);
+
+        if ($name === '') {
+            throw new ValidationException('Informe o nome do perfil.');
+        }
+        if (strlen($name) > self::PROFILE_NAME_MAX_LENGTH) {
+            throw new ValidationException('Nome do perfil deve ter no maximo 100 caracteres.');
+        }
+        if ($description !== '' && strlen($description) > self::PROFILE_DESCRIPTION_MAX_LENGTH) {
+            throw new ValidationException('Descricao do perfil deve ter no maximo 500 caracteres.');
+        }
+        if ($permissionIds === []) {
+            throw new ValidationException('Selecione ao menos uma permissao para o perfil.');
+        }
+
+        $slug = $this->buildCompanyRoleSlug($companyId, $name);
+
+        return $this->repository->transaction(function () use ($name, $slug, $description, $permissionIds): int {
+            $roleId = $this->repository->createCompanyRole(
+                $name,
+                $slug,
+                $description !== '' ? $description : null
+            );
+            $this->repository->syncRolePermissions($roleId, $permissionIds);
+            return $roleId;
+        });
+    }
+
+    public function updateInternalRole(int $companyId, int $roleId, array $input): void
+    {
+        if ($companyId <= 0 || $roleId <= 0) {
+            throw new ValidationException('Perfil invalido para atualizacao.');
+        }
+
+        $role = $this->repository->findCompanyRoleById($companyId, $roleId);
+        if ($role === null) {
+            throw new ValidationException('Perfil nao encontrado para a empresa autenticada.');
+        }
+
+        if ((int) ($role['is_custom'] ?? 0) !== 1) {
+            throw new ValidationException('Perfis padrao do sistema nao podem ser editados. Crie um perfil personalizado.');
+        }
+
+        $name = trim((string) ($input['name'] ?? ''));
+        $description = trim((string) ($input['description'] ?? ''));
+        $permissionIds = $this->normalizePermissionIds($input['permission_ids'] ?? []);
+
+        if ($name === '') {
+            throw new ValidationException('Informe o nome do perfil.');
+        }
+        if (strlen($name) > self::PROFILE_NAME_MAX_LENGTH) {
+            throw new ValidationException('Nome do perfil deve ter no maximo 100 caracteres.');
+        }
+        if ($description !== '' && strlen($description) > self::PROFILE_DESCRIPTION_MAX_LENGTH) {
+            throw new ValidationException('Descricao do perfil deve ter no maximo 500 caracteres.');
+        }
+        if ($permissionIds === []) {
+            throw new ValidationException('Selecione ao menos uma permissao para o perfil.');
+        }
+
+        $this->repository->transaction(function () use ($roleId, $name, $description, $permissionIds): void {
+            $this->repository->updateCompanyRole($roleId, $name, $description !== '' ? $description : null);
+            $this->repository->syncRolePermissions($roleId, $permissionIds);
+        });
+    }
+
     public function createInternalUser(int $companyId, array $input): int
     {
         if ($companyId <= 0) {
@@ -454,7 +538,7 @@ final class DashboardService
             throw new ValidationException('Informe uma senha com no minimo 6 caracteres.');
         }
 
-        $role = $this->repository->findCompanyRoleById($roleId);
+        $role = $this->repository->findCompanyRoleById($companyId, $roleId);
         if ($role === null) {
             throw new ValidationException('Selecione um perfil valido para usuario interno.');
         }
@@ -475,7 +559,7 @@ final class DashboardService
         ]);
     }
 
-    public function updateInternalUser(int $companyId, int $userId, int $currentUserId, array $input): void
+    public function updateInternalUserData(int $companyId, int $userId, array $input): void
     {
         if ($companyId <= 0 || $userId <= 0) {
             throw new ValidationException('Usuario invalido para atualizacao.');
@@ -490,8 +574,6 @@ final class DashboardService
         $email = strtolower(trim((string) ($input['email'] ?? '')));
         $phone = trim((string) ($input['phone'] ?? ''));
         $roleId = (int) ($input['role_id'] ?? 0);
-        $status = $this->normalizeUserStatus($input['status'] ?? $existing['status'] ?? 'ativo');
-        $newPassword = trim((string) ($input['password'] ?? ''));
 
         if ($name === '') {
             throw new ValidationException('Informe o nome do usuario.');
@@ -501,7 +583,7 @@ final class DashboardService
             throw new ValidationException('Informe um e-mail valido para o usuario.');
         }
 
-        $role = $this->repository->findCompanyRoleById($roleId);
+        $role = $this->repository->findCompanyRoleById($companyId, $roleId);
         if ($role === null) {
             throw new ValidationException('Selecione um perfil valido para usuario interno.');
         }
@@ -511,26 +593,85 @@ final class DashboardService
             throw new ValidationException('Ja existe outro usuario cadastrado com este e-mail.');
         }
 
-        if ($userId === $currentUserId && $status !== 'ativo') {
-            throw new ValidationException('Nao e permitido desativar ou bloquear o proprio usuario logado.');
-        }
-
-        $passwordHash = null;
-        if ($newPassword !== '') {
-            if (strlen($newPassword) < 6) {
-                throw new ValidationException('A nova senha deve ter no minimo 6 caracteres.');
-            }
-            $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
-        }
-
-        $this->repository->updateCompanyUser($companyId, $userId, [
+        $this->repository->updateCompanyUserProfile($companyId, $userId, [
             'role_id' => $roleId,
             'name' => $name,
             'email' => $email,
             'phone' => $phone !== '' ? $phone : null,
-            'status' => $status,
-            'password_hash' => $passwordHash,
         ]);
+    }
+
+    public function updateInternalUserStatus(int $companyId, int $userId, int $currentUserId, mixed $statusValue): void
+    {
+        if ($companyId <= 0 || $userId <= 0) {
+            throw new ValidationException('Usuario invalido para alteracao de status.');
+        }
+
+        $existing = $this->repository->findUserByIdForCompany($companyId, $userId);
+        if ($existing === null) {
+            throw new ValidationException('Usuario nao encontrado para a empresa autenticada.');
+        }
+
+        $status = strtolower(trim((string) ($statusValue ?? '')));
+        if (!in_array($status, self::ALLOWED_USER_STATUS, true)) {
+            throw new ValidationException('Status invalido para atualizacao do usuario.');
+        }
+        if ($userId === $currentUserId && $status !== 'ativo') {
+            throw new ValidationException('Nao e permitido desativar ou bloquear o proprio usuario logado.');
+        }
+
+        $this->repository->updateCompanyUserStatus($companyId, $userId, $status);
+    }
+
+    public function updateInternalUserPassword(int $companyId, int $userId, array $input): void
+    {
+        if ($companyId <= 0 || $userId <= 0) {
+            throw new ValidationException('Usuario invalido para alteracao de senha.');
+        }
+
+        $existing = $this->repository->findUserByIdForCompany($companyId, $userId);
+        if ($existing === null) {
+            throw new ValidationException('Usuario nao encontrado para a empresa autenticada.');
+        }
+
+        $newPassword = trim((string) ($input['password'] ?? ''));
+        $confirmPassword = trim((string) ($input['password_confirm'] ?? ''));
+
+        if ($newPassword === '') {
+            throw new ValidationException('Informe a nova senha do usuario.');
+        }
+        if (strlen($newPassword) < 6) {
+            throw new ValidationException('A nova senha deve ter no minimo 6 caracteres.');
+        }
+        if ($confirmPassword === '') {
+            throw new ValidationException('Confirme a nova senha para continuar.');
+        }
+        if (!hash_equals($newPassword, $confirmPassword)) {
+            throw new ValidationException('Senha e confirmacao nao conferem.');
+        }
+
+        $this->repository->updateCompanyUserPassword(
+            $companyId,
+            $userId,
+            password_hash($newPassword, PASSWORD_DEFAULT)
+        );
+    }
+
+    public function updateInternalUser(int $companyId, int $userId, int $currentUserId, array $input): void
+    {
+        $this->updateInternalUserData($companyId, $userId, $input);
+
+        if (array_key_exists('status', $input)) {
+            $this->updateInternalUserStatus($companyId, $userId, $currentUserId, $input['status']);
+        }
+
+        $newPassword = trim((string) ($input['password'] ?? ''));
+        if ($newPassword !== '') {
+            $this->updateInternalUserPassword($companyId, $userId, [
+                'password' => $newPassword,
+                'password_confirm' => trim((string) ($input['password_confirm'] ?? $newPassword)),
+            ]);
+        }
     }
 
     public function openSupportTicket(int $companyId, int $openedByUserId, array $input): int
@@ -585,6 +726,203 @@ final class DashboardService
             'ready' => $missing === [],
             'missing' => $missing,
         ];
+    }
+
+    private function buildUsersModule(int $companyId, array $filters): array
+    {
+        $roles = $this->repository->companyRoles($companyId);
+        $permissionsCatalog = $this->repository->listCompanyPermissionsCatalog();
+        $roleIds = array_values(array_filter(array_map(
+            static fn (array $role): int => (int) ($role['id'] ?? 0),
+            $roles
+        )));
+        $permissionMap = $this->repository->listPermissionIdsByRoleIds($roleIds);
+
+        foreach ($roles as &$role) {
+            $roleId = (int) ($role['id'] ?? 0);
+            $role['is_custom'] = (int) ($role['is_custom'] ?? 0) === 1;
+            $role['users_count'] = (int) ($role['users_count'] ?? 0);
+            $role['permissions_count'] = (int) ($role['permissions_count'] ?? 0);
+            $role['permission_ids'] = $permissionMap[$roleId] ?? [];
+        }
+        unset($role);
+
+        $normalizedFilters = $this->normalizeUsersFilters($filters);
+        $usersPage = $this->repository->listUsersByCompanyPaginated(
+            $companyId,
+            [
+                'search' => $normalizedFilters['search'],
+                'status' => $normalizedFilters['status'],
+                'role_id' => $normalizedFilters['role_id'],
+            ],
+            $normalizedFilters['page'],
+            $normalizedFilters['per_page']
+        );
+
+        $items = is_array($usersPage['items'] ?? null) ? $usersPage['items'] : [];
+        $total = (int) ($usersPage['total'] ?? 0);
+        $page = (int) ($usersPage['page'] ?? 1);
+        $perPage = (int) ($usersPage['per_page'] ?? $normalizedFilters['per_page']);
+        $lastPage = (int) ($usersPage['last_page'] ?? 1);
+        $from = $total > 0 ? (($page - 1) * $perPage) + 1 : 0;
+        $to = $total > 0 ? min($total, $page * $perPage) : 0;
+
+        $permissionGroups = [];
+        foreach ($permissionsCatalog as $permission) {
+            $module = trim((string) ($permission['module'] ?? 'geral'));
+            if ($module === '') {
+                $module = 'geral';
+            }
+            if (!isset($permissionGroups[$module])) {
+                $permissionGroups[$module] = [];
+            }
+            $permissionGroups[$module][] = $permission;
+        }
+
+        return [
+            'roles' => $roles,
+            'permissions_catalog' => $permissionsCatalog,
+            'permissions_grouped' => $permissionGroups,
+            'users' => $items,
+            'filters' => $normalizedFilters,
+            'pagination' => [
+                'total' => $total,
+                'page' => $page,
+                'per_page' => $perPage,
+                'last_page' => $lastPage,
+                'from' => $from,
+                'to' => $to,
+                'pages' => $this->buildPaginationPages($page, $lastPage),
+            ],
+        ];
+    }
+
+    private function normalizeUsersFilters(array $filters): array
+    {
+        $search = trim((string) ($filters['users_search'] ?? ''));
+        if (strlen($search) > 80) {
+            $search = substr($search, 0, 80);
+        }
+
+        $status = strtolower(trim((string) ($filters['users_status'] ?? '')));
+        if ($status !== '' && !in_array($status, self::ALLOWED_USER_STATUS, true)) {
+            $status = '';
+        }
+
+        $roleId = (int) ($filters['users_role_id'] ?? 0);
+        if ($roleId < 0) {
+            $roleId = 0;
+        }
+
+        $perPage = (int) ($filters['users_per_page'] ?? self::USER_LIST_PER_PAGE_OPTIONS[0]);
+        if (!in_array($perPage, self::USER_LIST_PER_PAGE_OPTIONS, true)) {
+            $perPage = self::USER_LIST_PER_PAGE_OPTIONS[0];
+        }
+
+        $page = (int) ($filters['users_page'] ?? 1);
+        if ($page <= 0) {
+            $page = 1;
+        }
+
+        return [
+            'search' => $search,
+            'status' => $status,
+            'role_id' => $roleId,
+            'per_page' => $perPage,
+            'page' => $page,
+            'per_page_options' => self::USER_LIST_PER_PAGE_OPTIONS,
+        ];
+    }
+
+    private function buildPaginationPages(int $currentPage, int $lastPage): array
+    {
+        $lastPage = max(1, $lastPage);
+        $currentPage = max(1, min($currentPage, $lastPage));
+
+        $pages = [1, $lastPage, $currentPage];
+        for ($offset = -2; $offset <= 2; $offset++) {
+            $pages[] = $currentPage + $offset;
+        }
+
+        $normalized = [];
+        foreach ($pages as $page) {
+            $value = (int) $page;
+            if ($value >= 1 && $value <= $lastPage) {
+                $normalized[$value] = true;
+            }
+        }
+
+        $result = array_keys($normalized);
+        sort($result);
+        return $result;
+    }
+
+    private function normalizePermissionIds(mixed $rawPermissionIds): array
+    {
+        $source = is_array($rawPermissionIds) ? $rawPermissionIds : [$rawPermissionIds];
+        $normalized = [];
+        foreach ($source as $permissionId) {
+            $value = (int) $permissionId;
+            if ($value > 0) {
+                $normalized[] = $value;
+            }
+        }
+        $normalized = array_values(array_unique($normalized));
+        sort($normalized);
+
+        if ($normalized === []) {
+            return [];
+        }
+
+        $allowed = [];
+        foreach ($this->repository->listCompanyPermissionsCatalog() as $permission) {
+            $id = (int) ($permission['id'] ?? 0);
+            if ($id > 0) {
+                $allowed[$id] = true;
+            }
+        }
+
+        foreach ($normalized as $permissionId) {
+            if (!isset($allowed[$permissionId])) {
+                throw new ValidationException('Permissao selecionada nao e valida para perfis internos.');
+            }
+        }
+
+        return $normalized;
+    }
+
+    private function buildCompanyRoleSlug(int $companyId, string $name): string
+    {
+        $base = trim($name);
+        if ($base === '') {
+            $base = 'perfil';
+        }
+
+        $ascii = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $base);
+        if (!is_string($ascii) || $ascii === '') {
+            $ascii = $base;
+        }
+
+        $slugBase = strtolower(trim($ascii));
+        $slugBase = preg_replace(self::ALLOWED_PROFILE_SLUG_CHARS_PATTERN, '-', $slugBase) ?? '';
+        $slugBase = trim($slugBase, '-');
+        if ($slugBase === '') {
+            $slugBase = 'perfil';
+        }
+
+        $slugBase = substr($slugBase, 0, 40);
+        $prefix = 'cmp' . $companyId . '-';
+
+        for ($attempt = 0; $attempt < 15; $attempt++) {
+            $suffix = $attempt === 0 ? '' : '-' . substr(bin2hex(random_bytes(3)), 0, 6);
+            $candidate = $prefix . $slugBase . $suffix;
+
+            if (!$this->repository->roleSlugExists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        throw new ValidationException('Nao foi possivel gerar um identificador unico para o perfil.');
     }
 
     private function normalizePeriod(array $filters, string $periodPreset): array

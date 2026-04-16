@@ -7,6 +7,31 @@ use PDO;
 
 final class DashboardRepository extends BaseRepository
 {
+    private const SYSTEM_COMPANY_ROLE_SLUGS = [
+        'admin_establishment',
+        'manager',
+        'cashier',
+        'waiter',
+        'kitchen',
+        'delivery',
+    ];
+
+    private const COMPANY_PERMISSION_MODULES = [
+        'dashboard',
+        'products',
+        'categories',
+        'additionals',
+        'tables',
+        'commands',
+        'orders',
+        'payments',
+        'cash_registers',
+        'reports',
+        'users',
+        'settings',
+        'themes',
+    ];
+
     public function transaction(callable $callback): mixed
     {
         $db = $this->db();
@@ -497,50 +522,299 @@ final class DashboardRepository extends BaseRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
-    public function companyRoles(): array
+    public function companyRoles(int $companyId): array
     {
+        $params = [
+            'company_id' => $companyId,
+            'custom_prefix' => $this->customCompanyRolePrefix($companyId),
+        ];
+        $systemSlugsSql = $this->systemCompanyRoleSlugSql($params);
+
         $stmt = $this->db()->prepare("
             SELECT
-                id,
-                name,
-                slug
-            FROM roles
-            WHERE context = 'company'
+                r.id,
+                r.name,
+                r.slug,
+                r.description,
+                CASE WHEN r.slug LIKE :custom_prefix THEN 1 ELSE 0 END AS is_custom,
+                COUNT(DISTINCT rp.permission_id) AS permissions_count,
+                COUNT(DISTINCT u.id) AS users_count
+            FROM roles r
+            LEFT JOIN role_permissions rp
+                ON rp.role_id = r.id
+            LEFT JOIN users u
+                ON u.role_id = r.id
+               AND u.company_id = :company_id
+               AND u.deleted_at IS NULL
+               AND u.is_saas_user = 0
+            WHERE r.context = 'company'
+              AND (r.slug IN ({$systemSlugsSql}) OR r.slug LIKE :custom_prefix)
+            GROUP BY r.id, r.name, r.slug, r.description
             ORDER BY
-                CASE slug
+                CASE r.slug
                     WHEN 'admin_establishment' THEN 1
                     WHEN 'manager' THEN 2
                     WHEN 'cashier' THEN 3
                     WHEN 'waiter' THEN 4
                     WHEN 'kitchen' THEN 5
                     WHEN 'delivery' THEN 6
-                    ELSE 99
+                    ELSE 100
                 END,
-                name ASC
+                r.name ASC
         ");
-        $stmt->execute();
+        $stmt->execute($params);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
-    public function findCompanyRoleById(int $roleId): ?array
+    public function findCompanyRoleById(int $companyId, int $roleId): ?array
     {
+        $params = [
+            'id' => $roleId,
+            'custom_prefix' => $this->customCompanyRolePrefix($companyId),
+        ];
+        $systemSlugsSql = $this->systemCompanyRoleSlugSql($params);
+
         $stmt = $this->db()->prepare("
-            SELECT id, name, slug
-            FROM roles
-            WHERE id = :id
-              AND context = 'company'
+            SELECT
+                r.id,
+                r.name,
+                r.slug,
+                r.description,
+                CASE WHEN r.slug LIKE :custom_prefix THEN 1 ELSE 0 END AS is_custom
+            FROM roles r
+            WHERE r.id = :id
+              AND r.context = 'company'
+              AND (r.slug IN ({$systemSlugsSql}) OR r.slug LIKE :custom_prefix)
             LIMIT 1
         ");
-        $stmt->execute(['id' => $roleId]);
+        $stmt->execute($params);
 
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
     }
 
-    public function listUsersByCompany(int $companyId): array
+    public function createCompanyRole(string $name, string $slug, ?string $description): int
     {
         $stmt = $this->db()->prepare("
+            INSERT INTO roles (
+                name,
+                slug,
+                context,
+                description,
+                created_at,
+                updated_at
+            ) VALUES (
+                :name,
+                :slug,
+                'company',
+                :description,
+                NOW(),
+                NOW()
+            )
+        ");
+        $stmt->execute([
+            'name' => $name,
+            'slug' => $slug,
+            'description' => $description,
+        ]);
+
+        return (int) $this->db()->lastInsertId();
+    }
+
+    public function updateCompanyRole(int $roleId, string $name, ?string $description): void
+    {
+        $stmt = $this->db()->prepare("
+            UPDATE roles
+            SET name = :name,
+                description = :description,
+                updated_at = NOW()
+            WHERE id = :id
+              AND context = 'company'
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'id' => $roleId,
+            'name' => $name,
+            'description' => $description,
+        ]);
+    }
+
+    public function roleSlugExists(string $slug): bool
+    {
+        $stmt = $this->db()->prepare("
+            SELECT 1
+            FROM roles
+            WHERE slug = :slug
+            LIMIT 1
+        ");
+        $stmt->execute(['slug' => $slug]);
+
+        return $stmt->fetchColumn() !== false;
+    }
+
+    public function listCompanyPermissionsCatalog(): array
+    {
+        $params = [];
+        $moduleSql = $this->companyPermissionModulesSql($params);
+        $moduleOrder = "'" . implode("','", self::COMPANY_PERMISSION_MODULES) . "'";
+
+        $stmt = $this->db()->prepare("
+            SELECT
+                p.id,
+                p.module,
+                p.action,
+                p.slug,
+                p.description
+            FROM permissions p
+            WHERE p.module IN ({$moduleSql})
+            ORDER BY FIELD(p.module, {$moduleOrder}), p.action ASC, p.slug ASC
+        ");
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public function listPermissionIdsByRoleIds(array $roleIds): array
+    {
+        $normalizedRoleIds = [];
+        foreach ($roleIds as $roleId) {
+            $value = (int) $roleId;
+            if ($value > 0) {
+                $normalizedRoleIds[] = $value;
+            }
+        }
+
+        if ($normalizedRoleIds === []) {
+            return [];
+        }
+
+        $params = [];
+        $roleSql = $this->dynamicPlaceholdersSql('role_id_', array_values(array_unique($normalizedRoleIds)), $params);
+
+        $stmt = $this->db()->prepare("
+            SELECT
+                role_id,
+                permission_id
+            FROM role_permissions
+            WHERE role_id IN ({$roleSql})
+        ");
+        $stmt->execute($params);
+
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $map = [];
+        foreach ($rows as $row) {
+            $roleId = (int) ($row['role_id'] ?? 0);
+            $permissionId = (int) ($row['permission_id'] ?? 0);
+            if ($roleId <= 0 || $permissionId <= 0) {
+                continue;
+            }
+
+            if (!isset($map[$roleId])) {
+                $map[$roleId] = [];
+            }
+            $map[$roleId][] = $permissionId;
+        }
+
+        foreach ($map as $roleId => $permissionIds) {
+            $map[$roleId] = array_values(array_unique(array_map('intval', $permissionIds)));
+            sort($map[$roleId]);
+        }
+
+        return $map;
+    }
+
+    public function syncRolePermissions(int $roleId, array $permissionIds): void
+    {
+        $normalized = [];
+        foreach ($permissionIds as $permissionId) {
+            $value = (int) $permissionId;
+            if ($value > 0) {
+                $normalized[] = $value;
+            }
+        }
+        $normalized = array_values(array_unique($normalized));
+
+        $deleteStmt = $this->db()->prepare("
+            DELETE FROM role_permissions
+            WHERE role_id = :role_id
+        ");
+        $deleteStmt->execute(['role_id' => $roleId]);
+
+        if ($normalized === []) {
+            return;
+        }
+
+        $valuesSql = [];
+        $params = ['role_id' => $roleId];
+        foreach ($normalized as $index => $permissionId) {
+            $key = 'permission_id_' . $index;
+            $valuesSql[] = "(:role_id, :{$key})";
+            $params[$key] = $permissionId;
+        }
+
+        $insertStmt = $this->db()->prepare("
+            INSERT INTO role_permissions (role_id, permission_id)
+            VALUES " . implode(', ', $valuesSql)
+        );
+        $insertStmt->execute($params);
+    }
+
+    public function listUsersByCompanyPaginated(int $companyId, array $filters, int $page, int $perPage): array
+    {
+        $search = trim((string) ($filters['search'] ?? ''));
+        $status = strtolower(trim((string) ($filters['status'] ?? '')));
+        $roleId = (int) ($filters['role_id'] ?? 0);
+        $page = max(1, $page);
+        $perPage = max(1, min(100, $perPage));
+
+        $where = [
+            'u.company_id = :company_id',
+            'u.deleted_at IS NULL',
+            'u.is_saas_user = 0',
+        ];
+        $params = ['company_id' => $companyId];
+
+        if ($status !== '') {
+            $where[] = 'u.status = :status';
+            $params['status'] = $status;
+        }
+
+        if ($roleId > 0) {
+            $where[] = 'u.role_id = :role_id';
+            $params['role_id'] = $roleId;
+        }
+
+        if ($search !== '') {
+            $where[] = "(
+                LOWER(COALESCE(u.name, '')) LIKE :search
+                OR LOWER(COALESCE(u.email, '')) LIKE :search
+                OR LOWER(COALESCE(u.phone, '')) LIKE :search
+                OR LOWER(COALESCE(r.name, '')) LIKE :search
+            )";
+            $params['search'] = '%' . strtolower($search) . '%';
+        }
+
+        $whereSql = implode(' AND ', $where);
+
+        $countStmt = $this->db()->prepare("
+            SELECT COUNT(*) AS total
+            FROM users u
+            INNER JOIN roles r
+                ON r.id = u.role_id
+            WHERE {$whereSql}
+        ");
+        $countStmt->execute($params);
+        $total = (int) ($countStmt->fetchColumn() ?: 0);
+
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        if ($page > $lastPage) {
+            $page = $lastPage;
+        }
+
+        $offset = ($page - 1) * $perPage;
+
+        $listStmt = $this->db()->prepare("
             SELECT
                 u.id,
                 u.company_id,
@@ -549,20 +823,42 @@ final class DashboardRepository extends BaseRepository
                 u.email,
                 u.phone,
                 u.status,
+                u.last_login_at,
                 u.created_at,
+                u.updated_at,
                 r.name AS role_name,
                 r.slug AS role_slug
             FROM users u
             INNER JOIN roles r
                 ON r.id = u.role_id
-            WHERE u.company_id = :company_id
-              AND u.deleted_at IS NULL
-              AND u.is_saas_user = 0
-            ORDER BY u.created_at DESC, u.id DESC
+            WHERE {$whereSql}
+            ORDER BY
+                CASE u.status
+                    WHEN 'ativo' THEN 1
+                    WHEN 'inativo' THEN 2
+                    WHEN 'bloqueado' THEN 3
+                    ELSE 9
+                END,
+                u.created_at DESC,
+                u.id DESC
+            LIMIT {$perPage}
+            OFFSET {$offset}
         ");
-        $stmt->execute(['company_id' => $companyId]);
+        $listStmt->execute($params);
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        return [
+            'items' => $listStmt->fetchAll(PDO::FETCH_ASSOC) ?: [],
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage,
+            'last_page' => $lastPage,
+        ];
+    }
+
+    public function listUsersByCompany(int $companyId): array
+    {
+        $result = $this->listUsersByCompanyPaginated($companyId, [], 1, 200);
+        return is_array($result['items'] ?? null) ? $result['items'] : [];
     }
 
     public function findUserByIdForCompany(int $companyId, int $userId): ?array
@@ -594,13 +890,15 @@ final class DashboardRepository extends BaseRepository
 
     public function findUserByEmail(string $email): ?array
     {
+        $normalizedEmail = strtolower(trim($email));
+
         $stmt = $this->db()->prepare("
             SELECT id, company_id, deleted_at
             FROM users
-            WHERE email = :email
+            WHERE LOWER(email) = :email
             LIMIT 1
         ");
-        $stmt->execute(['email' => $email]);
+        $stmt->execute(['email' => $normalizedEmail]);
 
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
@@ -647,43 +945,98 @@ final class DashboardRepository extends BaseRepository
         return (int) $this->db()->lastInsertId();
     }
 
-    public function updateCompanyUser(int $companyId, int $userId, array $data): void
+    public function updateCompanyUserProfile(int $companyId, int $userId, array $data): void
     {
-        $sets = [
-            'role_id = :role_id',
-            'name = :name',
-            'email = :email',
-            'phone = :phone',
-            'status = :status',
-            'updated_at = NOW()',
-        ];
-
-        $params = [
+        $stmt = $this->db()->prepare("
+            UPDATE users
+            SET role_id = :role_id,
+                name = :name,
+                email = :email,
+                phone = :phone,
+                updated_at = NOW()
+            WHERE company_id = :company_id
+              AND id = :id
+              AND deleted_at IS NULL
+              AND is_saas_user = 0
+            LIMIT 1
+        ");
+        $stmt->execute([
             'company_id' => $companyId,
             'id' => $userId,
             'role_id' => $data['role_id'],
             'name' => $data['name'],
             'email' => $data['email'],
             'phone' => $data['phone'],
-            'status' => $data['status'],
-        ];
+        ]);
+    }
 
-        if (!empty($data['password_hash'])) {
-            $sets[] = 'password_hash = :password_hash';
-            $params['password_hash'] = $data['password_hash'];
-        }
-
-        $sql = "
+    public function updateCompanyUserStatus(int $companyId, int $userId, string $status): void
+    {
+        $stmt = $this->db()->prepare("
             UPDATE users
-            SET " . implode(', ', $sets) . "
+            SET status = :status,
+                updated_at = NOW()
             WHERE company_id = :company_id
               AND id = :id
               AND deleted_at IS NULL
               AND is_saas_user = 0
-        ";
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'id' => $userId,
+            'status' => $status,
+        ]);
+    }
 
-        $stmt = $this->db()->prepare($sql);
-        $stmt->execute($params);
+    public function updateCompanyUserPassword(int $companyId, int $userId, string $passwordHash): void
+    {
+        $stmt = $this->db()->prepare("
+            UPDATE users
+            SET password_hash = :password_hash,
+                updated_at = NOW()
+            WHERE company_id = :company_id
+              AND id = :id
+              AND deleted_at IS NULL
+              AND is_saas_user = 0
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'id' => $userId,
+            'password_hash' => $passwordHash,
+        ]);
+    }
+
+    public function updateCompanyUser(int $companyId, int $userId, array $data): void
+    {
+        $this->updateCompanyUserProfile($companyId, $userId, $data);
+
+        if (isset($data['status']) && is_string($data['status']) && $data['status'] !== '') {
+            $this->updateCompanyUserStatus($companyId, $userId, $data['status']);
+        }
+
+        if (!empty($data['password_hash'])) {
+            $this->updateCompanyUserPassword($companyId, $userId, (string) $data['password_hash']);
+        }
+    }
+
+    public function countUsersByRoleForCompany(int $companyId, int $roleId): int
+    {
+        $stmt = $this->db()->prepare("
+            SELECT COUNT(*)
+            FROM users
+            WHERE company_id = :company_id
+              AND role_id = :role_id
+              AND deleted_at IS NULL
+              AND is_saas_user = 0
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'role_id' => $roleId,
+        ]);
+
+        return (int) ($stmt->fetchColumn() ?: 0);
     }
 
     public function supportTicketsByCompany(int $companyId, int $limit = 30): array
@@ -783,6 +1136,37 @@ final class DashboardRepository extends BaseRepository
         ]);
 
         return (int) $this->db()->lastInsertId();
+    }
+
+    private function customCompanyRolePrefix(int $companyId): string
+    {
+        return 'cmp' . $companyId . '-%';
+    }
+
+    private function systemCompanyRoleSlugSql(array &$params): string
+    {
+        return $this->dynamicPlaceholdersSql('system_role_slug_', self::SYSTEM_COMPANY_ROLE_SLUGS, $params);
+    }
+
+    private function companyPermissionModulesSql(array &$params): string
+    {
+        return $this->dynamicPlaceholdersSql('permission_module_', self::COMPANY_PERMISSION_MODULES, $params);
+    }
+
+    private function dynamicPlaceholdersSql(string $prefix, array $values, array &$params): string
+    {
+        $placeholders = [];
+        foreach ($values as $index => $value) {
+            $key = $prefix . $index;
+            $placeholders[] = ':' . $key;
+            $params[$key] = $value;
+        }
+
+        if ($placeholders === []) {
+            return "''";
+        }
+
+        return implode(', ', $placeholders);
     }
 
     private function buildSalesWhere(
