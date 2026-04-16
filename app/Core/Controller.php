@@ -10,12 +10,27 @@ abstract class Controller
 {
     protected function view(string $template, array $data = [], string $layout = 'layouts/app'): Response
     {
-        if ($layout === 'layouts/app' && !array_key_exists('appShellTheme', $data)) {
+        $shouldResolveShellData = in_array($layout, ['layouts/app', 'layouts/saas'], true);
+        if ($shouldResolveShellData && (!array_key_exists('appShellTheme', $data) || !array_key_exists('navItems', $data))) {
             try {
                 $user = is_array($data['user'] ?? null) ? $data['user'] : Auth::user();
-                $data['appShellTheme'] = (new AppShellService())->resolveForUser($user);
+                $shellService = new AppShellService();
+
+                if ($layout === 'layouts/app' && !array_key_exists('appShellTheme', $data)) {
+                    $data['appShellTheme'] = $shellService->resolveForUser($user);
+                }
+
+                if (!array_key_exists('navItems', $data)) {
+                    $contextHint = $layout === 'layouts/saas' ? 'saas' : 'company';
+                    $data['navItems'] = $shellService->resolveNavigationForUser($user, $contextHint);
+                }
             } catch (Throwable) {
-                $data['appShellTheme'] = [];
+                if ($layout === 'layouts/app' && !array_key_exists('appShellTheme', $data)) {
+                    $data['appShellTheme'] = [];
+                }
+                if (!array_key_exists('navItems', $data)) {
+                    $data['navItems'] = [];
+                }
             }
         }
 

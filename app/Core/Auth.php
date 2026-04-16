@@ -19,12 +19,13 @@ final class Auth
     public static function login(array $user): void
     {
         Session::start();
+        session_regenerate_id(true);
         Session::put('auth_user', $user);
     }
 
     public static function logout(): void
     {
         Session::start();
-        Session::forget('auth_user');
+        Session::destroy();
     }
 }

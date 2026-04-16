@@ -3,8 +3,39 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
+use PDO;
+
 final class PermissionRepository extends BaseRepository
 {
+    public function listPermissionSlugsByRole(int $roleId): array
+    {
+        if ($roleId <= 0) {
+            return [];
+        }
+
+        $stmt = $this->db()->prepare("
+            SELECT p.slug
+            FROM role_permissions rp
+            INNER JOIN permissions p ON p.id = rp.permission_id
+            WHERE rp.role_id = :role_id
+            ORDER BY p.slug ASC
+        ");
+        $stmt->execute([
+            'role_id' => $roleId,
+        ]);
+
+        $rows = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        $slugs = [];
+        foreach ($rows as $slug) {
+            $value = trim((string) $slug);
+            if ($value !== '') {
+                $slugs[] = $value;
+            }
+        }
+
+        return $slugs;
+    }
+
     public function roleHasPermission(int $roleId, string $permissionSlug): bool
     {
         $stmt = $this->db()->prepare("

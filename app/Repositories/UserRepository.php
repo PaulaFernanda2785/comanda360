@@ -25,13 +25,13 @@ final class UserRepository
                 r.context AS role_context
             FROM users u
             INNER JOIN roles r ON r.id = u.role_id
-            WHERE u.email = :email
+            WHERE LOWER(u.email) = :email
               AND u.deleted_at IS NULL
             LIMIT 1
         ";
 
         $stmt = Database::connection()->prepare($sql);
-        $stmt->execute(['email' => $email]);
+        $stmt->execute(['email' => strtolower(trim($email))]);
 
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 

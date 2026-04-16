@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $appShellTheme = is_array($appShellTheme ?? null) ? $appShellTheme : [];
 $user = is_array($user ?? null) ? $user : [];
 
@@ -20,18 +20,65 @@ $userName = trim((string) ($user['name'] ?? 'Usuario'));
 $userRole = trim((string) ($user['role_name'] ?? 'Perfil'));
 $currentPath = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?? '');
 
-$navItems = [
-    ['/admin/dashboard', 'Dashboard'],
-    ['/admin/products', 'Produtos'],
-    ['/admin/tables', 'Mesas'],
-    ['/admin/commands', 'Comandas'],
-    ['/admin/orders', 'Pedidos'],
-    ['/admin/kitchen', 'Cozinha'],
-    ['/admin/delivery-zones', 'Zonas de Entrega'],
-    ['/admin/deliveries', 'Entregas'],
-    ['/admin/payments', 'Pagamentos'],
-    ['/admin/cash-registers', 'Caixa'],
-];
+$rawNavItems = is_array($navItems ?? null)
+    ? $navItems
+    : [
+        ['href' => '/admin/dashboard', 'label' => 'Dashboard', 'description' => 'Visao geral da operacao', 'match' => ['/admin/dashboard', '/admin/dashboard/report']],
+        ['href' => '/admin/products', 'label' => 'Produtos', 'description' => 'Cardapio e categorias'],
+        ['href' => '/admin/tables', 'label' => 'Mesas', 'description' => 'Gestao de salao'],
+        ['href' => '/admin/orders', 'label' => 'Pedidos', 'description' => 'Fila de atendimento'],
+    ];
+
+$normalizedNavItems = [];
+foreach ($rawNavItems as $item) {
+    if (!is_array($item)) {
+        continue;
+    }
+
+    $path = trim((string) ($item['href'] ?? $item[0] ?? ''));
+    $label = trim((string) ($item['label'] ?? $item[1] ?? ''));
+    if ($path === '' || $label === '') {
+        continue;
+    }
+
+    $matchRoutes = $item['match'] ?? [$path];
+    if (!is_array($matchRoutes)) {
+        $matchRoutes = [$matchRoutes];
+    }
+
+    $routes = [];
+    foreach ($matchRoutes as $route) {
+        $value = trim((string) $route);
+        if ($value !== '') {
+            $routes[] = $value;
+        }
+    }
+    if ($routes === []) {
+        $routes[] = $path;
+    }
+
+    $normalizedNavItems[] = [
+        'href' => $path,
+        'label' => $label,
+        'description' => trim((string) ($item['description'] ?? '')),
+        'match' => array_values(array_unique($routes)),
+    ];
+}
+
+$routeMatches = static function (string $path, array $routes): bool {
+    foreach ($routes as $candidate) {
+        $route = trim((string) $candidate);
+        if ($route === '') {
+            continue;
+        }
+
+        if ($path === $route || str_starts_with($path, $route . '/')) {
+            return true;
+        }
+    }
+
+    return false;
+};
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -46,52 +93,136 @@ $navItems = [
             --theme-accent:<?= htmlspecialchars($themeAccent) ?>;
             --surface:#ffffff;
             --surface-soft:#f8fafc;
-            --line:#e5e7eb;
+            --line:#e2e8f0;
             --text:#0f172a;
             --text-muted:#475569;
             --text-light:#e2e8f0;
+            --danger:#ef4444;
         }
 
         *{box-sizing:border-box}
-        body{font-family:Arial,sans-serif;margin:0;background:#eef2f7;color:var(--text)}
-        .shell{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}
+        body{
+            font-family:"Segoe UI Variable","Trebuchet MS","Tahoma",sans-serif;
+            margin:0;
+            background:radial-gradient(circle at 8% 4%, #eff6ff 0%, #e9eef7 45%, #e2e8f0 100%);
+            color:var(--text)
+        }
+        .shell{display:grid;grid-template-columns:304px minmax(0,1fr);min-height:100vh}
 
-        aside{
-            background:linear-gradient(185deg,var(--theme-secondary) 0%,#111827 100%);
+        .sidebar{
+            background:linear-gradient(198deg, var(--theme-secondary) 0%, #020617 100%);
             color:#fff;
-            padding:20px 18px;
+            padding:20px 16px;
             display:grid;
             align-content:start;
             gap:16px;
-            border-right:1px solid rgba(148,163,184,.22);
+            border-right:1px solid rgba(148,163,184,.2);
         }
         .brand-stack{display:grid;gap:10px}
-        .brand-logo-wrap{width:84px;height:84px;border-radius:16px;background:rgba(255,255,255,.08);display:grid;place-items:center;border:1px solid rgba(255,255,255,.18);overflow:hidden}
+        .brand-logo-wrap{
+            width:88px;
+            height:88px;
+            border-radius:20px;
+            background:linear-gradient(160deg, rgba(255,255,255,.18) 0%, rgba(255,255,255,.06) 100%);
+            display:grid;
+            place-items:center;
+            border:1px solid rgba(255,255,255,.24);
+            overflow:hidden;
+            box-shadow:0 16px 24px rgba(2,6,23,.28)
+        }
         .brand-logo-wrap img{width:100%;height:100%;object-fit:cover}
-        .brand-title{margin:0;font-size:14px;font-weight:600;color:#f8fafc;letter-spacing:.02em}
-        aside h2{margin:0;font-size:24px;line-height:1.1;letter-spacing:.01em}
-        .brand-company{margin:0;color:#cbd5e1;font-size:12px}
+        .brand-title{margin:0;font-size:13px;font-weight:600;color:#cbd5e1;letter-spacing:.04em;text-transform:uppercase}
+        .brand-headline{margin:0;font-size:25px;line-height:1.05;letter-spacing:.01em}
+        .brand-company{margin:0;color:#94a3b8;font-size:12px}
 
-        .nav-links{display:grid;gap:2px}
-        .nav-links a{
-            display:block;
+        .sidebar-group-title{
+            margin:2px 0 0;
+            font-size:11px;
+            text-transform:uppercase;
+            letter-spacing:.14em;
+            color:#64748b;
+            font-weight:700;
+        }
+
+        .nav-links{display:grid;gap:9px}
+        .nav-link,
+        .logout-button{
+            width:100%;
+            display:flex;
+            align-items:center;
+            gap:10px;
             color:#cbd5e1;
             text-decoration:none;
-            padding:10px 12px;
-            border-radius:10px;
-            transition:all .2s ease;
-            font-size:14px;
+            border-radius:14px;
+            border:1px solid rgba(148,163,184,.18);
+            padding:10px;
+            background:linear-gradient(132deg, rgba(15,23,42,.64) 0%, rgba(15,23,42,.25) 100%);
+            transition:transform .18s ease, border-color .18s ease, background .18s ease, color .18s ease;
+            cursor:pointer;
         }
-        .nav-links a:hover{color:#fff;background:rgba(255,255,255,.08)}
-        .nav-links a.active{color:#fff;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.2)}
+        .nav-link:hover,
+        .logout-button:hover{
+            color:#f8fafc;
+            border-color:rgba(125,211,252,.48);
+            transform:translateY(-1px);
+            background:linear-gradient(132deg, rgba(30,41,59,.72) 0%, rgba(15,23,42,.36) 100%);
+        }
+        .nav-link.active{
+            color:#f8fafc;
+            border-color:rgba(125,211,252,.7);
+            background:linear-gradient(125deg, rgba(56,189,248,.24) 0%, rgba(15,23,42,.65) 100%);
+            box-shadow:0 12px 26px rgba(8,47,73,.28);
+        }
+        .nav-link-badge{
+            width:34px;
+            height:34px;
+            border-radius:10px;
+            display:grid;
+            place-items:center;
+            flex-shrink:0;
+            font-size:11px;
+            font-weight:700;
+            letter-spacing:.08em;
+            text-transform:uppercase;
+            color:#f8fafc;
+            background:linear-gradient(145deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+            box-shadow:0 8px 18px rgba(15,23,42,.36);
+        }
+        .nav-link-copy{display:grid;min-width:0;gap:2px;flex:1}
+        .nav-link-copy strong{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .nav-link-copy small{font-size:11px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .nav-link-arrow{font-size:15px;color:#64748b;flex-shrink:0}
+        .nav-link.active .nav-link-arrow{color:#bae6fd}
+
+        .nav-empty{
+            border:1px dashed rgba(148,163,184,.3);
+            border-radius:12px;
+            padding:12px;
+            font-size:12px;
+            color:#94a3b8;
+            background:rgba(15,23,42,.35);
+        }
+
+        .logout-form{margin-top:6px}
+        .logout-button{
+            border-color:rgba(239,68,68,.35);
+            color:#fecaca;
+            background:linear-gradient(135deg, rgba(127,29,29,.4) 0%, rgba(69,10,10,.34) 100%);
+        }
+        .logout-button .nav-link-badge{
+            background:linear-gradient(145deg, #ef4444 0%, #b91c1c 100%);
+            color:#fff;
+        }
+        .logout-button .nav-link-copy small{color:#fca5a5}
+        .logout-button .nav-link-arrow{color:#fecaca}
 
         .shell-main{display:grid;grid-template-rows:auto 1fr auto;min-height:100vh}
         .shell-header{
             padding:14px 22px;
             border-bottom:1px solid var(--line);
             background:
-                linear-gradient(110deg, rgba(15,23,42,.82) 0%, rgba(15,23,42,.55) 48%, rgba(15,23,42,.66) 100%),
-                linear-gradient(120deg, var(--theme-accent) 0%, #0f172a 100%);
+                linear-gradient(110deg, rgba(15,23,42,.84) 0%, rgba(15,23,42,.56) 48%, rgba(15,23,42,.66) 100%),
+                linear-gradient(122deg, var(--theme-accent) 0%, #0f172a 100%);
             color:#fff;
             display:flex;
             justify-content:space-between;
@@ -101,7 +232,7 @@ $navItems = [
         }
         .shell-header.with-banner{
             background:
-                linear-gradient(110deg, rgba(15,23,42,.82) 0%, rgba(15,23,42,.58) 48%, rgba(15,23,42,.7) 100%),
+                linear-gradient(110deg, rgba(15,23,42,.84) 0%, rgba(15,23,42,.58) 48%, rgba(15,23,42,.7) 100%),
                 url('<?= htmlspecialchars($bannerUrl) ?>') center/cover no-repeat;
         }
         .shell-header h1{margin:0;font-size:22px;line-height:1.2}
@@ -177,10 +308,14 @@ $navItems = [
 
         @media (max-width:980px){
             .shell{grid-template-columns:1fr}
-            aside{grid-template-columns:1fr;gap:14px;border-right:0;border-bottom:1px solid rgba(148,163,184,.2)}
-            .brand-stack{grid-template-columns:auto 1fr;align-items:center}
-            .brand-title,.brand-company{grid-column:2}
-            .nav-links{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+            .sidebar{padding:14px;border-right:0;border-bottom:1px solid rgba(148,163,184,.2)}
+            .brand-stack{grid-template-columns:auto 1fr;align-items:center;gap:8px 12px}
+            .brand-logo-wrap{width:70px;height:70px}
+            .brand-title,.brand-headline,.brand-company{grid-column:2}
+            .sidebar-group-title{display:none}
+            .nav-links{grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:8px}
+            .nav-link-copy small{display:none}
+            .logout-form{margin:0}
             .shell-header{flex-direction:column;align-items:flex-start;min-height:auto}
             .shell-user-chip{width:100%;text-align:left;min-width:0}
             main{padding:16px}
@@ -190,7 +325,7 @@ $navItems = [
 </head>
 <body>
 <div class="shell">
-    <aside>
+    <aside class="sidebar">
         <div class="brand-stack">
             <div class="brand-logo-wrap">
                 <?php if ($logoUrl !== ''): ?>
@@ -198,23 +333,52 @@ $navItems = [
                 <?php endif; ?>
             </div>
             <p class="brand-title"><?= htmlspecialchars($brandTitle !== '' ? $brandTitle : $companyName) ?></p>
-            <h2>Comanda360</h2>
+            <h2 class="brand-headline">Comanda360</h2>
             <p class="brand-company"><?= htmlspecialchars($companyName) ?></p>
         </div>
 
+        <p class="sidebar-group-title">Navegacao</p>
         <nav class="nav-links">
-            <?php foreach ($navItems as $item): ?>
+            <?php foreach ($normalizedNavItems as $item): ?>
                 <?php
-                $path = (string) ($item[0] ?? '#');
-                $label = (string) ($item[1] ?? 'Menu');
-                $isActive = $currentPath === $path || str_ends_with($currentPath, $path);
+                $path = (string) ($item['href'] ?? '#');
+                $label = (string) ($item['label'] ?? 'Menu');
+                $description = trim((string) ($item['description'] ?? ''));
+                $matches = is_array($item['match'] ?? null) ? $item['match'] : [$path];
+                $isActive = $routeMatches($currentPath, $matches);
+                $badge = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $label), 0, 2));
+                if ($badge === '') {
+                    $badge = 'MN';
+                }
                 ?>
-                <a href="<?= htmlspecialchars(base_url($path)) ?>" class="<?= $isActive ? 'active' : '' ?>">
-                    <?= htmlspecialchars($label) ?>
+                <a href="<?= htmlspecialchars(base_url($path)) ?>" class="nav-link<?= $isActive ? ' active' : '' ?>">
+                    <span class="nav-link-badge"><?= htmlspecialchars($badge) ?></span>
+                    <span class="nav-link-copy">
+                        <strong><?= htmlspecialchars($label) ?></strong>
+                        <?php if ($description !== ''): ?>
+                            <small><?= htmlspecialchars($description) ?></small>
+                        <?php endif; ?>
+                    </span>
+                    <span class="nav-link-arrow">&gt;</span>
                 </a>
             <?php endforeach; ?>
-            <a href="<?= htmlspecialchars(base_url('/logout')) ?>">Sair</a>
+
+            <?php if ($normalizedNavItems === []): ?>
+                <div class="nav-empty">Nenhum modulo disponivel para o perfil logado.</div>
+            <?php endif; ?>
         </nav>
+
+        <form method="POST" action="<?= htmlspecialchars(base_url('/logout')) ?>" class="logout-form">
+            <?= form_security_fields('auth.logout') ?>
+            <button type="submit" class="logout-button">
+                <span class="nav-link-badge">OUT</span>
+                <span class="nav-link-copy">
+                    <strong>Sair</strong>
+                    <small>Encerrar sessao atual</small>
+                </span>
+                <span class="nav-link-arrow">&gt;</span>
+            </button>
+        </form>
     </aside>
 
     <div class="shell-main">

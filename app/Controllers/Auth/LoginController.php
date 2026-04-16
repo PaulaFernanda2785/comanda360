@@ -7,7 +7,9 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
+use App\Core\Session;
 use App\Services\Auth\LoginService;
+use App\Services\Shared\AppShellService;
 use RuntimeException;
 
 final class LoginController extends Controller
@@ -16,7 +18,7 @@ final class LoginController extends Controller
     {
         if (Auth::check()) {
             $user = Auth::user() ?? [];
-            return $this->redirect($this->resolveLandingRoute($user));
+            return $this->redirectAuthenticatedUser($user);
         }
 
         return $this->view('auth/login', [
@@ -27,6 +29,14 @@ final class LoginController extends Controller
 
     public function store(Request $request): Response
     {
+        $guard = validate_form_submission($request->all(), 'auth.login', 2);
+        if (($guard['ok'] ?? false) !== true) {
+            return $this->view('auth/login', [
+                'title' => 'Login',
+                'error' => (string) ($guard['message'] ?? 'Nao foi possivel validar o envio do login.'),
+            ], 'layouts/auth');
+        }
+
         $email = trim((string) $request->input('email', ''));
         $password = (string) $request->input('password', '');
 
@@ -40,7 +50,7 @@ final class LoginController extends Controller
 
             Auth::login($user);
 
-            return $this->redirect($this->resolveLandingRoute($user));
+            return $this->redirectAuthenticatedUser($user);
         } catch (RuntimeException $e) {
             return $this->view('auth/login', [
                 'title' => 'Login',
@@ -51,20 +61,89 @@ final class LoginController extends Controller
 
     public function logout(Request $request): Response
     {
+        if ($request->method !== 'POST') {
+            return $this->redirect('/login');
+        }
+
+        $guard = validate_form_submission($request->all(), 'auth.logout', 2);
+        if (($guard['ok'] ?? false) !== true) {
+            Auth::logout();
+            Session::start();
+            Session::flash('error', 'Sessao encerrada por seguranca. Entre novamente.');
+            return $this->redirect('/login');
+        }
+
         Auth::logout();
+        Session::start();
+        Session::flash('success', 'Logout realizado com sucesso.');
+
         return $this->redirect('/login');
+    }
+
+    private function redirectAuthenticatedUser(array $user): Response
+    {
+        $landing = $this->resolveLandingRoute($user);
+        if ($landing === '/login') {
+            Auth::logout();
+            Session::start();
+            Session::flash('error', 'Perfil sem rota inicial permitida. Entre novamente.');
+            return $this->redirect('/login');
+        }
+
+        return $this->redirect($landing);
     }
 
     private function resolveLandingRoute(array $user): string
     {
-        if ((int) ($user['is_saas_user'] ?? 0) === 1 || (string) ($user['role_context'] ?? '') === 'saas') {
-            return '/saas/dashboard';
+        $roleSlug = strtolower(trim((string) ($user['role_slug'] ?? '')));
+        $context = strtolower(trim((string) ($user['role_context'] ?? '')));
+        $isSaas = (int) ($user['is_saas_user'] ?? 0) === 1 || $context === 'saas';
+        $shell = new AppShellService();
+
+        if ($isSaas) {
+            $saasPreferredRoute = match ($roleSlug) {
+                'saas_support' => '/saas/companies',
+                'saas_financial' => '/saas/subscription-payments',
+                default => '/saas/dashboard',
+            };
+            return $this->resolveAllowedRoute($saasPreferredRoute, $shell->resolveNavigationForUser($user, 'saas'));
         }
 
-        return match ((string) ($user['role_slug'] ?? '')) {
+        $companyPreferredRoute = match ($roleSlug) {
             'kitchen' => '/admin/kitchen',
-            'waiter', 'delivery' => '/admin/orders',
-            default => '/admin/dashboard',
+            'waiter' => '/admin/orders',
+            'delivery' => '/admin/deliveries',
+            'cashier' => '/admin/cash-registers',
+            'admin_establishment', 'manager' => '/admin/dashboard',
+            default => '',
         };
+
+        $navItems = $shell->resolveNavigationForUser($user, 'company');
+        return $this->resolveAllowedRoute($companyPreferredRoute, $navItems);
+    }
+
+    private function resolveAllowedRoute(string $preferredRoute, array $navItems): string
+    {
+        $availableRoutes = [];
+        foreach ($navItems as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $href = trim((string) ($item['href'] ?? ''));
+            if ($href !== '') {
+                $availableRoutes[] = $href;
+            }
+        }
+
+        if ($preferredRoute !== '' && in_array($preferredRoute, $availableRoutes, true)) {
+            return $preferredRoute;
+        }
+
+        if ($availableRoutes !== []) {
+            return $availableRoutes[0];
+        }
+
+        return '/login';
     }
 }

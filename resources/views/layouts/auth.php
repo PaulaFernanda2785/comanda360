@@ -16,6 +16,7 @@
         button.is-loading{opacity:.92;pointer-events:none}
         .btn-spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.65);border-top-color:#fff;border-radius:50%;animation:btnspin .7s linear infinite;vertical-align:-2px;margin-right:6px}
         @keyframes btnspin{to{transform:rotate(360deg)}}
+        .success{background:#dcfce7;color:#166534;padding:10px;border-radius:8px;margin-top:12px}
         .error{background:#fee2e2;color:#991b1b;padding:10px;border-radius:8px;margin-top:12px}
     </style>
 </head>

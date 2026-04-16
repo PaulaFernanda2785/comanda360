@@ -14,18 +14,19 @@ final class LoginService
 
     public function attempt(string $email, string $password): array
     {
-        $user = $this->users->findByEmail($email);
+        $normalizedEmail = strtolower(trim($email));
+        $user = $this->users->findByEmail($normalizedEmail);
 
         if ($user === null) {
-            throw new RuntimeException('Usuário não encontrado.');
+            throw new RuntimeException('E-mail ou senha invalidos.');
         }
 
-        if ($user['status'] !== 'ativo') {
-            throw new RuntimeException('Usuário inativo ou bloqueado.');
+        if (($user['status'] ?? '') !== 'ativo') {
+            throw new RuntimeException('Usuario inativo ou bloqueado.');
         }
 
-        if (!password_verify($password, $user['password_hash'])) {
-            throw new RuntimeException('Senha inválida.');
+        if (!password_verify($password, (string) ($user['password_hash'] ?? ''))) {
+            throw new RuntimeException('E-mail ou senha invalidos.');
         }
 
         unset($user['password_hash']);

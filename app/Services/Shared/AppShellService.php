@@ -4,11 +4,13 @@ declare(strict_types=1);
 namespace App\Services\Shared;
 
 use App\Repositories\AppShellRepository;
+use App\Repositories\PermissionRepository;
 
 final class AppShellService
 {
     public function __construct(
-        private readonly AppShellRepository $repository = new AppShellRepository()
+        private readonly AppShellRepository $repository = new AppShellRepository(),
+        private readonly PermissionRepository $permissions = new PermissionRepository()
     ) {}
 
     public function resolveForUser(?array $user): array
@@ -69,5 +71,201 @@ final class AppShellService
         }
 
         return $color;
+    }
+
+    public function resolveNavigationForUser(?array $user, ?string $contextHint = null): array
+    {
+        $normalizedUser = is_array($user) ? $user : [];
+        $context = $this->resolveContext($normalizedUser, $contextHint);
+        $items = $context === 'saas' ? $this->saasNavigationDefinition() : $this->companyNavigationDefinition();
+
+        $roleId = (int) ($normalizedUser['role_id'] ?? 0);
+        $roleSlug = strtolower(trim((string) ($normalizedUser['role_slug'] ?? '')));
+        $permissionSet = $this->permissionSetForRole($roleId);
+
+        $visibleItems = [];
+        foreach ($items as $item) {
+            $allowedRoles = $item['roles'] ?? [];
+            if (is_array($allowedRoles) && $allowedRoles !== []) {
+                $normalizedAllowedRoles = [];
+                foreach ($allowedRoles as $allowedRole) {
+                    $normalized = strtolower(trim((string) $allowedRole));
+                    if ($normalized !== '') {
+                        $normalizedAllowedRoles[] = $normalized;
+                    }
+                }
+
+                if ($normalizedAllowedRoles !== [] && !in_array($roleSlug, $normalizedAllowedRoles, true)) {
+                    continue;
+                }
+            }
+
+            $permission = trim((string) ($item['permission'] ?? ''));
+            if ($permission !== '' && !isset($permissionSet[$permission])) {
+                continue;
+            }
+
+            $href = trim((string) ($item['href'] ?? ''));
+            $label = trim((string) ($item['label'] ?? ''));
+            if ($href === '' || $label === '') {
+                continue;
+            }
+
+            $visibleItems[] = [
+                'href' => $href,
+                'label' => $label,
+                'description' => trim((string) ($item['description'] ?? '')),
+                'match' => $this->normalizeMatchRoutes($item['match'] ?? [$href], $href),
+            ];
+        }
+
+        return $visibleItems;
+    }
+
+    private function resolveContext(?array $user, ?string $contextHint): string
+    {
+        $normalizedHint = strtolower(trim((string) ($contextHint ?? '')));
+        if ($normalizedHint === 'company' || $normalizedHint === 'saas') {
+            return $normalizedHint;
+        }
+
+        $roleContext = strtolower(trim((string) ($user['role_context'] ?? '')));
+        if ($roleContext === 'company' || $roleContext === 'saas') {
+            return $roleContext;
+        }
+
+        return (int) ($user['is_saas_user'] ?? 0) === 1 ? 'saas' : 'company';
+    }
+
+    private function permissionSetForRole(int $roleId): array
+    {
+        $set = [];
+        foreach ($this->permissions->listPermissionSlugsByRole($roleId) as $slug) {
+            $set[$slug] = true;
+        }
+
+        return $set;
+    }
+
+    private function normalizeMatchRoutes(mixed $rawMatch, string $fallback): array
+    {
+        $values = is_array($rawMatch) ? $rawMatch : [$rawMatch];
+        $routes = [];
+        foreach ($values as $value) {
+            $route = trim((string) $value);
+            if ($route !== '') {
+                $routes[] = $route;
+            }
+        }
+
+        if ($routes === []) {
+            return [$fallback];
+        }
+
+        return array_values(array_unique($routes));
+    }
+
+    private function companyNavigationDefinition(): array
+    {
+        return [
+            [
+                'href' => '/admin/dashboard',
+                'label' => 'Dashboard',
+                'description' => 'Visao geral da operacao',
+                'permission' => 'dashboard.view',
+                'roles' => ['admin_establishment', 'manager'],
+                'match' => ['/admin/dashboard', '/admin/dashboard/report'],
+            ],
+            [
+                'href' => '/admin/products',
+                'label' => 'Produtos',
+                'description' => 'Cardapio e categorias',
+                'permission' => 'products.view',
+            ],
+            [
+                'href' => '/admin/tables',
+                'label' => 'Mesas',
+                'description' => 'Gestao de salao',
+                'permission' => 'tables.view',
+            ],
+            [
+                'href' => '/admin/commands',
+                'label' => 'Comandas',
+                'description' => 'Abertura e controle',
+                'permission' => 'commands.view',
+            ],
+            [
+                'href' => '/admin/orders',
+                'label' => 'Pedidos',
+                'description' => 'Fila de atendimento',
+                'permission' => 'orders.view',
+            ],
+            [
+                'href' => '/admin/kitchen',
+                'label' => 'Cozinha',
+                'description' => 'Producao e impressao',
+                'permission' => 'orders.view',
+            ],
+            [
+                'href' => '/admin/delivery-zones',
+                'label' => 'Zonas de Entrega',
+                'description' => 'Cobertura e taxa',
+                'permission' => 'orders.create',
+            ],
+            [
+                'href' => '/admin/deliveries',
+                'label' => 'Entregas',
+                'description' => 'Roteiro e status',
+                'permission' => 'orders.view',
+            ],
+            [
+                'href' => '/admin/payments',
+                'label' => 'Pagamentos',
+                'description' => 'Cobrancas e recebimentos',
+                'permission' => 'payments.view',
+            ],
+            [
+                'href' => '/admin/cash-registers',
+                'label' => 'Caixa',
+                'description' => 'Abertura e fechamento',
+                'permission' => 'cash_registers.open',
+            ],
+        ];
+    }
+
+    private function saasNavigationDefinition(): array
+    {
+        return [
+            [
+                'href' => '/saas/dashboard',
+                'label' => 'Dashboard',
+                'description' => 'Indicadores da plataforma',
+                'permission' => 'dashboard.view',
+            ],
+            [
+                'href' => '/saas/companies',
+                'label' => 'Empresas',
+                'description' => 'Clientes da plataforma',
+                'permission' => 'companies.view',
+            ],
+            [
+                'href' => '/saas/plans',
+                'label' => 'Planos',
+                'description' => 'Catalogo comercial',
+                'permission' => 'plans.view',
+            ],
+            [
+                'href' => '/saas/subscriptions',
+                'label' => 'Assinaturas',
+                'description' => 'Ciclo de contratos',
+                'permission' => 'subscriptions.view',
+            ],
+            [
+                'href' => '/saas/subscription-payments',
+                'label' => 'Cobrancas',
+                'description' => 'Recebimentos SaaS',
+                'permission' => 'subscriptions.view',
+            ],
+        ];
     }
 }
