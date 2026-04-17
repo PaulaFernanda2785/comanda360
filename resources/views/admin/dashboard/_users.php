@@ -622,7 +622,7 @@ $formatDateTime = static function (mixed $value): string {
                             </div>
                         </div>
 
-                        <button class="btn" type="submit">Cadastrar usuario</button>
+                        <button class="btn" type="submit" style="margin-top:12px">Cadastrar usuario</button>
                     </form>
                 </div>
 
