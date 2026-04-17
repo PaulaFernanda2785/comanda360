@@ -166,8 +166,8 @@ $formatSupportDate = static function (mixed $value): string {
         .st-summary-item span{color:#64748b;font-size:13px}
         .st-summary-badge{padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1e3a8a;font-size:11px;font-weight:700}
 
-        .st-pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px}
-        .st-pagination .dash-pagination-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+        .st-págination{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px}
+        .st-págination .dash-págination-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 
         .st-governance{border:1px solid #c7d2fe;background:linear-gradient(130deg,#eef2ff 0%,#f8fafc 100%);border-radius:14px;padding:14px}
         .st-governance h4{margin:0 0 8px;color:#1e1b4b}
@@ -197,8 +197,8 @@ $formatSupportDate = static function (mixed $value): string {
         <div class="st-hero">
             <div class="st-hero-body">
                 <div>
-                    <h2>Fale com a equipe tecnica</h2>
-                    <p>Abra chamados operacionais no mesmo padrao visual de Usuarios internos e Personalizacao. O historico agora trabalha com filtros inteligentes e paginação de no maximo 10 registros por pagina.</p>
+                    <h2>Fale com a equipe técnica</h2>
+                    <p>Abra chamados operacionais no mesmo padrão visual de Usuários internos e Personalização. O histórico agora trabalha com filtros inteligentes e páginação de no máximo 10 registros por página.</p>
                 </div>
                 <div class="st-hero-metrics">
                     <span class="st-hero-pill">Chamados filtrados: <?= htmlspecialchars((string) $supportTotal) ?></span>
@@ -215,11 +215,11 @@ $formatSupportDate = static function (mixed $value): string {
                     <div class="st-card-head">
                         <div>
                             <h3>Abrir novo chamado</h3>
-                            <p class="st-card-note">Descreva o problema com impacto, horario, ambiente e comportamento observado. Quanto melhor o contexto, menor o retrabalho para triagem e retorno tecnico.</p>
+                            <p class="st-card-note">Descreva o problema com impacto, horário, ambiente e comportamento observado. Quanto melhor o contexto, menor o retrabalho para triagem e retorno técnico.</p>
                         </div>
                         <div class="st-badges">
                             <span class="badge status-default">Fila centralizada</span>
-                            <span class="badge status-default">Historico rastreavel</span>
+                            <span class="badge status-default">Histórico rastreável</span>
                             <span class="badge status-default">Prioridade controlada</span>
                         </div>
                     </div>
@@ -236,14 +236,14 @@ $formatSupportDate = static function (mixed $value): string {
                             <div class="field">
                                 <label for="ticket_priority">Prioridade</label>
                                 <select id="ticket_priority" name="priority">
-                                    <option value="medium">Media</option>
+                                    <option value="medium">Média</option>
                                     <option value="low">Baixa</option>
                                     <option value="high">Alta</option>
                                     <option value="urgent">Urgente</option>
                                 </select>
                             </div>
                             <div class="field full">
-                                <label for="ticket_description">Mensagem para equipe tecnica</label>
+                                <label for="ticket_description">Mensagem para a equipe técnica</label>
                                 <textarea id="ticket_description" name="description" rows="6" required placeholder="Informe o que aconteceu, quando ocorreu, quem foi impactado, se existe bloqueio operacional e como reproduzir o erro."></textarea>
                             </div>
                         </div>
@@ -258,12 +258,12 @@ $formatSupportDate = static function (mixed $value): string {
                 <div class="card">
                     <div class="st-card-head">
                         <div>
-                            <h3>Historico de chamados</h3>
-                            <p class="st-card-note">Use busca por ID, assunto, descricao, quem abriu ou responsavel. Os resultados abaixo exibem no maximo 10 itens por pagina.</p>
+                            <h3>Histórico de chamados</h3>
+                            <p class="st-card-note">Use busca por ID, assunto, descricao, quem abriu ou responsavel. Os resultados abaixo exibem no maximo 10 itens por página.</p>
                         </div>
                         <div class="st-badges">
                             <?php if ($lastSupportOpenedAt !== ''): ?>
-                                <span class="badge status-default">Ultima abertura: <?= htmlspecialchars($formatSupportDate($lastSupportOpenedAt)) ?></span>
+                                <span class="badge status-default">Última abertura: <?= htmlspecialchars($formatSupportDate($lastSupportOpenedAt)) ?></span>
                             <?php endif; ?>
                             <span class="badge status-default">Atribuidos: <?= htmlspecialchars((string) $supportAssignedCount) ?></span>
                         </div>
@@ -360,10 +360,10 @@ $formatSupportDate = static function (mixed $value): string {
                                     <div class="st-ticket-info">
                                         <div class="st-ticket-info-item">
                                             <span>Responsavel</span>
-                                            <strong><?= htmlspecialchars((string) ($ticket['assigned_to_user_name'] ?? 'Nao atribuido')) ?></strong>
+                                            <strong><?= htmlspecialchars((string) ($ticket['assigned_to_user_name'] ?? 'Não atribuído')) ?></strong>
                                         </div>
                                         <div class="st-ticket-info-item">
-                                            <span>Ultima atualizacao</span>
+                                            <span>Última atualização</span>
                                             <strong><?= htmlspecialchars($formatSupportDate($ticket['updated_at'] ?? '')) ?></strong>
                                         </div>
                                         <div class="st-ticket-info-item">
@@ -434,11 +434,11 @@ $formatSupportDate = static function (mixed $value): string {
                         </div>
 
                         <?php if ($supportLastPage > 1): ?>
-                            <div class="st-pagination">
-                                <div class="dash-pagination-info">
+                            <div class="st-págination">
+                                <div class="dash-págination-info">
                                     Exibindo <?= htmlspecialchars((string) $supportFrom) ?> a <?= htmlspecialchars((string) $supportTo) ?> de <?= htmlspecialchars((string) $supportTotal) ?> chamados.
                                 </div>
-                                <div class="dash-pagination-controls">
+                                <div class="dash-págination-controls">
                                     <?php if ($supportPage > 1): ?>
                                         <a class="dash-page-btn" href="<?= htmlspecialchars($buildSupportUrl(['support_page' => $supportPage - 1])) ?>">Anterior</a>
                                     <?php endif; ?>
@@ -448,7 +448,7 @@ $formatSupportDate = static function (mixed $value): string {
                                     foreach ($supportPages as $pageNumber):
                                         $pageNumber = (int) $pageNumber;
                                         if ($previousSupportPage !== null && $pageNumber - $previousSupportPage > 1): ?>
-                                            <span class="pagination-ellipsis">...</span>
+                                            <span class="págination-ellipsis">...</span>
                                         <?php endif; ?>
                                         <a class="dash-page-btn<?= $pageNumber === $supportPage ? ' is-active' : '' ?>" href="<?= htmlspecialchars($buildSupportUrl(['support_page' => $pageNumber])) ?>"><?= $pageNumber ?></a>
                                         <?php
@@ -457,7 +457,7 @@ $formatSupportDate = static function (mixed $value): string {
                                     ?>
 
                                     <?php if ($supportPage < $supportLastPage): ?>
-                                        <a class="dash-page-btn" href="<?= htmlspecialchars($buildSupportUrl(['support_page' => $supportPage + 1])) ?>">Proxima</a>
+                                        <a class="dash-page-btn" href="<?= htmlspecialchars($buildSupportUrl(['support_page' => $supportPage + 1])) ?>">Próxima</a>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -505,7 +505,7 @@ $formatSupportDate = static function (mixed $value): string {
 
                 <div class="st-governance">
                     <h4>Triage e governanca</h4>
-                    <p>Esse canal deve concentrar incidentes tecnicos e bloqueios reais da operacao. Ajustes cosmeticos, duvidas simples ou mudancas de processo precisam ser descritos com clareza para nao competir com incidentes criticos.</p>
+                    <p>Esse canal deve concentrar incidentes técnicos e bloqueios reais da operacao. Ajustes cosméticos, dúvidas simples ou mudanças de processo precisam ser descritos com clareza para nao competir com incidentes críticos.</p>
                     <div class="st-governance-list">
                         <div class="st-governance-item">
                             <strong>Uso ideal</strong>
@@ -513,7 +513,7 @@ $formatSupportDate = static function (mixed $value): string {
                         </div>
                         <div class="st-governance-item">
                             <strong>Dados minimos</strong>
-                            <span class="st-governance-badge">Impacto, horario e reproducao</span>
+                            <span class="st-governance-badge">Impacto, horário e reproducao</span>
                         </div>
                         <div class="st-governance-item">
                             <strong>Criticidade</strong>

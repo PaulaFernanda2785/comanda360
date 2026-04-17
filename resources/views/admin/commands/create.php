@@ -43,7 +43,7 @@ foreach ($tables as $table) {
     <div class="topbar">
         <div>
             <h1>Abrir Comanda</h1>
-            <p>Formulario operacional no mesmo padrao visual de produtos e mesas.</p>
+            <p>Formulario operacional no mesmo padrão visual de produtos e mesas.</p>
         </div>
         <a class="btn secondary" href="<?= htmlspecialchars(base_url('/admin/commands')) ?>">Voltar para comandas</a>
     </div>
@@ -63,7 +63,7 @@ foreach ($tables as $table) {
                 <div class="steps">
                     <span class="step-pill">1. Mesa</span>
                     <span class="step-pill">2. Cliente</span>
-                    <span class="step-pill">3. Observacoes</span>
+                    <span class="step-pill">3. Observações</span>
                 </div>
 
                 <div class="grid two">
@@ -105,7 +105,7 @@ foreach ($tables as $table) {
                 </div>
 
                 <div class="field">
-                    <label for="notes">Observacoes</label>
+                    <label for="notes">Observações</label>
                     <textarea id="notes" name="notes" rows="4" placeholder="Ex.: Cliente prefere atendimento rapido e sem cebola."></textarea>
                 </div>
 
@@ -136,11 +136,11 @@ foreach ($tables as $table) {
                     </div>
                     <div class="meta-item">
                         <strong>Cliente</strong>
-                        <span id="summaryCustomer">Nao informado</span>
+                        <span id="summaryCustomer">Não informado</span>
                     </div>
                     <div class="meta-item">
-                        <strong>Observacoes</strong>
-                        <span id="summaryNotes">Sem observacoes</span>
+                        <strong>Observações</strong>
+                        <span id="summaryNotes">Sem observações</span>
                     </div>
                 </div>
             </div>
@@ -177,7 +177,7 @@ foreach ($tables as $table) {
                 summaryStatus.textContent = status !== '' ? status : '-';
             }
             if (summaryCapacity) {
-                summaryCapacity.textContent = capacity !== '' ? `${capacity} pessoa(s)` : 'Nao informada';
+                summaryCapacity.textContent = capacity !== '' ? `${capacity} pessoa(s)` : 'Não informada';
             }
         } else {
             if (summaryTable) {
@@ -193,12 +193,12 @@ foreach ($tables as $table) {
 
         if (summaryCustomer) {
             const customerValue = customerInput instanceof HTMLInputElement ? customerInput.value.trim() : '';
-            summaryCustomer.textContent = customerValue !== '' ? customerValue : 'Nao informado';
+            summaryCustomer.textContent = customerValue !== '' ? customerValue : 'Não informado';
         }
 
         if (summaryNotes) {
             const notesValue = notesInput instanceof HTMLTextAreaElement ? notesInput.value.trim() : '';
-            summaryNotes.textContent = notesValue !== '' ? notesValue : 'Sem observacoes';
+            summaryNotes.textContent = notesValue !== '' ? notesValue : 'Sem observações';
         }
     };
 

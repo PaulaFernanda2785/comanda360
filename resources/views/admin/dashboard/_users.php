@@ -11,12 +11,12 @@ $usersRoleId = (int) ($usersFilters['role_id'] ?? 0);
 $usersPerPage = (int) ($usersFilters['per_page'] ?? 10);
 $usersPerPageOptions = is_array($usersFilters['per_page_options'] ?? null) ? $usersFilters['per_page_options'] : [10, 20, 50];
 
-$paginationTotal = (int) ($usersPagination['total'] ?? count($users));
-$paginationPage = max(1, (int) ($usersPagination['page'] ?? 1));
-$paginationLastPage = max(1, (int) ($usersPagination['last_page'] ?? 1));
-$paginationFrom = (int) ($usersPagination['from'] ?? 0);
-$paginationTo = (int) ($usersPagination['to'] ?? 0);
-$paginationPages = is_array($usersPagination['pages'] ?? null) ? $usersPagination['pages'] : [];
+$páginationTotal = (int) ($usersPagination['total'] ?? count($users));
+$páginationPage = max(1, (int) ($usersPagination['page'] ?? 1));
+$páginationLastPage = max(1, (int) ($usersPagination['last_page'] ?? 1));
+$páginationFrom = (int) ($usersPagination['from'] ?? 0);
+$páginationTo = (int) ($usersPagination['to'] ?? 0);
+$páginationPages = is_array($usersPagination['pages'] ?? null) ? $usersPagination['pages'] : [];
 
 $currentQuery = is_array($_GET ?? null) ? $_GET : [];
 $currentQuery['section'] = 'users';
@@ -74,12 +74,12 @@ $moduleLabelMap = [
     'cash_register' => 'Caixas',
     'cashregisters' => 'Caixas',
     'cashregister' => 'Caixas',
-    'reports' => 'Relatorios',
-    'report' => 'Relatorios',
-    'users' => 'Usuarios',
-    'user' => 'Usuarios',
-    'settings' => 'Configuracoes',
-    'setting' => 'Configuracoes',
+    'reports' => 'Relatórios',
+    'report' => 'Relatórios',
+    'users' => 'Usuários',
+    'user' => 'Usuários',
+    'settings' => 'Configurações',
+    'setting' => 'Configurações',
     'themes' => 'Temas',
     'theme' => 'Temas',
 ];
@@ -202,8 +202,8 @@ $formatDateTime = static function (mixed $value): string {
         .iu-perm-check input[type="checkbox"]:checked + span{color:#0f172a;font-weight:600}
         .iu-perm-grid + .btn{margin-top:12px}
 
-        .iu-pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px}
-        .iu-pagination .dash-pagination-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+        .iu-págination{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px}
+        .iu-págination .dash-págination-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 
         .iu-shell .btn.ghost{background:#fff;border:1px solid #cbd5e1;color:#0f172a}
         .iu-shell .btn.ghost:hover{background:#f8fafc}
@@ -233,12 +233,12 @@ $formatDateTime = static function (mixed $value): string {
         <div class="iu-hero">
             <div class="iu-hero-body">
                 <div>
-                    <h2>Gestao moderna de usuarios internos</h2>
-                    <p>Mesmo padrao visual do Painel Estatistico e Personalizacao, com foco em operacao: filtros inteligentes, paginacao, controle de perfis e acoes de editar, status e senha em um fluxo unico.</p>
+                    <h2>Gestão moderna de usuários internos</h2>
+                    <p>Mesmo padrão visual do Painel Estatístico e Personalização, com foco em operação: filtros inteligentes, páginação, controle de perfis e ações de editar, status e senha em um fluxo único.</p>
                 </div>
                 <div class="iu-hero-metrics">
-                    <span class="iu-hero-pill">Usuarios: <?= htmlspecialchars((string) $paginationTotal) ?></span>
-                    <span class="iu-hero-pill">Perfis de fabrica: <?= htmlspecialchars((string) $totalFactoryRoles) ?></span>
+                    <span class="iu-hero-pill">Usuários: <?= htmlspecialchars((string) $páginationTotal) ?></span>
+                    <span class="iu-hero-pill">Perfis de fábrica: <?= htmlspecialchars((string) $totalFactoryRoles) ?></span>
                     <span class="iu-hero-pill">Perfis customizados: <?= htmlspecialchars((string) $totalCustomRoles) ?></span>
                 </div>
             </div>
@@ -249,8 +249,8 @@ $formatDateTime = static function (mixed $value): string {
                 <div class="card">
                     <div class="iu-card-head">
                         <div>
-                            <h3>Gestao de usuarios internos</h3>
-                            <p class="iu-card-note">Use os filtros para localizar rapidamente e abra o gerenciamento de cada usuario para editar cadastro, status de acesso e senha.</p>
+                            <h3>Gestão de usuários internos</h3>
+                            <p class="iu-card-note">Use os filtros para localizar rapidamente e abra o gerenciamento de cada usuário para editar cadastro, status de acesso e senha.</p>
                         </div>
                     </div>
 
@@ -280,7 +280,7 @@ $formatDateTime = static function (mixed $value): string {
                                 </select>
                             </div>
                             <div class="field">
-                                <label for="users_per_page">Por pagina</label>
+                                <label for="users_per_page">Por página</label>
                                 <select id="users_per_page" name="users_per_page">
                                     <?php foreach ($usersPerPageOptions as $option): ?>
                                         <?php $optionValue = (int) $option; ?>
@@ -296,14 +296,14 @@ $formatDateTime = static function (mixed $value): string {
                     </form>
 
                     <div class="iu-badges" style="margin-top:10px">
-                        <span class="badge status-default">Total: <?= htmlspecialchars((string) $paginationTotal) ?></span>
+                        <span class="badge status-default">Total: <?= htmlspecialchars((string) $páginationTotal) ?></span>
                         <?php if ($usersSearch !== ''): ?><span class="badge status-default">Busca: <?= htmlspecialchars($usersSearch) ?></span><?php endif; ?>
                         <?php if ($usersStatus !== ''): ?><span class="badge status-default">Status: <?= htmlspecialchars(ucfirst($usersStatus)) ?></span><?php endif; ?>
                         <?php if ($usersRoleId > 0): ?><span class="badge status-default">Perfil: <?= htmlspecialchars((string) ($roleNameById[$usersRoleId] ?? '-')) ?></span><?php endif; ?>
                     </div>
 
                     <?php if ($users === []): ?>
-                        <div class="empty-state" style="margin-top:10px">Nenhum usuario encontrado para os filtros aplicados.</div>
+                        <div class="empty-state" style="margin-top:10px">Nenhum usuário encontrado para os filtros aplicados.</div>
                     <?php else: ?>
                         <div class="iu-users-list" style="margin-top:10px">
                             <?php foreach ($users as $userRow): ?>
@@ -320,7 +320,7 @@ $formatDateTime = static function (mixed $value): string {
                                 <article class="iu-user-item">
                                     <div class="iu-user-top">
                                         <div class="iu-user-id">
-                                            <strong><?= htmlspecialchars((string) ($userRow['name'] ?? 'Usuario')) ?></strong>
+                                            <strong><?= htmlspecialchars((string) ($userRow['name'] ?? 'Usuário')) ?></strong>
                                             <small><?= htmlspecialchars((string) ($userRow['email'] ?? '-')) ?></small>
                                             <small><?= htmlspecialchars((string) ($userRow['phone'] ?? '-')) ?></small>
                                         </div>
@@ -328,12 +328,12 @@ $formatDateTime = static function (mixed $value): string {
                                             <span class="badge status-default"><?= htmlspecialchars((string) ($userRow['role_name'] ?? '-')) ?></span>
                                             <span class="badge <?= htmlspecialchars($uStatusBadge) ?>"><?= htmlspecialchars(ucfirst($uStatus)) ?></span>
                                             <span class="badge status-default">Cadastro: <?= htmlspecialchars($formatDateTime($userRow['created_at'] ?? '')) ?></span>
-                                            <span class="badge status-default">Ultimo acesso: <?= htmlspecialchars($formatDateTime($userRow['last_login_at'] ?? '')) ?></span>
+                                            <span class="badge status-default">Último acesso: <?= htmlspecialchars($formatDateTime($userRow['last_login_at'] ?? '')) ?></span>
                                         </div>
                                     </div>
 
                                     <details class="iu-manage">
-                                        <summary>Gerenciar usuario</summary>
+                                        <summary>Gerenciar usuário</summary>
                                         <div class="iu-manage-grid">
                                             <form class="iu-manage-card" method="POST" action="<?= htmlspecialchars(base_url('/admin/dashboard/users/update')) ?>">
                                                 <?= form_security_fields('dashboard.users.update.' . $uId) ?>
@@ -389,7 +389,7 @@ $formatDateTime = static function (mixed $value): string {
                                                 <input type="hidden" name="user_id" value="<?= $uId ?>">
                                                 <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery) ?>">
 
-                                                <h4>Seguranca de senha</h4>
+                                                <h4>Segurança de senha</h4>
                                                 <p>Defina nova senha e confirme antes de salvar.</p>
                                                 <div class="field">
                                                     <label>Nova senha</label>
@@ -408,24 +408,24 @@ $formatDateTime = static function (mixed $value): string {
                         </div>
                     <?php endif; ?>
 
-                    <div class="iu-pagination">
-                        <div class="dash-pagination-info">
-                            <?php if ($paginationTotal > 0): ?>
-                                Exibindo <?= htmlspecialchars((string) $paginationFrom) ?> a <?= htmlspecialchars((string) $paginationTo) ?> de <?= htmlspecialchars((string) $paginationTotal) ?> usuarios.
+                    <div class="iu-págination">
+                        <div class="dash-págination-info">
+                            <?php if ($páginationTotal > 0): ?>
+                                Exibindo <?= htmlspecialchars((string) $páginationFrom) ?> a <?= htmlspecialchars((string) $páginationTo) ?> de <?= htmlspecialchars((string) $páginationTotal) ?> usuários.
                             <?php else: ?>
-                                Nenhum usuario para exibir.
+                                Nenhum usuário para exibir.
                             <?php endif; ?>
                         </div>
-                        <div class="dash-pagination-controls">
-                            <?php if ($paginationPage > 1): ?>
-                                <a class="dash-page-btn" href="<?= htmlspecialchars($buildUsersUrl(['users_page' => $paginationPage - 1])) ?>">Anterior</a>
+                        <div class="dash-págination-controls">
+                            <?php if ($páginationPage > 1): ?>
+                                <a class="dash-page-btn" href="<?= htmlspecialchars($buildUsersUrl(['users_page' => $páginationPage - 1])) ?>">Anterior</a>
                             <?php else: ?>
                                 <span class="dash-page-btn" style="opacity:.55;cursor:default">Anterior</span>
                             <?php endif; ?>
 
                             <?php
                             $lastPrinted = 0;
-                            foreach ($paginationPages as $pageNumber):
+                            foreach ($páginationPages as $pageNumber):
                                 $pageValue = (int) $pageNumber;
                                 if ($pageValue <= 0) {
                                     continue;
@@ -437,13 +437,13 @@ $formatDateTime = static function (mixed $value): string {
                                 endif;
                                 $lastPrinted = $pageValue;
                                 ?>
-                                <a class="dash-page-btn<?= $pageValue === $paginationPage ? ' is-active' : '' ?>" href="<?= htmlspecialchars($buildUsersUrl(['users_page' => $pageValue])) ?>"><?= htmlspecialchars((string) $pageValue) ?></a>
+                                <a class="dash-page-btn<?= $pageValue === $páginationPage ? ' is-active' : '' ?>" href="<?= htmlspecialchars($buildUsersUrl(['users_page' => $pageValue])) ?>"><?= htmlspecialchars((string) $pageValue) ?></a>
                             <?php endforeach; ?>
 
-                            <?php if ($paginationPage < $paginationLastPage): ?>
-                                <a class="dash-page-btn" href="<?= htmlspecialchars($buildUsersUrl(['users_page' => $paginationPage + 1])) ?>">Proxima</a>
+                            <?php if ($páginationPage < $páginationLastPage): ?>
+                                <a class="dash-page-btn" href="<?= htmlspecialchars($buildUsersUrl(['users_page' => $páginationPage + 1])) ?>">Próxima</a>
                             <?php else: ?>
-                                <span class="dash-page-btn" style="opacity:.55;cursor:default">Proxima</span>
+                                <span class="dash-page-btn" style="opacity:.55;cursor:default">Próxima</span>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -453,7 +453,7 @@ $formatDateTime = static function (mixed $value): string {
                     <div class="iu-card-head">
                         <div>
                             <h3>Perfis cadastrados</h3>
-                            <p class="iu-card-note">Perfis de fabrica sao protegidos como baseline do sistema. Perfis personalizados podem ser editados e excluidos quando nao houver usuarios vinculados.</p>
+                            <p class="iu-card-note">Perfis de fábrica são protegidos como baseline do sistema. Perfis personalizados podem ser editados e excluídos quando não houver usuários vinculados.</p>
                         </div>
                     </div>
 
@@ -516,7 +516,7 @@ $formatDateTime = static function (mixed $value): string {
                                                         <input name="name" type="text" maxlength="100" required value="<?= htmlspecialchars($roleName) ?>">
                                                     </div>
                                                     <div class="field">
-                                                        <label>Descricao</label>
+                                                        <label>Descrição</label>
                                                         <input name="description" type="text" maxlength="500" value="<?= htmlspecialchars($roleDescription) ?>">
                                                     </div>
                                                 </div>
@@ -546,7 +546,7 @@ $formatDateTime = static function (mixed $value): string {
                                                                     $permissionId = (int) ($permission['id'] ?? 0);
                                                                     $permissionLabel = trim((string) ($permission['description'] ?? ''));
                                                                     if ($permissionLabel === '') {
-                                                                        $permissionLabel = (string) ($permission['slug'] ?? ('Permissao #' . $permissionId));
+                                                                        $permissionLabel = (string) ($permission['slug'] ?? ('Permissão #' . $permissionId));
                                                                     }
                                                                     $isChecked = isset($rolePermissionSet[$permissionId]);
                                                                     ?>
@@ -564,7 +564,7 @@ $formatDateTime = static function (mixed $value): string {
                                             </form>
                                         </div>
                                     <?php else: ?>
-                                        <p class="iu-role-system-note">Perfil padrao de fabrica. Mantido como referencia para governanca do sistema.</p>
+                                        <p class="iu-role-system-note">Perfil padrão de fabrica. Mantido como referencia para governanca do sistema.</p>
                                     <?php endif; ?>
                                 </article>
                             <?php endforeach; ?>
@@ -630,7 +630,7 @@ $formatDateTime = static function (mixed $value): string {
                     <div class="iu-card-head">
                         <div>
                             <h3>Construtor de perfil</h3>
-                            <p class="iu-card-note">Crie perfis novos por modulo/permissao. Perfis de fabrica continuam como base padrao do sistema.</p>
+                            <p class="iu-card-note">Crie perfis novos por modulo/permissao. Perfis de fabrica continuam como base padrão do sistema.</p>
                         </div>
                     </div>
 
@@ -644,7 +644,7 @@ $formatDateTime = static function (mixed $value): string {
                                 <input id="role_create_name" name="name" type="text" maxlength="100" placeholder="Ex.: Supervisor de turno" required>
                             </div>
                             <div class="field">
-                                <label for="role_create_description">Descricao</label>
+                                <label for="role_create_description">Descrição</label>
                                 <input id="role_create_description" name="description" type="text" maxlength="500" placeholder="Escopo e responsabilidades do perfil">
                             </div>
                         </div>
@@ -674,7 +674,7 @@ $formatDateTime = static function (mixed $value): string {
                                             $permissionId = (int) ($permission['id'] ?? 0);
                                             $permissionLabel = trim((string) ($permission['description'] ?? ''));
                                             if ($permissionLabel === '') {
-                                                $permissionLabel = (string) ($permission['slug'] ?? ('Permissao #' . $permissionId));
+                                                $permissionLabel = (string) ($permission['slug'] ?? ('Permissão #' . $permissionId));
                                             }
                                             ?>
                                             <label class="iu-perm-check">
@@ -693,7 +693,7 @@ $formatDateTime = static function (mixed $value): string {
 
                 <div class="card" style="border:1px solid #c7d2fe;background:linear-gradient(140deg,#eef2ff 0%,#f8fafc 100%)">
                     <h4 style="margin:0 0 8px;color:#1e1b4b">Governanca e regra de fabrica</h4>
-                    <p class="ticket-note" style="margin-bottom:8px;color:#312e81">Perfis padrao continuam fixos como base de configuracao do sistema. Perfis customizados devem ser usados para adaptacoes operacionais por estabelecimento.</p>
+                    <p class="ticket-note" style="margin-bottom:8px;color:#312e81">Perfis padrão continuam fixos como base de configuracao do sistema. Perfis customizados devem ser usados para adaptacoes operacionais por estabelecimento.</p>
                     <div class="iu-badges">
                         <span class="badge status-default">Baseline de fabrica ativo</span>
                         <span class="badge status-default">Edicao segura por perfil</span>

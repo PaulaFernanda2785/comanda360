@@ -170,9 +170,9 @@ $donutBackground = $donutStops !== [] ? implode(', ', $donutStops) : '#e2e8f0 0%
                         </div>
                     <?php endforeach; ?>
                 </div>
-                <section class="dash-pagination" id="dashSalesDayPagination" hidden>
-                    <span class="dash-pagination-info" id="dashSalesDayPaginationInfo"></span>
-                    <div class="dash-pagination-controls" id="dashSalesDayPaginationControls"></div>
+                <section class="dash-págination" id="dashSalesDayPagination" hidden>
+                    <span class="dash-págination-info" id="dashSalesDayPaginationInfo"></span>
+                    <div class="dash-págination-controls" id="dashSalesDayPaginationControls"></div>
                 </section>
             <?php endif; ?>
         </div>
@@ -223,9 +223,9 @@ $donutBackground = $donutStops !== [] ? implode(', ', $donutStops) : '#e2e8f0 0%
                         <?php endforeach; ?>
                     </tbody>
                 </table>
-                <section class="dash-pagination" id="dashSalesChannelPagination" hidden>
-                    <span class="dash-pagination-info" id="dashSalesChannelPaginationInfo"></span>
-                    <div class="dash-pagination-controls" id="dashSalesChannelPaginationControls"></div>
+                <section class="dash-págination" id="dashSalesChannelPagination" hidden>
+                    <span class="dash-págination-info" id="dashSalesChannelPaginationInfo"></span>
+                    <div class="dash-págination-controls" id="dashSalesChannelPaginationControls"></div>
                 </section>
             <?php endif; ?>
         </div>
@@ -248,9 +248,9 @@ $donutBackground = $donutStops !== [] ? implode(', ', $donutStops) : '#e2e8f0 0%
                         <?php endforeach; ?>
                     </tbody>
                 </table>
-                <section class="dash-pagination" id="dashPaymentSummaryPagination" hidden>
-                    <span class="dash-pagination-info" id="dashPaymentSummaryPaginationInfo"></span>
-                    <div class="dash-pagination-controls" id="dashPaymentSummaryPaginationControls"></div>
+                <section class="dash-págination" id="dashPaymentSummaryPagination" hidden>
+                    <span class="dash-págination-info" id="dashPaymentSummaryPaginationInfo"></span>
+                    <div class="dash-págination-controls" id="dashPaymentSummaryPaginationControls"></div>
                 </section>
             <?php endif; ?>
         </div>
@@ -281,15 +281,15 @@ $donutBackground = $donutStops !== [] ? implode(', ', $donutStops) : '#e2e8f0 0%
 (() => {
     const pageSize = 10;
 
-    const setupPagination = (rowsSelector, paginationId, infoId, controlsId) => {
+    const setupPagination = (rowsSelector, páginationId, infoId, controlsId) => {
         const rows = Array.from(document.querySelectorAll(rowsSelector));
-        const pagination = document.getElementById(paginationId);
+        const págination = document.getElementById(páginationId);
         const info = document.getElementById(infoId);
         const controls = document.getElementById(controlsId);
 
-        if (!(pagination instanceof HTMLElement) || !(info instanceof HTMLElement) || !(controls instanceof HTMLElement) || rows.length === 0) {
-            if (pagination instanceof HTMLElement) {
-                pagination.hidden = true;
+        if (!(págination instanceof HTMLElement) || !(info instanceof HTMLElement) || !(controls instanceof HTMLElement) || rows.length === 0) {
+            if (págination instanceof HTMLElement) {
+                págination.hidden = true;
             }
             return;
         }
@@ -339,8 +339,8 @@ $donutBackground = $donutStops !== [] ? implode(', ', $donutStops) : '#e2e8f0 0%
                 addButton(String(page), page, false, page === currentPage);
             }
 
-            addButton('Proxima', Math.min(totalPages, currentPage + 1), currentPage >= totalPages);
-            pagination.hidden = false;
+            addButton('Próxima', Math.min(totalPages, currentPage + 1), currentPage >= totalPages);
+            págination.hidden = false;
         };
 
         render();

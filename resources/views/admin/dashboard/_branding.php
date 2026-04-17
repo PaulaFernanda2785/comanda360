@@ -81,7 +81,7 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
             <div class="branding-hero">
                 <div class="branding-hero-body">
                     <div>
-                        <h3>Personalizacao visual por estabelecimento</h3>
+                        <h3>Personalização visual por estabelecimento</h3>
                         <p>Defina nome comercial, cores do sistema, logo no menu/tickets e banner do cabecalho. O upload abaixo aceita selecionar, arrastar e colar imagem (Ctrl+V).</p>
                         <div class="branding-hero-actions">
                             <button class="btn-outline-danger" type="submit" form="restoreFactoryThemeForm" onclick="return confirm('Restaurar o estilo de fabrica e remover logo/banner atuais?');">
@@ -111,23 +111,23 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
                             <input id="company_name" name="company_name" type="text" required value="<?= htmlspecialchars($companyName) ?>">
                         </div>
                         <div class="field">
-                            <label for="title">Titulo acima do Comanda360</label>
+                            <label for="title">Título acima do Comanda360</label>
                             <input id="title" name="title" type="text" value="<?= htmlspecialchars($companyTitle !== '' ? $companyTitle : $companyName) ?>">
                         </div>
                         <div class="field full">
-                            <label for="description">Descricao da empresa</label>
+                            <label for="description">Descrição da empresa</label>
                             <textarea id="description" name="description" rows="3"><?= htmlspecialchars($companyDescription) ?></textarea>
                         </div>
                         <div class="field full">
-                            <label for="footer_text">Texto de rodape</label>
+                            <label for="footer_text">Texto de rodapé</label>
                             <input id="footer_text" name="footer_text" type="text" value="<?= htmlspecialchars($footerText) ?>">
                         </div>
                     </div>
 
                     <div class="branding-color-grid">
                         <article class="branding-color-card">
-                            <strong>Cor dos botoes e acao principal</strong>
-                            <small>Afeta botoes principais e destaques de acao.</small>
+                            <strong>Cor dos botões e ação principal</strong>
+                            <small>Afeta botões principais e destaques de ação.</small>
                             <div class="branding-color-inputs">
                                 <input id="primary_color" name="primary_color" type="color" value="<?= htmlspecialchars($primaryColor) ?>" data-color-key="primary">
                                 <input id="primary_color_text" type="text" value="<?= htmlspecialchars($primaryColor) ?>" data-color-text-for="primary_color" maxlength="7" pattern="^#[0-9A-Fa-f]{6}$">
@@ -135,15 +135,15 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
                         </article>
                         <article class="branding-color-card">
                             <strong>Cor do menu lateral</strong>
-                            <small>Define fundo principal da navegacao lateral.</small>
+                            <small>Define o fundo principal da navegação lateral.</small>
                             <div class="branding-color-inputs">
                                 <input id="secondary_color" name="secondary_color" type="color" value="<?= htmlspecialchars($secondaryColor) ?>" data-color-key="secondary">
                                 <input id="secondary_color_text" type="text" value="<?= htmlspecialchars($secondaryColor) ?>" data-color-text-for="secondary_color" maxlength="7" pattern="^#[0-9A-Fa-f]{6}$">
                             </div>
                         </article>
                         <article class="branding-color-card">
-                            <strong>Cor de cabecalho e rodape</strong>
-                            <small>Usada no gradiente do cabecalho e rodape.</small>
+                            <strong>Cor de cabeçalho e rodapé</strong>
+                            <small>Usada no gradiente do cabeçalho e rodapé.</small>
                             <div class="branding-color-inputs">
                                 <input id="accent_color" name="accent_color" type="color" value="<?= htmlspecialchars($accentColor) ?>" data-color-key="accent">
                                 <input id="accent_color_text" type="text" value="<?= htmlspecialchars($accentColor) ?>" data-color-text-for="accent_color" maxlength="7" pattern="^#[0-9A-Fa-f]{6}$">
@@ -154,12 +154,12 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
                     <div class="branding-preview-shell" id="brandingSystemPreview" style="--brand-preview-primary:<?= htmlspecialchars($primaryColor) ?>;--brand-preview-secondary:<?= htmlspecialchars($secondaryColor) ?>;--brand-preview-accent:<?= htmlspecialchars($accentColor) ?>;margin-top:12px">
                         <div class="branding-preview-head">
                             <strong><?= htmlspecialchars($companyName !== '' ? $companyName : 'Estabelecimento') ?></strong>
-                            <div style="font-size:12px;opacity:.9">Cabecalho com usuario e perfil</div>
+                            <div style="font-size:12px;opacity:.9">Cabeçalho com usuário e perfil</div>
                         </div>
                         <div class="branding-preview-menu">
                             <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
                                 <span>Menu lateral</span>
-                                <span class="branding-preview-btn">Botao principal</span>
+                                <span class="branding-preview-btn">Botão principal</span>
                             </div>
                         </div>
                     </div>
@@ -173,7 +173,7 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
 
                             <div id="logo_dropzone" class="dropzone" tabindex="0">
                                 <p><strong>Selecione, arraste ou cole (Ctrl+V) a logo aqui</strong></p>
-                                <small>Formatos: JPG, PNG, WEBP ou GIF. Maximo: 10MB.</small>
+                                <small>Formatos: JPG, PNG, WEBP ou GIF. Máximo: 10MB.</small>
                             </div>
                             <p class="ticket-note" style="margin-top:8px">Tamanho recomendado da logo: <strong>512 x 512 px</strong> (minimo 256 x 256 px) para manter boa leitura no menu e tickets.</p>
                             <div class="field" style="margin-top:10px">
@@ -191,16 +191,16 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
                             </div>
 
                             <input type="checkbox" id="remove_logo" name="remove_logo" value="1" class="is-hidden">
-                            <small class="ticket-note">A remocao sera aplicada ao salvar a personalizacao.</small>
+                            <small class="ticket-note">A remoção será aplicada ao salvar a personalização.</small>
                         </article>
 
                         <article class="branding-upload-card" data-upload-kind="banner">
-                            <h4 style="margin:0 0 4px">Banner do cabecalho</h4>
-                            <p class="ticket-note">Fica no topo junto do usuario logado e perfil.</p>
+                            <h4 style="margin:0 0 4px">Banner do cabeçalho</h4>
+                            <p class="ticket-note">Fica no topo junto do usuário logado e perfil.</p>
 
                             <div id="banner_dropzone" class="dropzone" tabindex="0">
                                 <p><strong>Selecione, arraste ou cole (Ctrl+V) o banner aqui</strong></p>
-                                <small>Formatos: JPG, PNG, WEBP ou GIF. Maximo: 10MB.</small>
+                                <small>Formatos: JPG, PNG, WEBP ou GIF. Máximo: 10MB.</small>
                             </div>
                             <p class="ticket-note" style="margin-top:8px">Tamanho recomendado do banner: <strong>1920 x 420 px</strong> (minimo 1366 x 300 px) para melhor visibilidade no cabecalho.</p>
                             <div class="field" style="margin-top:10px">
@@ -218,12 +218,12 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
                             </div>
 
                             <input type="checkbox" id="remove_banner" name="remove_banner" value="1" class="is-hidden">
-                            <small class="ticket-note">A remocao sera aplicada ao salvar a personalizacao.</small>
+                            <small class="ticket-note">A remoção será aplicada ao salvar a personalização.</small>
                         </article>
                     </div>
 
                     <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-                        <button class="btn" type="submit">Salvar personalizacao</button>
+                        <button class="btn" type="submit">Salvar personalização</button>
                     </div>
                 </div>
             </form>
@@ -234,7 +234,7 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
                 <h4 style="margin:0 0 8px">Resumo da identidade atual</h4>
                 <div class="branding-legend">
                     <div class="branding-legend-item">
-                        <span><span class="branding-dot" style="background:<?= htmlspecialchars($primaryColor) ?>"></span>Cor dos botoes</span>
+                        <span><span class="branding-dot" style="background:<?= htmlspecialchars($primaryColor) ?>"></span>Cor dos botões</span>
                         <strong><?= htmlspecialchars(strtoupper($primaryColor)) ?></strong>
                     </div>
                     <div class="branding-legend-item">
@@ -242,22 +242,22 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
                         <strong><?= htmlspecialchars(strtoupper($secondaryColor)) ?></strong>
                     </div>
                     <div class="branding-legend-item">
-                        <span><span class="branding-dot" style="background:<?= htmlspecialchars($accentColor) ?>"></span>Cor do cabecalho</span>
+                        <span><span class="branding-dot" style="background:<?= htmlspecialchars($accentColor) ?>"></span>Cor do cabeçalho</span>
                         <strong><?= htmlspecialchars(strtoupper($accentColor)) ?></strong>
                     </div>
                 </div>
             </div>
             <div class="branding-access-card">
-                <h4>Controle e governanca</h4>
-                <p>Configuracoes de identidade impactam toda a operacao visual do estabelecimento e os documentos emitidos.</p>
+                <h4>Controle e governança</h4>
+                <p>Configurações de identidade impactam toda a operação visual do estabelecimento e os documentos emitidos.</p>
                 <div class="branding-access-list">
                     <div class="branding-access-item">
-                        <strong>Permissao de edicao</strong>
+                        <strong>Permissão de edição</strong>
                         <span class="branding-access-badge">Administrador / Gerente</span>
                     </div>
                     <div class="branding-access-item">
                         <strong>Aplicacao</strong>
-                        <span class="branding-access-badge">Menu, Cabecalho, Rodape e Tickets</span>
+                        <span class="branding-access-badge">Menu, cabeçalho, rodapé e tickets</span>
                     </div>
                     <div class="branding-access-item">
                         <strong>Risco operacional</strong>

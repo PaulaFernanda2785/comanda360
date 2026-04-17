@@ -109,7 +109,7 @@ $canSendKitchen = !empty($canSendKitchen);
                             Itens: <?= (int) ($order['items_count'] ?? 0) ?>
                             | Total: R$ <?= number_format((float) ($order['total_amount'] ?? 0), 2, ',', '.') ?>
                             <?php if (!empty($order['latest_status_changed_at'])): ?>
-                                | Ultima mudanca: <?= htmlspecialchars((string) $order['latest_status_changed_at']) ?>
+                                | Última mudança: <?= htmlspecialchars((string) $order['latest_status_changed_at']) ?>
                             <?php endif; ?>
                         </p>
 

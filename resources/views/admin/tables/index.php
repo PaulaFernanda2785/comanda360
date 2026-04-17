@@ -173,7 +173,7 @@ foreach ($ordersByTableNumber as $tablePanel) {
                 <span class="badge <?= htmlspecialchars(status_badge_class('order_payment_status', 'paid')) ?>">Pagamento Pago: <?= (int) ($paymentSummary['paid'] ?? 0) ?></span>
             </div>
         </div>
-        <p class="search-info" style="margin:0">Atualizacao automatica da pagina a cada 30 segundos (quando o modal estiver fechado).</p>
+        <p class="search-info" style="margin:0">Atualizacao automatica da página a cada 30 segundos (quando o modal estiver fechado).</p>
     </div>
 
     <div class="card">
@@ -239,7 +239,7 @@ foreach ($ordersByTableNumber as $tablePanel) {
                     <div class="table-meta">
                         <div class="table-meta-item">
                             <strong>Capacidade</strong>
-                            <span><?= $capacity !== null ? $capacity . ' pessoa(s)' : 'Nao informada' ?></span>
+                            <span><?= $capacity !== null ? $capacity . ' pessoa(s)' : 'Não informada' ?></span>
                         </div>
                         <div class="table-meta-item">
                             <strong>Token QR</strong>
@@ -276,7 +276,7 @@ foreach ($ordersByTableNumber as $tablePanel) {
     <div class="table-modal-backdrop" data-close-modal="1"></div>
     <section class="table-modal-panel" role="dialog" aria-modal="true" aria-labelledby="tableModalTitle">
         <header class="table-modal-header">
-            <h3 id="tableModalTitle">Operacao da mesa</h3>
+            <h3 id="tableModalTitle">Operação da mesa</h3>
             <button class="btn secondary" type="button" data-close-modal="1">Fechar</button>
         </header>
         <div id="tableModalNotice" class="table-modal-notice" hidden></div>
@@ -378,7 +378,7 @@ foreach ($ordersByTableNumber as $tablePanel) {
                 return;
             }
 
-            modalBody.innerHTML = '<div class="modal-grid"><section class="modal-block"><p class="muted">Nao foi possivel atualizar as informacoes da mesa.</p></section></div>';
+            modalBody.innerHTML = '<div class="modal-grid"><section class="modal-block"><p class="muted">Não foi possível atualizar as informações da mesa.</p></section></div>';
         } catch (_error) {
             if (activeTableId !== tableId || modalShell.hidden) {
                 return;
@@ -523,7 +523,7 @@ foreach ($ordersByTableNumber as $tablePanel) {
                     return;
                 }
 
-                showModalNotice(payload.message || 'Operacao executada com sucesso.', 'success');
+                showModalNotice(payload.message || 'Operação executada com sucesso.', 'success');
                 if (activeTableId !== null) {
                     await loadModalContent(activeTableId, false);
                 }

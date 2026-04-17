@@ -58,8 +58,8 @@ ksort($channelsSummary);
     .delivery-actions-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
     .delivery-actions-row{display:flex;gap:8px;flex-wrap:wrap}
     .deliveries-empty{border:1px dashed #cbd5e1;border-radius:12px;padding:18px;color:#334155;background:#fff}
-    .deliveries-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-    .deliveries-pagination-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .deliveries-págination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .deliveries-págination-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     .deliveries-page-btn{border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:8px;padding:7px 10px;cursor:pointer;min-width:36px}
     .deliveries-page-btn[disabled]{opacity:.5;cursor:not-allowed}
     .deliveries-page-btn.is-active{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
@@ -72,7 +72,7 @@ ksort($channelsSummary);
     <div class="topbar deliveries-topbar">
         <div>
             <h1>Painel de Entregas</h1>
-            <p>Fluxo moderno com filtros, paginação (10 por página), atualização em 30s e ações rápidas de entrega.</p>
+            <p>Fluxo moderno com filtros, páginação (10 por página), atualização em 30s e ações rápidas de entrega.</p>
         </div>
         <a class="btn secondary" href="<?= htmlspecialchars(base_url('/admin/delivery-zones')) ?>">Gerenciar zonas e taxas</a>
     </div>
@@ -304,9 +304,9 @@ ksort($channelsSummary);
             <?php endforeach; ?>
         </section>
 
-        <section class="card deliveries-pagination" id="deliveriesPagination" hidden>
+        <section class="card deliveries-págination" id="deliveriesPagination" hidden>
             <span id="deliveriesPaginationInfo"></span>
-            <div id="deliveriesPaginationControls" class="deliveries-pagination-controls"></div>
+            <div id="deliveriesPaginationControls" class="deliveries-págination-controls"></div>
         </section>
 
         <div id="deliveriesNoResults" class="deliveries-empty" hidden>Nenhuma entrega encontrada com os filtros atuais.</div>
@@ -325,9 +325,9 @@ ksort($channelsSummary);
     const clearButton = document.getElementById('deliveriesClearFilters');
     const filterInfo = document.getElementById('deliveriesFilterInfo');
     const noResults = document.getElementById('deliveriesNoResults');
-    const pagination = document.getElementById('deliveriesPagination');
-    const paginationInfo = document.getElementById('deliveriesPaginationInfo');
-    const paginationControls = document.getElementById('deliveriesPaginationControls');
+    const págination = document.getElementById('deliveriesPagination');
+    const páginationInfo = document.getElementById('deliveriesPaginationInfo');
+    const páginationControls = document.getElementById('deliveriesPaginationControls');
     const refreshMs = 30000;
 
     window.setInterval(() => {
@@ -404,18 +404,18 @@ ksort($channelsSummary);
     };
 
     const renderPagination = (totalFiltered) => {
-        if (!pagination || !paginationInfo || !paginationControls) {
+        if (!págination || !páginationInfo || !páginationControls) {
             return;
         }
 
         if (totalFiltered <= 0) {
-            pagination.hidden = true;
-            paginationInfo.textContent = '';
-            paginationControls.innerHTML = '';
+            págination.hidden = true;
+            páginationInfo.textContent = '';
+            páginationControls.innerHTML = '';
             return;
         }
 
-        pagination.hidden = false;
+        págination.hidden = false;
         const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
         if (currentPage > totalPages) {
             currentPage = 1;
@@ -423,8 +423,8 @@ ksort($channelsSummary);
 
         const start = (currentPage - 1) * pageSize + 1;
         const end = Math.min(currentPage * pageSize, totalFiltered);
-        paginationInfo.textContent = `Mostrando ${start}-${end} de ${totalFiltered} entrega(s).`;
-        paginationControls.innerHTML = '';
+        páginationInfo.textContent = `Mostrando ${start}-${end} de ${totalFiltered} entrega(s).`;
+        páginationControls.innerHTML = '';
 
         const addButton = (label, page, disabled, active = false) => {
             const button = document.createElement('button');
@@ -438,7 +438,7 @@ ksort($channelsSummary);
                     applyFilter(false);
                 }
             });
-            paginationControls.appendChild(button);
+            páginationControls.appendChild(button);
         };
 
         addButton('Anterior', Math.max(1, currentPage - 1), currentPage <= 1);

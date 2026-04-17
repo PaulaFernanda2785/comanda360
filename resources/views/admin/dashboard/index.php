@@ -10,12 +10,12 @@ $roles = is_array($usersModule['roles'] ?? null) ? $usersModule['roles'] : (is_a
 $permissionsCatalog = is_array($usersModule['permissions_catalog'] ?? null) ? $usersModule['permissions_catalog'] : (is_array($panel['permissions_catalog'] ?? null) ? $panel['permissions_catalog'] : []);
 $permissionsGrouped = is_array($usersModule['permissions_grouped'] ?? null) ? $usersModule['permissions_grouped'] : [];
 $usersFilters = is_array($usersModule['filters'] ?? null) ? $usersModule['filters'] : (is_array($panel['users_filters'] ?? null) ? $panel['users_filters'] : []);
-$usersPagination = is_array($usersModule['pagination'] ?? null) ? $usersModule['pagination'] : (is_array($panel['users_pagination'] ?? null) ? $panel['users_pagination'] : []);
+$usersPagination = is_array($usersModule['págination'] ?? null) ? $usersModule['págination'] : (is_array($panel['users_págination'] ?? null) ? $panel['users_págination'] : []);
 $supportModule = is_array($panel['support_module'] ?? null) ? $panel['support_module'] : [];
 $supportTickets = is_array($supportModule['tickets'] ?? null) ? $supportModule['tickets'] : (is_array($panel['support_tickets'] ?? null) ? $panel['support_tickets'] : []);
 $supportThreads = is_array($supportModule['threads'] ?? null) ? $supportModule['threads'] : [];
 $supportFilters = is_array($supportModule['filters'] ?? null) ? $supportModule['filters'] : (is_array($panel['support_filters'] ?? null) ? $panel['support_filters'] : []);
-$supportPagination = is_array($supportModule['pagination'] ?? null) ? $supportModule['pagination'] : (is_array($panel['support_pagination'] ?? null) ? $panel['support_pagination'] : []);
+$supportPagination = is_array($supportModule['págination'] ?? null) ? $supportModule['págination'] : (is_array($panel['support_págination'] ?? null) ? $panel['support_págination'] : []);
 $supportSummary = is_array($supportModule['summary'] ?? null) ? $supportModule['summary'] : (is_array($panel['support_summary'] ?? null) ? $panel['support_summary'] : []);
 
 $kpis = is_array($analytics['kpis'] ?? null) ? $analytics['kpis'] : [];
@@ -61,7 +61,7 @@ $channelOptions = [
     'table' => 'Mesa',
     'delivery' => 'Entrega',
     'pickup' => 'Retirada',
-    'counter' => 'Balcao',
+    'counter' => 'Balcão',
 ];
 
 $paymentStatusOptions = [
@@ -76,8 +76,8 @@ $periodPresetOptions = [
     'custom' => 'Personalizado',
     'today' => 'Hoje',
     'yesterday' => 'Ontem',
-    'last7' => 'Ultimos 7 dias',
-    'last30' => 'Ultimos 30 dias',
+    'last7' => 'Últimos 7 dias',
+    'last30' => 'Últimos 30 dias',
     'month_current' => 'Mes atual',
     'month_previous' => 'Mes anterior',
 ];
@@ -128,11 +128,11 @@ $supportStatusLabels = [
     .dash-table{width:100%;border-collapse:collapse}
     .dash-table th,.dash-table td{padding:10px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:left;vertical-align:top}
     .dash-table th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#64748b}
-    .dash-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px}
-    .dash-pagination-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .dash-págination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px}
+    .dash-págination-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     .dash-page-btn{border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:8px;padding:7px 10px;cursor:pointer;min-width:36px}
     .dash-page-btn.is-active{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
-    .dash-pagination-info{font-size:12px;color:#475569}
+    .dash-págination-info{font-size:12px;color:#475569}
     .dash-overview-hero{background:linear-gradient(115deg,#0f172a 0%,#1e293b 55%,#334155 100%);color:#fff;overflow:hidden;position:relative}
     .dash-overview-hero::before{content:"";position:absolute;top:-38px;right:-60px;width:220px;height:220px;border-radius:999px;background:rgba(56,189,248,.18)}
     .dash-overview-hero::after{content:"";position:absolute;bottom:-50px;left:-42px;width:200px;height:200px;border-radius:999px;background:rgba(34,197,94,.15)}
@@ -211,7 +211,7 @@ $supportStatusLabels = [
     .btn.text{background:transparent;color:#0f172a;border:1px dashed #cbd5e1}
     .btn.text:hover{background:#f8fafc}
     .btn.small{padding:7px 10px;font-size:12px}
-    .pagination-ellipsis{padding:0 2px;color:#64748b}
+    .págination-ellipsis{padding:0 2px;color:#64748b}
     .support-grid{display:grid;grid-template-columns:1fr 1.4fr;gap:14px}
     .ticket-note{margin:0;color:#475569;font-size:13px;line-height:1.4}
     .muted{color:#64748b}
@@ -247,17 +247,17 @@ $supportStatusLabels = [
 <div class="dash-page">
     <div class="topbar">
         <div>
-            <h1 style="margin:0">Dashboard estrategico do estabelecimento</h1>
-            <p class="muted" style="margin:6px 0 0">Painel estatistico, personalizacao da marca, usuarios internos e chamados tecnicos no mesmo modulo administrativo.</p>
+            <h1 style="margin:0">Dashboard estratégico do estabelecimento</h1>
+            <p class="muted" style="margin:6px 0 0">Painel estatístico, personalização da marca, usuários internos e chamados técnicos no mesmo módulo administrativo.</p>
         </div>
         <span class="badge status-default">Acesso exclusivo: Administrador e Gerente</span>
     </div>
 
     <div class="dash-nav" id="dashboardSectionNav">
-        <button type="button" class="dash-tab-btn<?= $activeSection === 'overview' ? ' active' : '' ?>" data-section-target="overview">Painel estatistico</button>
-        <button type="button" class="dash-tab-btn<?= $activeSection === 'branding' ? ' active' : '' ?>" data-section-target="branding">Personalizacao</button>
-        <button type="button" class="dash-tab-btn<?= $activeSection === 'users' ? ' active' : '' ?>" data-section-target="users">Usuarios internos</button>
-        <button type="button" class="dash-tab-btn<?= $activeSection === 'support' ? ' active' : '' ?>" data-section-target="support">Fale com equipe tecnica</button>
+        <button type="button" class="dash-tab-btn<?= $activeSection === 'overview' ? ' active' : '' ?>" data-section-target="overview">Painel estatístico</button>
+        <button type="button" class="dash-tab-btn<?= $activeSection === 'branding' ? ' active' : '' ?>" data-section-target="branding">Personalização</button>
+        <button type="button" class="dash-tab-btn<?= $activeSection === 'users' ? ' active' : '' ?>" data-section-target="users">Usuários internos</button>
+        <button type="button" class="dash-tab-btn<?= $activeSection === 'support' ? ' active' : '' ?>" data-section-target="support">Fale com a equipe técnica</button>
     </div>
 
     <?php require __DIR__ . '/_overview.php'; ?>

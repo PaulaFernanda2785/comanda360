@@ -91,7 +91,7 @@ $qrImageUrl = $qrPayload !== ''
             </div>
             <div class="print-meta">
                 <strong>Capacidade</strong>
-                <span><?= $tableCapacity !== null ? $tableCapacity . ' pessoa(s)' : 'Nao informada' ?></span>
+                <span><?= $tableCapacity !== null ? $tableCapacity . ' pessoa(s)' : 'Não informada' ?></span>
             </div>
         </div>
 
@@ -100,7 +100,7 @@ $qrImageUrl = $qrPayload !== ''
                 <?php if ($qrImageUrl !== ''): ?>
                     <img src="<?= htmlspecialchars($qrImageUrl) ?>" alt="QR Code da mesa">
                 <?php else: ?>
-                    <span>Nao foi possivel gerar a imagem do QR.</span>
+                    <span>Não foi possível gerar a imagem do QR.</span>
                 <?php endif; ?>
             </div>
             <div class="qr-tech">Comanda360.com.br</div>

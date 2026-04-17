@@ -59,7 +59,7 @@ $statusOptions = [
 <div class="topbar">
     <div>
         <h1><?= $isEdit ? 'Editar Mesa' : 'Nova Mesa' ?></h1>
-        <p>Formulario operacional no mesmo padrao visual de cadastro de produtos.</p>
+        <p>Formulario operacional no mesmo padrão visual de cadastro de produtos.</p>
     </div>
     <a class="btn secondary" href="<?= htmlspecialchars(base_url('/admin/tables')) ?>">Voltar ao painel</a>
 </div>
@@ -129,11 +129,11 @@ $statusOptions = [
                     </div>
                     <div class="meta-item">
                         <strong>Nome</strong>
-                        <span id="summaryName"><?= htmlspecialchars($nameValue !== '' ? $nameValue : 'Nao informado') ?></span>
+                        <span id="summaryName"><?= htmlspecialchars($nameValue !== '' ? $nameValue : 'Não informado') ?></span>
                     </div>
                     <div class="meta-item">
                         <strong>Capacidade</strong>
-                        <span id="summaryCapacity"><?= $capacityValue !== '' ? htmlspecialchars($capacityValue . ' pessoa(s)') : 'Nao informada' ?></span>
+                        <span id="summaryCapacity"><?= $capacityValue !== '' ? htmlspecialchars($capacityValue . ' pessoa(s)') : 'Não informada' ?></span>
                     </div>
                     <div class="meta-item">
                         <strong>Status</strong>
@@ -188,11 +188,11 @@ $statusOptions = [
         }
 
         if (summaryName) {
-            summaryName.textContent = nameValue !== '' ? nameValue : 'Nao informado';
+            summaryName.textContent = nameValue !== '' ? nameValue : 'Não informado';
         }
 
         if (summaryCapacity) {
-            summaryCapacity.textContent = capacityValue !== '' ? `${capacityValue} pessoa(s)` : 'Nao informada';
+            summaryCapacity.textContent = capacityValue !== '' ? `${capacityValue} pessoa(s)` : 'Não informada';
         }
 
         if (summaryStatus) {

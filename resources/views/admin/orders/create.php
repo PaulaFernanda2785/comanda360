@@ -109,7 +109,7 @@ $canCreateOrder = $totalProducts > 0;
     <div class="topbar">
         <div>
             <h1>Novo Pedido</h1>
-            <p>Cadastro no padrao moderno com resumo operacional em tempo real.</p>
+            <p>Cadastro no padrão moderno com resumo operacional em tempo real.</p>
         </div>
         <a class="btn secondary" href="<?= htmlspecialchars(base_url('/admin/orders')) ?>">Voltar</a>
     </div>
@@ -150,7 +150,7 @@ $canCreateOrder = $totalProducts > 0;
                                 <option value="table">Mesa</option>
                                 <option value="delivery">Entrega</option>
                                 <option value="pickup">Retirada</option>
-                                <option value="counter">Balcao</option>
+                                <option value="counter">Balcão</option>
                             </select>
                         </div>
                         <div class="field" id="commandField">
@@ -227,14 +227,14 @@ $canCreateOrder = $totalProducts > 0;
                             <input id="delivery_zip_code" name="delivery_zip_code" type="text" placeholder="Opcional" <?= $canCreateOrder ? '' : 'disabled' ?>>
                         </div>
                         <div class="field" style="grid-column:1 / -1">
-                            <label for="delivery_reference">Referencia / observacao da entrega</label>
+                            <label for="delivery_reference">Referência / observação da entrega</label>
                             <input id="delivery_reference" name="delivery_reference" type="text" placeholder="Opcional" <?= $canCreateOrder ? '' : 'disabled' ?>>
                         </div>
                     </div>
 
                     <div class="grid two">
                         <div class="field">
-                            <label for="notes">Observacoes gerais</label>
+                            <label for="notes">Observações gerais</label>
                             <textarea id="notes" name="notes" class="notes-textarea" rows="2" placeholder="Opcional" <?= $canCreateOrder ? '' : 'disabled' ?>></textarea>
                         </div>
                         <div class="field">
@@ -268,7 +268,7 @@ $canCreateOrder = $totalProducts > 0;
                                 <th>Adicionais</th>
                                 <th>Observacao</th>
                                 <th>Total linha</th>
-                                <th>Acao</th>
+                                <th>Ação</th>
                             </tr>
                         </thead>
                         <tbody id="itemsBody"></tbody>
@@ -288,7 +288,7 @@ $canCreateOrder = $totalProducts > 0;
                     </div>
                     <div class="summary-item">
                         <strong>Comanda selecionada</strong>
-                        <span id="summaryCommand">Nao aplicavel</span>
+                        <span id="summaryCommand">Não aplicável</span>
                     </div>
                     <div class="summary-item">
                         <strong>Itens totais</strong>
@@ -316,7 +316,7 @@ $canCreateOrder = $totalProducts > 0;
                     </div>
                     <div class="summary-item">
                         <strong>Observacao geral</strong>
-                        <span id="summaryNotes">Sem observacoes.</span>
+                        <span id="summaryNotes">Sem observações.</span>
                     </div>
                 </div>
 
@@ -412,7 +412,7 @@ $canCreateOrder = $totalProducts > 0;
     const channelLabel = (channel) => {
         if (channel === 'delivery') return 'Entrega';
         if (channel === 'pickup') return 'Retirada';
-        if (channel === 'counter') return 'Balcao';
+        if (channel === 'counter') return 'Balcão';
         return 'Mesa';
     };
     const productSearchIndex = products
@@ -808,16 +808,16 @@ $canCreateOrder = $totalProducts > 0;
         if (summaryCommand && commandSelect) {
             const channel = String(channelSelect ? channelSelect.value : 'table');
             if (channel !== 'table') {
-                summaryCommand.textContent = 'Nao aplicavel';
+                summaryCommand.textContent = 'Não aplicável';
             } else {
                 const label = commandSelect.options[commandSelect.selectedIndex]?.textContent || '';
-                summaryCommand.textContent = commandSelect.value ? String(label).trim() : 'Nao selecionada';
+                summaryCommand.textContent = commandSelect.value ? String(label).trim() : 'Não selecionada';
             }
         }
 
         if (summaryNotes && notesInput) {
             const notes = String(notesInput.value || '').trim();
-            summaryNotes.textContent = notes !== '' ? notes : 'Sem observacoes.';
+            summaryNotes.textContent = notes !== '' ? notes : 'Sem observações.';
         }
     };
 
@@ -933,7 +933,7 @@ $canCreateOrder = $totalProducts > 0;
             <td data-label="Total da linha" data-cell="line-total">
                 <span class="line-total item-line-total">R$ 0,00</span>
             </td>
-            <td data-label="Acao" data-cell="action">
+            <td data-label="Ação" data-cell="action">
                 <button class="btn secondary remove-item" type="button">Remover</button>
             </td>
         `;

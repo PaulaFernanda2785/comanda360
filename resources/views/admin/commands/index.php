@@ -113,8 +113,8 @@ foreach ($commandOperational as $row) {
     .legend-group{border:1px solid #e2e8f0;border-radius:10px;padding:10px;background:#f8fafc}
     .legend-title{display:block;font-size:12px;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
     .legend-row{display:flex;gap:8px;flex-wrap:wrap}
-    .commands-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-    .commands-pagination-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .commands-págination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .commands-págination-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     .commands-page-btn{border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:8px;padding:7px 10px;cursor:pointer;min-width:36px}
     .commands-page-btn[disabled]{opacity:.5;cursor:not-allowed}
     .commands-page-btn.is-active{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
@@ -135,7 +135,7 @@ foreach ($commandOperational as $row) {
     <div class="topbar">
         <div>
             <h1>Comandas Abertas</h1>
-            <p>Painel operacional de comandas ativas no novo padrao visual.</p>
+            <p>Painel operacional de comandas ativas no novo padrão visual.</p>
         </div>
         <a class="btn" href="<?= htmlspecialchars(base_url('/admin/commands/create')) ?>">Abrir comanda</a>
     </div>
@@ -182,7 +182,7 @@ foreach ($commandOperational as $row) {
                 <span class="badge <?= htmlspecialchars(status_badge_class('order_payment_status', 'paid')) ?>">Pagamento Pago: <?= (int) ($paymentSummary['paid'] ?? 0) ?></span>
             </div>
         </div>
-        <p class="search-info" style="margin:0">Atualizacao automatica da pagina a cada 30 segundos.</p>
+        <p class="search-info" style="margin:0">Atualizacao automatica da página a cada 30 segundos.</p>
     </div>
 
     <div class="card">
@@ -287,11 +287,11 @@ foreach ($commandOperational as $row) {
                     <div class="command-meta">
                         <div class="command-meta-item">
                             <strong>Cliente</strong>
-                            <span><?= htmlspecialchars($customerName !== '' ? $customerName : 'Nao informado') ?></span>
+                            <span><?= htmlspecialchars($customerName !== '' ? $customerName : 'Não informado') ?></span>
                         </div>
                         <div class="command-meta-item">
                             <strong>Aberta por</strong>
-                            <span><?= htmlspecialchars($openedBy !== '' ? $openedBy : 'Nao identificado') ?></span>
+                            <span><?= htmlspecialchars($openedBy !== '' ? $openedBy : 'Não identificado') ?></span>
                         </div>
                         <div class="command-meta-item" style="grid-column:1 / -1">
                             <strong>Abertura</strong>
@@ -350,7 +350,7 @@ foreach ($commandOperational as $row) {
 
                     <?php if ($notes !== ''): ?>
                         <div class="command-notes">
-                            <strong>Observacoes</strong>
+                            <strong>Observações</strong>
                             <p><?= htmlspecialchars($notes) ?></p>
                         </div>
                     <?php endif; ?>
@@ -374,8 +374,8 @@ foreach ($commandOperational as $row) {
                                 </div>
 
                                 <div class="field">
-                                    <label for="command_notes_<?= $commandId ?>">Observacoes</label>
-                                    <textarea id="command_notes_<?= $commandId ?>" name="notes" rows="3" placeholder="Observacoes da comanda"><?= htmlspecialchars($notes) ?></textarea>
+                                    <label for="command_notes_<?= $commandId ?>">Observações</label>
+                                    <textarea id="command_notes_<?= $commandId ?>" name="notes" rows="3" placeholder="Observações da comanda"><?= htmlspecialchars($notes) ?></textarea>
                                 </div>
 
                                 <div class="command-edit-footer">
@@ -399,9 +399,9 @@ foreach ($commandOperational as $row) {
     </div>
 
     <?php if (!empty($commands)): ?>
-        <section class="card commands-pagination" id="commandsPagination" hidden>
+        <section class="card commands-págination" id="commandsPagination" hidden>
             <span id="commandsPaginationInfo"></span>
-            <div id="commandsPaginationControls" class="commands-pagination-controls"></div>
+            <div id="commandsPaginationControls" class="commands-págination-controls"></div>
         </section>
         <div id="commandsNoResults" class="commands-empty" hidden>Nenhuma comanda encontrada para o filtro informado.</div>
     <?php endif; ?>
@@ -413,9 +413,9 @@ foreach ($commandOperational as $row) {
     const searchInput = document.getElementById('commandSearch');
     const clearButton = document.getElementById('clearCommandSearch');
     const searchInfo = document.getElementById('commandSearchInfo');
-    const pagination = document.getElementById('commandsPagination');
-    const paginationInfo = document.getElementById('commandsPaginationInfo');
-    const paginationControls = document.getElementById('commandsPaginationControls');
+    const págination = document.getElementById('commandsPagination');
+    const páginationInfo = document.getElementById('commandsPaginationInfo');
+    const páginationControls = document.getElementById('commandsPaginationControls');
     const noResults = document.getElementById('commandsNoResults');
     const pageRefreshMs = 30000;
     const pageSize = 10;
@@ -427,17 +427,17 @@ foreach ($commandOperational as $row) {
         .replace(/[\u0300-\u036f]/g, '');
 
     const renderPagination = (totalFiltered) => {
-        if (!pagination || !paginationInfo || !paginationControls) {
+        if (!págination || !páginationInfo || !páginationControls) {
             return;
         }
         if (totalFiltered <= 0) {
-            pagination.hidden = true;
-            paginationInfo.textContent = '';
-            paginationControls.innerHTML = '';
+            págination.hidden = true;
+            páginationInfo.textContent = '';
+            páginationControls.innerHTML = '';
             return;
         }
 
-        pagination.hidden = false;
+        págination.hidden = false;
         const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
         if (currentPage > totalPages) {
             currentPage = 1;
@@ -445,8 +445,8 @@ foreach ($commandOperational as $row) {
 
         const start = (currentPage - 1) * pageSize + 1;
         const end = Math.min(currentPage * pageSize, totalFiltered);
-        paginationInfo.textContent = `Mostrando ${start}-${end} de ${totalFiltered} comanda(s).`;
-        paginationControls.innerHTML = '';
+        páginationInfo.textContent = `Mostrando ${start}-${end} de ${totalFiltered} comanda(s).`;
+        páginationControls.innerHTML = '';
 
         const addButton = (label, page, disabled, active = false) => {
             const button = document.createElement('button');
@@ -460,7 +460,7 @@ foreach ($commandOperational as $row) {
                     applyFilter(false);
                 }
             });
-            paginationControls.appendChild(button);
+            páginationControls.appendChild(button);
         };
 
         addButton('Anterior', Math.max(1, currentPage - 1), currentPage <= 1);
@@ -472,7 +472,7 @@ foreach ($commandOperational as $row) {
         for (let page = first; page <= last; page += 1) {
             addButton(String(page), page, false, page === currentPage);
         }
-        addButton('Proxima', Math.min(totalPages, currentPage + 1), currentPage >= totalPages);
+        addButton('Próxima', Math.min(totalPages, currentPage + 1), currentPage >= totalPages);
     };
 
     const applyFilter = (resetPage = true) => {

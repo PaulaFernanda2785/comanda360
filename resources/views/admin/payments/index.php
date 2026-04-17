@@ -28,7 +28,7 @@ foreach ($payments as $payment) {
         $withReferenceCount++;
     }
 
-    $methodName = trim((string) ($payment['payment_method_name'] ?? 'Nao informado'));
+    $methodName = trim((string) ($payment['payment_method_name'] ?? 'Não informado'));
     if (!isset($methodsSummary[$methodName])) {
         $methodsSummary[$methodName] = ['count' => 0, 'amount' => 0.0];
     }
@@ -92,8 +92,8 @@ body.modal-open{overflow:hidden}
 .payment-meta-item strong{display:block;font-size:13px;color:#0f172a;word-break:break-word}
 .payment-actions{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
 .payments-empty{border:1px dashed #cbd5e1;border-radius:12px;padding:18px;color:#334155;background:#fff}
-.payments-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.payments-pagination-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.payments-págination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.payments-págination-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .payments-page-btn{border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:8px;padding:7px 10px;cursor:pointer;min-width:36px}
 .payments-page-btn.is-active{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
 .payment-modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.6);display:grid;place-items:center;padding:14px;z-index:1300}
@@ -119,7 +119,7 @@ body.modal-open{overflow:hidden}
     <div class="topbar payments-topbar">
         <div>
             <h1>Painel de Pagamentos</h1>
-            <p>Visual moderno com filtros de periodo/status, pagina��o de 10 registros e modal completo do pedido.</p>
+            <p>Visual moderno com filtros de periodo/status, página��o de 10 registros e modal completo do pedido.</p>
         </div>
         <a class="btn" href="<?= htmlspecialchars(base_url('/admin/payments/create')) ?>">Registrar pagamento</a>
     </div>
@@ -165,13 +165,13 @@ body.modal-open{overflow:hidden}
                 </select>
             </div>
             <div class="field" style="margin:0">
-                <label for="paymentsPeriodFilter">Periodo de pagamento</label>
+                <label for="paymentsPeriodFilter">Período de pagamento</label>
                 <select id="paymentsPeriodFilter">
                     <option value="all">Todos</option>
                     <option value="today">Hoje</option>
                     <option value="yesterday">Ontem</option>
-                    <option value="last7">Ultimos 7 dias</option>
-                    <option value="last30">Ultimos 30 dias</option>
+                    <option value="last7">Últimos 7 dias</option>
+                    <option value="last30">Últimos 30 dias</option>
                     <option value="month_current">Mes atual</option>
                     <option value="month_previous">Mes anterior</option>
                     <option value="year_current">Ano atual</option>
@@ -221,7 +221,7 @@ body.modal-open{overflow:hidden}
                         <div class="payment-meta-item"><span>Status do pedido</span><strong><span class="badge <?= htmlspecialchars(status_badge_class('order_status', $orderStatus === 'without_order' ? null : $orderStatus)) ?>"><?= htmlspecialchars($orderStatus === 'without_order' ? 'Sem pedido' : status_label('order_status', $orderStatus)) ?></span></strong></div>
                         <div class="payment-meta-item"><span>Status financeiro</span><strong><span class="badge <?= htmlspecialchars(status_badge_class('order_payment_status', $orderPaymentStatus)) ?>"><?= htmlspecialchars(status_label('order_payment_status', $orderPaymentStatus)) ?></span></strong></div>
                         <div class="payment-meta-item"><span>Recebido por</span><strong><?= htmlspecialchars($receiverName !== '' ? $receiverName : '-') ?></strong></div>
-                        <div class="payment-meta-item" style="grid-column:1 / -1"><span>Referencia / Historico</span><strong><?= htmlspecialchars($reference !== '' ? $reference : ((string) ($payment['payment_history_note'] ?? '-') ?: '-')) ?></strong></div>
+                        <div class="payment-meta-item" style="grid-column:1 / -1"><span>Referência / Histórico</span><strong><?= htmlspecialchars($reference !== '' ? $reference : ((string) ($payment['payment_history_note'] ?? '-') ?: '-')) ?></strong></div>
                         <div class="payment-meta-item" style="grid-column:1 / -1"><span>Pago em</span><strong><?= htmlspecialchars($dateLabel !== '' ? $dateLabel : '-') ?></strong></div>
                     </div>
                     <footer class="payment-actions">
@@ -296,7 +296,7 @@ body.modal-open{overflow:hidden}
                         </section>
 
                         <?php if ($orderNotes !== ''): ?>
-                            <div class="payment-modal-notes"><strong>Observacoes do pedido:</strong> <?= htmlspecialchars($orderNotes) ?></div>
+                            <div class="payment-modal-notes"><strong>Observações do pedido:</strong> <?= htmlspecialchars($orderNotes) ?></div>
                         <?php endif; ?>
 
                         <div class="payment-modal-actions">
@@ -308,9 +308,9 @@ body.modal-open{overflow:hidden}
             <?php endforeach; ?>
         </section>
 
-        <section class="card payments-pagination" id="paymentsPagination" hidden>
-            <span class="payments-pagination-info" id="paymentsPaginationInfo"></span>
-            <div class="payments-pagination-controls" id="paymentsPaginationControls"></div>
+        <section class="card payments-págination" id="paymentsPagination" hidden>
+            <span class="payments-págination-info" id="paymentsPaginationInfo"></span>
+            <div class="payments-págination-controls" id="paymentsPaginationControls"></div>
         </section>
 
         <div id="paymentsNoResults" class="payments-empty" hidden>Nenhum registro encontrado com os filtros atuais.</div>
@@ -331,9 +331,9 @@ body.modal-open{overflow:hidden}
     const clearButton = document.getElementById('paymentsClearFilters');
     const filterInfo = document.getElementById('paymentsFilterInfo');
     const noResults = document.getElementById('paymentsNoResults');
-    const pagination = document.getElementById('paymentsPagination');
-    const paginationInfo = document.getElementById('paymentsPaginationInfo');
-    const paginationControls = document.getElementById('paymentsPaginationControls');
+    const págination = document.getElementById('paymentsPagination');
+    const páginationInfo = document.getElementById('paymentsPaginationInfo');
+    const páginationControls = document.getElementById('paymentsPaginationControls');
     const modalRoot = document.getElementById('paymentModalRoot');
     const modalBody = document.getElementById('paymentModalBody');
 
@@ -425,18 +425,18 @@ body.modal-open{overflow:hidden}
     };
 
     const renderPagination = (totalFiltered) => {
-        if (!pagination || !paginationInfo || !paginationControls) {
+        if (!págination || !páginationInfo || !páginationControls) {
             return;
         }
 
         if (totalFiltered <= 0) {
-            pagination.hidden = true;
-            paginationControls.innerHTML = '';
-            paginationInfo.textContent = '';
+            págination.hidden = true;
+            páginationControls.innerHTML = '';
+            páginationInfo.textContent = '';
             return;
         }
 
-        pagination.hidden = false;
+        págination.hidden = false;
         const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
         if (currentPage > totalPages) {
             currentPage = 1;
@@ -444,8 +444,8 @@ body.modal-open{overflow:hidden}
 
         const start = (currentPage - 1) * pageSize + 1;
         const end = Math.min(currentPage * pageSize, totalFiltered);
-        paginationInfo.textContent = `Mostrando ${start}-${end} de ${totalFiltered} registro(s).`;
-        paginationControls.innerHTML = '';
+        páginationInfo.textContent = `Mostrando ${start}-${end} de ${totalFiltered} registro(s).`;
+        páginationControls.innerHTML = '';
 
         const addButton = (label, page, disabled, active = false) => {
             const button = document.createElement('button');
@@ -459,7 +459,7 @@ body.modal-open{overflow:hidden}
                     applyFilter(false);
                 }
             });
-            paginationControls.appendChild(button);
+            páginationControls.appendChild(button);
         };
 
         addButton('Anterior', Math.max(1, currentPage - 1), currentPage <= 1);
@@ -471,7 +471,7 @@ body.modal-open{overflow:hidden}
         for (let page = first; page <= last; page += 1) {
             addButton(String(page), page, false, page === currentPage);
         }
-        addButton('Proxima', Math.min(totalPages, currentPage + 1), currentPage >= totalPages);
+        addButton('Próxima', Math.min(totalPages, currentPage + 1), currentPage >= totalPages);
     };
 
     const applyFilter = (resetPage = true) => {

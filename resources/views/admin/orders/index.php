@@ -194,7 +194,7 @@ foreach ($ordersByTable as $tablePanel) {
                 <span class="badge status-default">Sem comanda: <?= $ordersWithoutCommand ?></span>
                 <span class="badge <?= htmlspecialchars(status_badge_class('order_operational_flag', 'paid_waiting_production')) ?>">Pagos aguardando producao: <?= (int) ($panelSummary['paid_waiting_production'] ?? 0) ?></span>
             </div>
-            <p class="search-info" style="margin:8px 0 0">Atualizacao automatica da pagina e do modal a cada 30 segundos.</p>
+            <p class="search-info" style="margin:8px 0 0">Atualizacao automatica da página e do modal a cada 30 segundos.</p>
         </div>
     </div>
 
@@ -374,7 +374,7 @@ foreach ($ordersByTable as $tablePanel) {
                                 ? 'Comanda ativa #' . (int) $order['command_id']
                                 : 'Pedido sem comanda';
                             $customerName = trim((string) ($order['customer_name'] ?? ''));
-                            $customerLabel = $customerName !== '' ? $customerName : 'Nao informado';
+                            $customerLabel = $customerName !== '' ? $customerName : 'Não informado';
                             ?>
                             <button
                                 type="button"
@@ -400,7 +400,7 @@ foreach ($ordersByTable as $tablePanel) {
                                     </span>
                                 </div>
                                 <span class="order-card-line">Pedidos: <?= $ordersCount ?> | Itens: <?= $itemsTotal ?> | Total: <?= htmlspecialchars($formatMoney($cardTotalAmount)) ?></span>
-                                <span class="order-card-line">Ultimo pedido: <?= htmlspecialchars($createdAtValue !== '' ? $createdAtValue : '-') ?></span>
+                                <span class="order-card-line">Último pedido: <?= htmlspecialchars($createdAtValue !== '' ? $createdAtValue : '-') ?></span>
                                 <span class="order-card-line"><?= htmlspecialchars($commandLabel) ?></span>
                                 <span class="order-card-customer">Cliente: <?= htmlspecialchars($customerLabel) ?></span>
                                 <div class="order-card-badges">
@@ -451,8 +451,8 @@ foreach ($ordersByTable as $tablePanel) {
                                     <div class="modal-meta-item"><strong>Itens</strong><span><?= $itemsTotal ?></span></div>
                                     <div class="modal-meta-item"><strong>Total geral</strong><span><?= htmlspecialchars($formatMoney($cardTotalAmount)) ?></span></div>
                                     <div class="modal-meta-item"><strong>Canal</strong><span><?= htmlspecialchars((string) $channelDisplayLabel) ?></span></div>
-                                    <div class="modal-meta-item"><strong>Ultimo pedido</strong><span><?= htmlspecialchars($createdAtValue !== '' ? $createdAtValue : '-') ?></span></div>
-                                    <div class="modal-meta-item"><strong>Ultima mudanca</strong><span><?= htmlspecialchars($latestStatusChangedAtValue !== '' ? $latestStatusChangedAtValue : '-') ?></span></div>
+                                    <div class="modal-meta-item"><strong>Último pedido</strong><span><?= htmlspecialchars($createdAtValue !== '' ? $createdAtValue : '-') ?></span></div>
+                                    <div class="modal-meta-item"><strong>Última mudança</strong><span><?= htmlspecialchars($latestStatusChangedAtValue !== '' ? $latestStatusChangedAtValue : '-') ?></span></div>
                                     <div class="modal-meta-item"><strong>Atualizacao</strong><span>Automatica em 30s</span></div>
                                 </div>
 
@@ -654,7 +654,7 @@ foreach ($ordersByTable as $tablePanel) {
         command: ['comanda', 'cmd'],
         channel: ['canal', 'channel', 'origem'],
         items: ['item', 'itens', 'produto', 'prod', 'adicional', 'add'],
-        time: ['data', 'hora', 'horario', 'dt', 'criado', 'alterado'],
+        time: ['data', 'hora', 'horário', 'dt', 'criado', 'alterado'],
     };
     const filterKeyToField = {};
     Object.entries(filterAliases).forEach(([field, aliases]) => {
@@ -885,7 +885,7 @@ foreach ($ordersByTable as $tablePanel) {
                         return;
                     }
 
-                    setFeedback(feedback, payload.message || 'Acao realizada com sucesso. Atualizando painel...', false);
+                    setFeedback(feedback, payload.message || 'Ação realizada com sucesso. Atualizando painel...', false);
                     activeOrderId = Number(orderId || 0) > 0 ? Number(orderId) : null;
                     saveModalState();
                     window.sessionStorage.setItem(modalRestoreFlagKey, '1');

@@ -87,7 +87,7 @@ $canCreateProducts = !empty($canCreateProducts);
                         </div>
                     </div>
                     <div class="field">
-                        <label for="category_description">Descricao</label>
+                        <label for="category_description">Descrição</label>
                         <input id="category_description" name="description" type="text" placeholder="Ex.: Produtos preparados na chapa">
                     </div>
                     <div class="field">
@@ -146,7 +146,7 @@ $canCreateProducts = !empty($canCreateProducts);
                                             </div>
                                         </div>
                                         <div class="field">
-                                            <label>Descricao</label>
+                                            <label>Descrição</label>
                                             <input name="description" type="text" value="<?= htmlspecialchars((string) ($category['description'] ?? '')) ?>">
                                         </div>
                                         <button class="btn secondary" type="submit">Salvar categoria</button>

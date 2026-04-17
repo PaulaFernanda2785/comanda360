@@ -49,8 +49,8 @@ foreach ($zones as $zone) {
     .zone-edit-grid .field{margin:0}
     .zone-actions{display:flex;gap:8px;flex-wrap:wrap}
     .zones-empty{border:1px dashed #cbd5e1;border-radius:12px;padding:18px;color:#334155;background:#fff}
-    .zones-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-    .zones-pagination-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .zones-págination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .zones-págination-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     .zones-page-btn{border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:8px;padding:7px 10px;cursor:pointer;min-width:36px}
     .zones-page-btn[disabled]{opacity:.5;cursor:not-allowed}
     .zones-page-btn.is-active{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
@@ -62,7 +62,7 @@ foreach ($zones as $zone) {
     <div class="topbar zones-topbar">
         <div>
             <h1>Zonas e Taxas de Entrega</h1>
-            <p>Gestão moderna das zonas, com filtros e paginação para operação rápida.</p>
+            <p>Gestão moderna das zonas, com filtros e páginação para operação rápida.</p>
         </div>
         <a class="btn secondary" href="<?= htmlspecialchars(base_url('/admin/deliveries')) ?>">Ver painel de entregas</a>
     </div>
@@ -259,9 +259,9 @@ foreach ($zones as $zone) {
             <?php endforeach; ?>
         </section>
 
-        <section class="card zones-pagination" id="zonesPagination" hidden>
+        <section class="card zones-págination" id="zonesPagination" hidden>
             <span id="zonesPaginationInfo"></span>
-            <div id="zonesPaginationControls" class="zones-pagination-controls"></div>
+            <div id="zonesPaginationControls" class="zones-págination-controls"></div>
         </section>
 
         <div id="zonesNoResults" class="zones-empty" hidden>Nenhuma zona encontrada com os filtros atuais.</div>
@@ -278,9 +278,9 @@ foreach ($zones as $zone) {
     const clearButton = document.getElementById('zonesClearFilters');
     const filterInfo = document.getElementById('zonesFilterInfo');
     const noResults = document.getElementById('zonesNoResults');
-    const pagination = document.getElementById('zonesPagination');
-    const paginationInfo = document.getElementById('zonesPaginationInfo');
-    const paginationControls = document.getElementById('zonesPaginationControls');
+    const págination = document.getElementById('zonesPagination');
+    const páginationInfo = document.getElementById('zonesPaginationInfo');
+    const páginationControls = document.getElementById('zonesPaginationControls');
 
     if (!board || cards.length === 0 || !searchInput || !statusFilter || !periodFilter || !clearButton) {
         return;
@@ -342,18 +342,18 @@ foreach ($zones as $zone) {
     };
 
     const renderPagination = (totalFiltered) => {
-        if (!pagination || !paginationInfo || !paginationControls) {
+        if (!págination || !páginationInfo || !páginationControls) {
             return;
         }
 
         if (totalFiltered <= 0) {
-            pagination.hidden = true;
-            paginationInfo.textContent = '';
-            paginationControls.innerHTML = '';
+            págination.hidden = true;
+            páginationInfo.textContent = '';
+            páginationControls.innerHTML = '';
             return;
         }
 
-        pagination.hidden = false;
+        págination.hidden = false;
         const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
         if (currentPage > totalPages) {
             currentPage = 1;
@@ -361,8 +361,8 @@ foreach ($zones as $zone) {
 
         const start = (currentPage - 1) * pageSize + 1;
         const end = Math.min(currentPage * pageSize, totalFiltered);
-        paginationInfo.textContent = `Mostrando ${start}-${end} de ${totalFiltered} zona(s).`;
-        paginationControls.innerHTML = '';
+        páginationInfo.textContent = `Mostrando ${start}-${end} de ${totalFiltered} zona(s).`;
+        páginationControls.innerHTML = '';
 
         const addButton = (label, page, disabled, active = false) => {
             const button = document.createElement('button');
@@ -376,7 +376,7 @@ foreach ($zones as $zone) {
                     applyFilter(false);
                 }
             });
-            paginationControls.appendChild(button);
+            páginationControls.appendChild(button);
         };
 
         addButton('Anterior', Math.max(1, currentPage - 1), currentPage <= 1);

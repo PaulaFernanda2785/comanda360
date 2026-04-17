@@ -135,7 +135,7 @@ $total = (float) ($group['total_amount'] ?? ($order['total_amount'] ?? 0));
     <div class="topbar ticket-screen-only">
         <div>
             <h1 style="margin:0">Ticket do pedido</h1>
-            <p style="margin:6px 0 0;color:#64748b">Previa no padrao operacional do sistema com impressao termica 80mm.</p>
+            <p style="margin:6px 0 0;color:#64748b">Previa no padrão operacional do sistema com impressao termica 80mm.</p>
         </div>
         <div class="ticket-actions">
             <a class="btn secondary" href="<?= htmlspecialchars($backToOrdersUrl) ?>">Voltar</a>

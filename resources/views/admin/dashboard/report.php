@@ -16,8 +16,8 @@ $periodPresetLabels = [
     'custom' => 'Personalizado',
     'today' => 'Hoje',
     'yesterday' => 'Ontem',
-    'last7' => 'Ultimos 7 dias',
-    'last30' => 'Ultimos 30 dias',
+    'last7' => 'Últimos 7 dias',
+    'last30' => 'Últimos 30 dias',
     'month_current' => 'Mes atual',
     'month_previous' => 'Mes anterior',
 ];
@@ -205,11 +205,11 @@ $paymentLabel = $paymentStatusFilter !== '' ? status_label('order_payment_status
                         <li class="report-index-item">
                             <span class="report-index-order">07</span>
                             <a class="report-index-link" href="#sec-detalhado">Pedidos detalhados</a>
-                            <span class="report-index-tag">Operacao</span>
+                            <span class="report-index-tag">Operação</span>
                         </li>
                         <li class="report-index-item">
                             <span class="report-index-order">08</span>
-                            <a class="report-index-link" href="#sec-rodape">Rodape tecnico</a>
+                            <a class="report-index-link" href="#sec-rodape">Rodapé técnico</a>
                             <span class="report-index-tag">Controle</span>
                         </li>
                     </ol>

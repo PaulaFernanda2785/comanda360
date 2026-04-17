@@ -68,7 +68,7 @@ $minSelectionValue = $additionalGroup !== null && $additionalGroup['min_selectio
             <input type="hidden" name="product_id" value="<?= (int) ($product['id'] ?? 0) ?>">
 
             <div class="field">
-                <label for="max_selection">Maximo de adicionais por item</label>
+                <label for="max_selection">Máximo de adicionais por item</label>
                 <input
                     id="max_selection"
                     name="max_selection"
@@ -90,7 +90,7 @@ $minSelectionValue = $additionalGroup !== null && $additionalGroup['min_selectio
             </div>
 
             <div class="field">
-                <label for="min_selection">Minimo de adicionais por item</label>
+                <label for="min_selection">Mínimo de adicionais por item</label>
                 <input
                     id="min_selection"
                     name="min_selection"
@@ -128,7 +128,7 @@ $minSelectionValue = $additionalGroup !== null && $additionalGroup['min_selectio
             </div>
 
             <div class="field">
-                <label for="additional_description">Descricao (opcional)</label>
+                <label for="additional_description">Descrição (opcional)</label>
                 <input id="additional_description" name="description" type="text" placeholder="Ex.: Porcao extra no ponto do cliente">
             </div>
 

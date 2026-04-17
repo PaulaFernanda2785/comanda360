@@ -24,7 +24,7 @@ final class AppShellService
             'accent_color' => '#0ea5e9',
             'logo_path' => '',
             'banner_path' => '',
-            'footer_text' => 'Comanda360 - Sistema de gestao de atendimento e vendas.',
+            'footer_text' => 'Comanda360 - Sistema de gestão de atendimento e vendas.',
         ];
 
         if (!is_array($user)) {
@@ -57,6 +57,8 @@ final class AppShellService
         ];
 
         if ($normalized['footer_text'] === '') {
+            $normalized['footer_text'] = $defaults['footer_text'];
+        } elseif ($normalized['footer_text'] === 'Comanda360 - Sistema de gestao de atendimento e vendas.') {
             $normalized['footer_text'] = $defaults['footer_text'];
         }
 
@@ -171,7 +173,7 @@ final class AppShellService
             [
                 'href' => '/admin/dashboard',
                 'label' => 'Dashboard',
-                'description' => 'Visao geral da operacao',
+                'description' => 'Visão geral da operação',
                 'permission' => 'dashboard.view',
                 'roles' => ['admin_establishment', 'manager'],
                 'match' => ['/admin/dashboard', '/admin/dashboard/report'],
@@ -179,13 +181,13 @@ final class AppShellService
             [
                 'href' => '/admin/products',
                 'label' => 'Produtos',
-                'description' => 'Cardapio e categorias',
+                'description' => 'Cardápio e categorias',
                 'permission' => 'products.view',
             ],
             [
                 'href' => '/admin/tables',
                 'label' => 'Mesas',
-                'description' => 'Gestao de salao',
+                'description' => 'Gestão de salão',
                 'permission' => 'tables.view',
             ],
             [
@@ -203,7 +205,7 @@ final class AppShellService
             [
                 'href' => '/admin/kitchen',
                 'label' => 'Cozinha',
-                'description' => 'Producao e impressao',
+                'description' => 'Produção e impressão',
                 'permission' => 'orders.view',
             ],
             [
@@ -221,7 +223,7 @@ final class AppShellService
             [
                 'href' => '/admin/payments',
                 'label' => 'Pagamentos',
-                'description' => 'Cobrancas e recebimentos',
+                'description' => 'Cobranças e recebimentos',
                 'permission' => 'payments.view',
             ],
             [

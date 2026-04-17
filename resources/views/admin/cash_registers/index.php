@@ -96,7 +96,7 @@ $openCurrentBalance = $openCashRegister !== null
     .cash-meta-item strong{display:block;font-size:13px;color:#0f172a;word-break:break-word}
     .cash-card-footer{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 
-    .cash-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .cash-págination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
     .cash-page-btn{border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:8px;padding:7px 10px;cursor:pointer;min-width:36px}
     .cash-page-btn[disabled]{opacity:.5;cursor:not-allowed}
     .cash-page-btn.is-active{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
@@ -133,7 +133,7 @@ $openCurrentBalance = $openCashRegister !== null
     <div class="topbar cash-topbar">
         <div>
             <h1>Painel de Caixa</h1>
-            <p>Operacao de abertura/fechamento e historico no mesmo padrao moderno da pagina de pagamentos.</p>
+            <p>Operação de abertura/fechamento e histórico no mesmo padrão moderno da página de pagamentos.</p>
         </div>
         <a class="btn secondary" href="<?= htmlspecialchars(base_url('/admin/payments')) ?>">Ver pagamentos</a>
     </div>
@@ -144,7 +144,7 @@ $openCurrentBalance = $openCashRegister !== null
         <article class="cash-kpi"><strong><?= $closedCount ?></strong><span>Fechados</span></article>
         <article class="cash-kpi"><strong><?= $formatMoney($totalIncome) ?></strong><span>Entradas</span></article>
         <article class="cash-kpi"><strong><?= $formatMoney($totalExpense) ?></strong><span>Saidas</span></article>
-        <article class="cash-kpi"><strong><?= $openCashRegister ? $formatMoney($openCurrentBalance) : ($lastClosed ? $formatMoney($lastClosed['closing_amount_calculated'] ?? 0) : 'R$ 0,00') ?></strong><span><?= $openCashRegister ? 'Saldo atual' : 'Ultimo saldo' ?></span></article>
+        <article class="cash-kpi"><strong><?= $openCashRegister ? $formatMoney($openCurrentBalance) : ($lastClosed ? $formatMoney($lastClosed['closing_amount_calculated'] ?? 0) : 'R$ 0,00') ?></strong><span><?= $openCashRegister ? 'Saldo atual' : 'Último saldo' ?></span></article>
     </section>
 
     <?php if ($openCashRegister !== null): ?>
@@ -190,7 +190,7 @@ $openCurrentBalance = $openCashRegister !== null
                         <input id="closing_amount_reported" name="closing_amount_reported" type="number" min="0" step="0.01" value="<?= htmlspecialchars(number_format($liveCurrent, 2, '.', '')) ?>" required>
                     </div>
                     <div class="field" style="margin:0">
-                        <label for="close_notes">Observacoes</label>
+                        <label for="close_notes">Observações</label>
                         <input id="close_notes" name="notes" type="text" placeholder="Opcional">
                     </div>
                 </div>
@@ -214,7 +214,7 @@ $openCurrentBalance = $openCashRegister !== null
                         <input id="opening_amount" name="opening_amount" type="number" min="0" step="0.01" value="0.00" required>
                     </div>
                     <div class="field" style="margin:0">
-                        <label for="open_notes">Observacoes</label>
+                        <label for="open_notes">Observações</label>
                         <input id="open_notes" name="notes" type="text" placeholder="Opcional">
                     </div>
                 </div>
@@ -240,13 +240,13 @@ $openCurrentBalance = $openCashRegister !== null
                 </select>
             </div>
             <div class="field" style="margin:0">
-                <label for="cashPeriodFilter">Periodo</label>
+                <label for="cashPeriodFilter">Período</label>
                 <select id="cashPeriodFilter">
                     <option value="all">Todos</option>
                     <option value="today">Hoje</option>
                     <option value="yesterday">Ontem</option>
-                    <option value="last7">Ultimos 7 dias</option>
-                    <option value="last30">Ultimos 30 dias</option>
+                    <option value="last7">Últimos 7 dias</option>
+                    <option value="last30">Últimos 30 dias</option>
                     <option value="month_current">Mes atual</option>
                     <option value="month_previous">Mes anterior</option>
                     <option value="year_current">Ano atual</option>
@@ -254,7 +254,7 @@ $openCurrentBalance = $openCashRegister !== null
             </div>
             <button id="cashClearFilters" class="btn secondary" type="button">Limpar</button>
         </div>
-        <p id="cashFilterInfo" class="cash-filter-note">Historico no padrao operacional de pagamentos: filtros + cards + detalhes.</p>
+        <p id="cashFilterInfo" class="cash-filter-note">Histórico no padrão operacional de pagamentos: filtros + cards + detalhes.</p>
     </section>
 
     <?php if (empty($cashRegisters)): ?>
@@ -377,7 +377,7 @@ $openCurrentBalance = $openCashRegister !== null
 
                     <div class="cash-modal-note">
                         <strong>Diferenca:</strong> <?= $difference !== null ? $formatMoney($difference) : '-' ?><br>
-                        <strong>Observacoes:</strong> <?= htmlspecialchars($notes !== '' ? $notes : 'Sem observacoes registradas.') ?>
+                        <strong>Observações:</strong> <?= htmlspecialchars($notes !== '' ? $notes : 'Sem observações registradas.') ?>
                     </div>
 
                     <div class="cash-modal-actions">
@@ -388,7 +388,7 @@ $openCurrentBalance = $openCashRegister !== null
             <?php endforeach; ?>
         </section>
 
-        <section class="card cash-pagination" id="cashPagination" hidden>
+        <section class="card cash-págination" id="cashPagination" hidden>
             <span id="cashPaginationInfo"></span>
             <div id="cashPaginationControls" style="display:flex;gap:6px;flex-wrap:wrap"></div>
         </section>
@@ -413,9 +413,9 @@ $openCurrentBalance = $openCashRegister !== null
     const clearButton = document.getElementById('cashClearFilters');
     const filterInfo = document.getElementById('cashFilterInfo');
     const noResults = document.getElementById('cashNoResults');
-    const pagination = document.getElementById('cashPagination');
-    const paginationInfo = document.getElementById('cashPaginationInfo');
-    const paginationControls = document.getElementById('cashPaginationControls');
+    const págination = document.getElementById('cashPagination');
+    const páginationInfo = document.getElementById('cashPaginationInfo');
+    const páginationControls = document.getElementById('cashPaginationControls');
     const modalRoot = document.getElementById('cashModalRoot');
     const modalBody = document.getElementById('cashModalBody');
     const autoRefreshIntervalMs = 30000;
@@ -525,16 +525,16 @@ $openCurrentBalance = $openCashRegister !== null
     };
 
     const renderPagination = (totalFiltered) => {
-        if (!pagination || !paginationInfo || !paginationControls) {
+        if (!págination || !páginationInfo || !páginationControls) {
             return;
         }
         if (totalFiltered <= 0) {
-            pagination.hidden = true;
-            paginationInfo.textContent = '';
-            paginationControls.innerHTML = '';
+            págination.hidden = true;
+            páginationInfo.textContent = '';
+            páginationControls.innerHTML = '';
             return;
         }
-        pagination.hidden = false;
+        págination.hidden = false;
         const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
         if (currentPage > totalPages) {
             currentPage = 1;
@@ -542,8 +542,8 @@ $openCurrentBalance = $openCashRegister !== null
 
         const start = (currentPage - 1) * pageSize + 1;
         const end = Math.min(currentPage * pageSize, totalFiltered);
-        paginationInfo.textContent = `Mostrando ${start}-${end} de ${totalFiltered} caixa(s).`;
-        paginationControls.innerHTML = '';
+        páginationInfo.textContent = `Mostrando ${start}-${end} de ${totalFiltered} caixa(s).`;
+        páginationControls.innerHTML = '';
 
         const addButton = (label, page, disabled, active = false) => {
             const button = document.createElement('button');
@@ -557,7 +557,7 @@ $openCurrentBalance = $openCashRegister !== null
                     applyFilter(false);
                 }
             });
-            paginationControls.appendChild(button);
+            páginationControls.appendChild(button);
         };
 
         addButton('Anterior', Math.max(1, currentPage - 1), currentPage <= 1);
@@ -569,7 +569,7 @@ $openCurrentBalance = $openCashRegister !== null
         for (let page = first; page <= last; page += 1) {
             addButton(String(page), page, false, page === currentPage);
         }
-        addButton('Proxima', Math.min(totalPages, currentPage + 1), currentPage >= totalPages);
+        addButton('Próxima', Math.min(totalPages, currentPage + 1), currentPage >= totalPages);
     };
 
     const applyFilter = (resetPage = true) => {
@@ -599,7 +599,7 @@ $openCurrentBalance = $openCashRegister !== null
 
         if (filterInfo) {
             if (searchText === '' && statusValue === '' && periodValue === 'all') {
-                filterInfo.textContent = 'Historico no padrao operacional de pagamentos: filtros + cards + detalhes.';
+                filterInfo.textContent = 'Histórico no padrão operacional de pagamentos: filtros + cards + detalhes.';
             } else if (filtered.length > 0) {
                 filterInfo.textContent = `Filtro ativo: ${filtered.length} caixa(s) encontrado(s).`;
             } else {

@@ -23,7 +23,7 @@ $tabs = [
     'ready' => [
         'step' => '03',
         'title' => 'Pedidos prontos',
-        'subtitle' => 'Ultima etapa da cozinha, com emissao de ticket.',
+        'subtitle' => 'Última etapa da cozinha, com emissão de ticket.',
         'empty' => 'Sem pedidos prontos para emissao.',
         'orders' => $readyOrders,
     ],
@@ -272,7 +272,7 @@ $elapsedSince = static function (?string $value): string {
 
                             $customerName = trim((string) ($order['customer_name'] ?? ''));
                             if ($customerName === '') {
-                                $customerName = 'Nao informado';
+                                $customerName = 'Não informado';
                             }
 
                             $createdAtLabel = $formatDateTime((string) ($order['created_at'] ?? ''));
@@ -308,7 +308,7 @@ $elapsedSince = static function (?string $value): string {
                                         <strong><?= (int) ($order['items_count'] ?? 0) ?> item(ns)</strong>
                                     </div>
                                     <div class="ticket-meta-item">
-                                        <span>Ultima mudanca</span>
+                                        <span>Última mudança</span>
                                         <strong><?= htmlspecialchars($changedAtLabel) ?></strong>
                                     </div>
                                 </div>
@@ -377,7 +377,7 @@ $elapsedSince = static function (?string $value): string {
                                             </button>
                                         </form>
                                         <p class="ticket-print-log">
-                                            Ultima emissao: <?= htmlspecialchars($lastPrintedAtLabel) ?>
+                                            Última emissão: <?= htmlspecialchars($lastPrintedAtLabel) ?>
                                             <?php if ($lastPrintedBy !== ''): ?>
                                                 | por <?= htmlspecialchars($lastPrintedBy) ?>
                                             <?php endif; ?>

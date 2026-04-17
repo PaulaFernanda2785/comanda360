@@ -106,7 +106,7 @@ foreach ($orders as $order) {
 
     <?php if (!$hasOpenCashRegister): ?>
         <section class="payment-warning">
-            <p><strong>Nao ha caixa aberto no momento.</strong></p>
+            <p><strong>Não há caixa aberto no momento.</strong></p>
             <p>Sem caixa aberto, o recebimento nao pode ser registrado com seguranca no fluxo financeiro.</p>
             <div>
                 <a class="btn" href="<?= htmlspecialchars(base_url('/admin/cash-registers')) ?>">Abrir caixa agora</a>
@@ -114,7 +114,7 @@ foreach ($orders as $order) {
         </section>
     <?php elseif (empty($orders)): ?>
         <section class="payment-warning">
-            <p><strong>Nao existem pedidos com saldo pendente.</strong></p>
+            <p><strong>Não existem pedidos com saldo pendente.</strong></p>
             <p>Todos os pedidos estao quitados ou nao ha pedidos ativos para pagamento.</p>
             <div>
                 <a class="btn" href="<?= htmlspecialchars(base_url('/admin/orders')) ?>">Ver pedidos</a>
@@ -211,7 +211,7 @@ foreach ($orders as $order) {
                                 $tableNumber = $order['table_number'] !== null ? (int) $order['table_number'] : null;
                                 $tableLabel = $tableNumber !== null ? 'Mesa ' . $tableNumber : 'Sem mesa';
                                 $customerName = trim((string) ($order['customer_name'] ?? ''));
-                                $customerLabel = $customerName !== '' ? $customerName : 'Nao informado';
+                                $customerLabel = $customerName !== '' ? $customerName : 'Não informado';
                                 $remainingAmount = (float) ($order['remaining_amount'] ?? 0);
                                 $totalAmount = (float) ($order['total_amount'] ?? 0);
                                 $paidAmount = (float) ($order['paid_amount'] ?? 0);
@@ -265,7 +265,7 @@ foreach ($orders as $order) {
                         <p class="payment-form-help">O desconto sera registrado no pedido, refletido no ticket e rastreado no historico financeiro.</p>
 
                         <div class="field">
-                            <label for="transaction_reference">Referencia da transacao</label>
+                            <label for="transaction_reference">Referência da transação</label>
                             <input id="transaction_reference" name="transaction_reference" type="text" placeholder="Opcional: NSU, autorizacao, comprovante...">
                         </div>
 

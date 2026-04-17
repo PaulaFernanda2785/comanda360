@@ -94,7 +94,7 @@ $difference = $cashRegister['difference_amount'] !== null ? (float) $cashRegiste
                 <div class="cash-ticket-summary-box"><strong>Saldo calculado</strong><span><?= 'R$ ' . number_format($calculated, 2, ',', '.') ?></span></div>
                 <div class="cash-ticket-summary-box"><strong>Saldo informado</strong><span><?= $reported !== null ? 'R$ ' . number_format($reported, 2, ',', '.') : '-' ?></span></div>
             </div>
-            <div class="cash-ticket-summary-box"><strong>Observacoes</strong><span><?= htmlspecialchars($notes !== '' ? $notes : 'Sem observacoes') ?></span></div>
+            <div class="cash-ticket-summary-box"><strong>Observações</strong><span><?= htmlspecialchars($notes !== '' ? $notes : 'Sem observações') ?></span></div>
         </section>
 
         <section class="card cash-ticket-sheet-card">
@@ -105,7 +105,7 @@ $difference = $cashRegister['difference_amount'] !== null ? (float) $cashRegiste
                             <img class="cash-logo" src="<?= htmlspecialchars($companyLogoUrl) ?>" alt="Logo da empresa">
                         <?php endif; ?>
                         <div class="cash-title"><?= htmlspecialchars($companyName) ?></div>
-                        <div class="cash-muted">Relatorio de caixa</div>
+                        <div class="cash-muted">Relatório de caixa</div>
                     </div>
 
                     <div class="cash-divider"></div>
@@ -127,7 +127,7 @@ $difference = $cashRegister['difference_amount'] !== null ? (float) $cashRegiste
 
                     <?php if ($notes !== ''): ?>
                         <div class="cash-divider"></div>
-                        <div><strong>Observacoes</strong></div>
+                        <div><strong>Observações</strong></div>
                         <div class="cash-note"><?= htmlspecialchars($notes) ?></div>
                     <?php endif; ?>
 

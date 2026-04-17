@@ -104,7 +104,7 @@ $hasCategories = !empty($categories);
             </div>
 
             <div class="field">
-                <label for="description">Descricao</label>
+                <label for="description">Descrição</label>
                 <textarea id="description" name="description" rows="4" placeholder="Ex.: Pao brioche, burger angus, queijo cheddar e molho especial."><?= htmlspecialchars((string) ($product['description'] ?? '')) ?></textarea>
             </div>
 

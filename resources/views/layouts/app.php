@@ -9,23 +9,23 @@ $themeAccent = (string) ($appShellTheme['accent_color'] ?? '#0ea5e9');
 $companyName = trim((string) ($appShellTheme['company_name'] ?? 'Estabelecimento'));
 $brandTitle = trim((string) ($appShellTheme['title'] ?? 'Painel da Empresa'));
 $brandDescription = trim((string) ($appShellTheme['description'] ?? ''));
-$footerText = trim((string) ($appShellTheme['footer_text'] ?? 'Comanda360 - Sistema de gestao de atendimento e vendas.'));
+$footerText = trim((string) ($appShellTheme['footer_text'] ?? 'Comanda360 - Sistema de gestão de atendimento e vendas.'));
 
 $logoPath = trim((string) ($appShellTheme['logo_path'] ?? ''));
 $bannerPath = trim((string) ($appShellTheme['banner_path'] ?? ''));
 $logoUrl = $logoPath !== '' ? company_image_url($logoPath) : '';
 $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
 
-$userName = trim((string) ($user['name'] ?? 'Usuario'));
+$userName = trim((string) ($user['name'] ?? 'Usuário'));
 $userRole = trim((string) ($user['role_name'] ?? 'Perfil'));
 $currentPath = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?? '');
 
 $rawNavItems = is_array($navItems ?? null)
     ? $navItems
     : [
-        ['href' => '/admin/dashboard', 'label' => 'Dashboard', 'description' => 'Visao geral da operacao', 'match' => ['/admin/dashboard', '/admin/dashboard/report']],
-        ['href' => '/admin/products', 'label' => 'Produtos', 'description' => 'Cardapio e categorias'],
-        ['href' => '/admin/tables', 'label' => 'Mesas', 'description' => 'Gestao de salao'],
+        ['href' => '/admin/dashboard', 'label' => 'Dashboard', 'description' => 'Visão geral da operação', 'match' => ['/admin/dashboard', '/admin/dashboard/report']],
+        ['href' => '/admin/products', 'label' => 'Produtos', 'description' => 'Cardápio e categorias'],
+        ['href' => '/admin/tables', 'label' => 'Mesas', 'description' => 'Gestão de salão'],
         ['href' => '/admin/orders', 'label' => 'Pedidos', 'description' => 'Fila de atendimento'],
     ];
 
@@ -400,11 +400,11 @@ $routeMatches = static function (string $path, array $routes): bool {
     <div class="shell-main">
         <header class="shell-header<?= $bannerUrl !== '' ? ' with-banner' : '' ?>">
             <div>
-                <h1><?= htmlspecialchars($title ?? 'Painel Administrativo') ?></h1>
+                <h1><?= htmlspecialchars($title ?? 'Painel administrativo') ?></h1>
                 <?php if ($brandDescription !== ''): ?>
                     <p><?= htmlspecialchars($brandDescription) ?></p>
                 <?php else: ?>
-                    <p>Painel de operacao, relatorios e configuracoes do seu estabelecimento.</p>
+                    <p>Painel de operação, relatórios e configurações do seu estabelecimento.</p>
                 <?php endif; ?>
             </div>
             <div class="shell-user-chip">
