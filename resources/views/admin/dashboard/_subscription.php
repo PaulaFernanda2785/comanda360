@@ -4,7 +4,10 @@ $subscription = is_array($subscriptionModule['subscription'] ?? null) ? $subscri
 $subscriptionSummary = is_array($subscriptionModule['summary'] ?? null) ? $subscriptionModule['summary'] : [];
 $openSubscriptionPayments = is_array($subscriptionModule['open_payments'] ?? null) ? $subscriptionModule['open_payments'] : [];
 $subscriptionHistory = is_array($subscriptionModule['payment_history'] ?? null) ? $subscriptionModule['payment_history'] : [];
+$subscriptionHistoryFilters = is_array($subscriptionModule['history_filters'] ?? null) ? $subscriptionModule['history_filters'] : [];
+$subscriptionHistoryPagination = is_array($subscriptionModule['history_pagination'] ?? null) ? $subscriptionModule['history_pagination'] : [];
 $subscriptionFeatures = is_array($subscriptionModule['features'] ?? null) ? $subscriptionModule['features'] : [];
+$subscriptionGateway = is_array($subscriptionModule['gateway'] ?? null) ? $subscriptionModule['gateway'] : [];
 
 $currentSubscriptionQuery = is_array($_GET ?? null) ? $_GET : [];
 $currentSubscriptionQuery['section'] = 'subscription';
@@ -41,6 +44,46 @@ $cardBrandOptions = [
     'Cabal',
     'Outra',
 ];
+
+$historyStatusOptions = [
+    '' => 'Todos os status',
+    'pendente' => 'Pendente',
+    'pago' => 'Pago',
+    'vencido' => 'Vencido',
+    'cancelado' => 'Cancelado',
+];
+
+$historyMethodOptions = [
+    '' => 'Todos os metodos',
+    'pix' => 'PIX',
+    'credito' => 'Cartao de credito',
+    'debito' => 'Cartao de debito',
+    'none' => 'Sem metodo',
+];
+
+$historySearch = trim((string) ($subscriptionHistoryFilters['search'] ?? ''));
+$historyStatus = trim((string) ($subscriptionHistoryFilters['status'] ?? ''));
+$historyMethod = trim((string) ($subscriptionHistoryFilters['method'] ?? ''));
+$historyPage = max(1, (int) ($subscriptionHistoryPagination['page'] ?? 1));
+$historyLastPage = max(1, (int) ($subscriptionHistoryPagination['last_page'] ?? 1));
+$historyPages = is_array($subscriptionHistoryPagination['pages'] ?? null) ? $subscriptionHistoryPagination['pages'] : [1];
+
+$buildSubscriptionUrl = static function (array $overrides = []) use ($historySearch, $historyStatus, $historyMethod): string {
+    $params = array_merge([
+        'section' => 'subscription',
+        'subscription_history_search' => $historySearch,
+        'subscription_history_status' => $historyStatus,
+        'subscription_history_method' => $historyMethod,
+    ], $overrides);
+
+    foreach ($params as $key => $value) {
+        if ($key !== 'section' && trim((string) $value) === '') {
+            unset($params[$key]);
+        }
+    }
+
+    return base_url('/admin/dashboard?' . http_build_query($params));
+};
 ?>
 
 <section class="dash-section<?= $activeSection === 'subscription' ? ' active' : '' ?>" data-section="subscription">
@@ -79,6 +122,10 @@ $cardBrandOptions = [
 
         .sb-feature-list{display:flex;gap:6px;flex-wrap:wrap}
         .sb-feature-pill{padding:6px 10px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:700}
+        .sb-resources-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+        .sb-resource-card{border:1px solid #dbeafe;border-radius:12px;background:linear-gradient(180deg,#ffffff 0%,#eff6ff 100%);padding:12px;display:grid;gap:8px}
+        .sb-resource-card strong{font-size:13px;color:#0f172a}
+        .sb-resource-card span{font-size:12px;color:#475569;line-height:1.45}
 
         .sb-charge-list{display:grid;gap:10px}
         .sb-charge-item{border:1px solid #dbeafe;border-radius:12px;background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%);padding:12px;display:grid;gap:12px}
@@ -102,6 +149,20 @@ $cardBrandOptions = [
         .sb-form-grid .field.full{grid-column:1 / -1}
         .sb-form-footer{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
         .sb-form-note{font-size:12px;color:#64748b;line-height:1.45;max-width:640px}
+        .sb-qr-wrap{display:grid;grid-template-columns:180px minmax(0,1fr);gap:12px;align-items:start;margin-top:10px}
+        .sb-qr-image{border:1px solid #dbeafe;border-radius:12px;background:#fff;padding:10px;display:grid;place-items:center;min-height:180px}
+        .sb-qr-image img{display:block;max-width:100%;height:auto}
+        .sb-qr-data{display:grid;gap:10px}
+        .sb-gateway-box{border:1px solid #c7d2fe;border-radius:12px;background:linear-gradient(180deg,#eef2ff 0%,#f8fafc 100%);padding:12px;display:grid;gap:10px}
+        .sb-gateway-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+        .sb-filter-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr auto;gap:10px;align-items:end}
+        .sb-filter-grid .field{margin:0}
+        .sb-pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+        .sb-pagination-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+        .sb-page-info{font-size:12px;color:#475569}
+        .sb-page-btn{border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:8px;padding:7px 10px;text-decoration:none;min-width:36px;text-align:center}
+        .sb-page-btn.is-active{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+        .sb-page-btn.is-disabled{pointer-events:none;opacity:.45}
 
         .sb-history-table{width:100%;border-collapse:collapse}
         .sb-history-table th,.sb-history-table td{padding:10px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:left;vertical-align:top}
@@ -119,10 +180,10 @@ $cardBrandOptions = [
             .sb-layout{grid-template-columns:1fr}
         }
         @media (max-width:900px){
-            .sb-summary-grid,.sb-charge-info,.sb-profile-grid,.sb-method-grid{grid-template-columns:1fr 1fr}
+            .sb-summary-grid,.sb-charge-info,.sb-profile-grid,.sb-method-grid,.sb-resources-grid{grid-template-columns:1fr 1fr}
         }
         @media (max-width:760px){
-            .sb-summary-grid,.sb-charge-info,.sb-profile-grid,.sb-method-grid,.sb-form-grid{grid-template-columns:1fr}
+            .sb-summary-grid,.sb-charge-info,.sb-profile-grid,.sb-method-grid,.sb-form-grid,.sb-resources-grid,.sb-qr-wrap,.sb-filter-grid{grid-template-columns:1fr}
         }
     </style>
 
@@ -236,6 +297,25 @@ $cardBrandOptions = [
 
                             <div class="sb-profile-box">
                                 <h4>Recursos do plano</h4>
+                                <div class="sb-resources-grid">
+                                    <div class="sb-resource-card">
+                                        <strong>Plano atual</strong>
+                                        <span><?= htmlspecialchars((string) ($subscription['plan_name'] ?? 'Sem plano')) ?></span>
+                                    </div>
+                                    <div class="sb-resource-card">
+                                        <strong>Ciclo e valor</strong>
+                                        <span><?= htmlspecialchars(status_label('billing_cycle', (string) ($subscription['billing_cycle'] ?? ''))) ?> de <?= htmlspecialchars($formatSubscriptionMoney($subscription['amount'] ?? 0)) ?></span>
+                                    </div>
+                                    <div class="sb-resource-card">
+                                        <strong>Recursos habilitados</strong>
+                                        <span><?= htmlspecialchars((string) count($subscriptionFeatures)) ?> itens funcionais publicados</span>
+                                    </div>
+                                    <div class="sb-resource-card">
+                                        <strong>Gateway recorrente</strong>
+                                        <span><?= !empty($subscriptionGateway['configured']) ? htmlspecialchars((string) ($subscriptionGateway['provider'] ?? 'Gateway')) : 'Nao configurado no ambiente' ?></span>
+                                    </div>
+                                </div>
+
                                 <?php if ($subscriptionFeatures !== []): ?>
                                     <div class="sb-feature-list">
                                         <?php foreach ($subscriptionFeatures as $feature): ?>
@@ -246,6 +326,50 @@ $cardBrandOptions = [
                                     <p class="sb-card-note">O plano atual nao possui recursos detalhados publicados em `features_json`.</p>
                                 <?php endif; ?>
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="sb-card-head">
+                            <div>
+                                <h3>Recorrencia real no gateway</h3>
+                                <p class="sb-card-note">Para debito ou credito recorrente de verdade, o fluxo sai do formulario manual e passa para checkout autorizado do gateway. Depois da primeira autorizacao, as proximas cobrancas ficam automatizadas pelo provedor.</p>
+                            </div>
+                            <div class="sb-badges">
+                                <?php if (!empty($subscriptionGateway['configured'])): ?>
+                                    <span class="badge status-paid"><?= htmlspecialchars((string) ($subscriptionGateway['provider'] ?? 'Gateway')) ?> configurado</span>
+                                <?php else: ?>
+                                    <span class="badge status-overdue">Gateway nao configurado</span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
+                        <div class="sb-gateway-box" style="margin-top:12px">
+                            <div class="sb-profile-list">
+                                <div class="sb-profile-row">
+                                    <span>Status externo</span>
+                                    <strong><?= htmlspecialchars((string) ($subscription['gateway_status'] ?? 'Nao iniciado')) ?></strong>
+                                </div>
+                                <div class="sb-profile-row">
+                                    <span>ID da assinatura externa</span>
+                                    <strong><?= htmlspecialchars((string) ($subscription['gateway_subscription_id'] ?? '-')) ?></strong>
+                                </div>
+                                <div class="sb-profile-row">
+                                    <span>Ultima sincronizacao</span>
+                                    <strong><?= htmlspecialchars($formatSubscriptionDate($subscription['gateway_last_synced_at'] ?? null, true)) ?></strong>
+                                </div>
+                            </div>
+                            <div class="sb-gateway-actions">
+                                <form method="POST" action="<?= htmlspecialchars(base_url('/admin/dashboard/subscription/gateway/checkout')) ?>">
+                                    <?= form_security_fields('dashboard.subscription.gateway.checkout') ?>
+                                    <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnSubscriptionQuery) ?>">
+                                    <button class="btn" type="submit" <?= empty($subscriptionGateway['configured']) ? 'disabled' : '' ?>>Gerar link recorrente</button>
+                                </form>
+                                <?php if (trim((string) ($subscription['gateway_checkout_url'] ?? '')) !== ''): ?>
+                                    <a class="btn secondary" href="<?= htmlspecialchars((string) ($subscription['gateway_checkout_url'] ?? '#')) ?>" target="_blank" rel="noopener">Abrir checkout do gateway</a>
+                                <?php endif; ?>
+                            </div>
+                            <p class="sb-form-note">Baseado na documentacao oficial do Mercado Pago, a assinatura programatica usa `POST /preapproval`, devolve `init_point` para checkout e, apos a primeira autorizacao, as cobrancas futuras passam a ser automáticas pelo provedor.</p>
                         </div>
                     </div>
 
@@ -307,16 +431,43 @@ $cardBrandOptions = [
 
                                         <div class="sb-method-grid">
                                             <div class="sb-method-card">
-                                                <h4>Confirmar pagamento via PIX</h4>
-                                                <p>Use quando a empresa efetivar a transferencia. O perfil da assinatura passa a priorizar PIX para as proximas competencias.</p>
-                                                <div class="field">
-                                                    <label>Codigo PIX da competencia</label>
-                                                    <input type="text" readonly value="<?= htmlspecialchars((string) ($payment['pix_code'] ?? 'Será gerado automaticamente no backend')) ?>">
+                                                <h4>PIX com QR code</h4>
+                                                <p>O QR e o copia-e-cola podem ser gerados no gateway. Depois que a transferencia for concluida, a baixa ainda precisa ser confirmada no historico local se o webhook ainda nao tiver retornado.</p>
+                                                <div class="sb-gateway-actions">
+                                                    <form method="POST" action="<?= htmlspecialchars(base_url('/admin/dashboard/subscription/pix/generate')) ?>">
+                                                        <?= form_security_fields('dashboard.subscription.pix.generate.' . $paymentId) ?>
+                                                        <input type="hidden" name="subscription_payment_id" value="<?= htmlspecialchars((string) $paymentId) ?>">
+                                                        <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnSubscriptionQuery) ?>">
+                                                        <button class="btn secondary" type="submit" <?= empty($subscriptionGateway['configured']) ? 'disabled' : '' ?>>Gerar QR PIX real</button>
+                                                    </form>
+                                                    <?php if (trim((string) ($payment['pix_ticket_url'] ?? '')) !== ''): ?>
+                                                        <a class="btn secondary" href="<?= htmlspecialchars((string) ($payment['pix_ticket_url'] ?? '#')) ?>" target="_blank" rel="noopener">Abrir tela PIX</a>
+                                                    <?php endif; ?>
                                                 </div>
-                                                <div class="field">
-                                                    <label>Payload / QR textual</label>
-                                                    <textarea readonly><?= htmlspecialchars((string) ($payment['pix_qr_payload'] ?? 'pix://gerado-automaticamente')) ?></textarea>
-                                                </div>
+                                                <?php if (trim((string) ($payment['pix_qr_image_base64'] ?? '')) !== ''): ?>
+                                                    <div class="sb-qr-wrap">
+                                                        <div class="sb-qr-image">
+                                                            <img src="data:image/png;base64,<?= htmlspecialchars((string) ($payment['pix_qr_image_base64'] ?? '')) ?>" alt="QR code PIX da cobranca">
+                                                        </div>
+                                                        <div class="sb-qr-data">
+                                                            <div class="field">
+                                                                <label>PIX copia e cola</label>
+                                                                <textarea readonly><?= htmlspecialchars((string) ($payment['pix_code'] ?? '')) ?></textarea>
+                                                            </div>
+                                                            <?php if (trim((string) ($payment['pix_ticket_url'] ?? '')) !== ''): ?>
+                                                                <div class="field">
+                                                                    <label>Link hospedado no gateway</label>
+                                                                    <input type="text" readonly value="<?= htmlspecialchars((string) ($payment['pix_ticket_url'] ?? '')) ?>">
+                                                                </div>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </div>
+                                                <?php else: ?>
+                                                    <div class="field">
+                                                        <label>PIX copia e cola</label>
+                                                        <textarea readonly><?= htmlspecialchars((string) ($payment['pix_qr_payload'] ?? 'Gere o QR no gateway para liberar o codigo real.')) ?></textarea>
+                                                    </div>
+                                                <?php endif; ?>
                                                 <form method="POST" action="<?= htmlspecialchars(base_url('/admin/dashboard/subscription/pix')) ?>">
                                                     <?= form_security_fields('dashboard.subscription.pix.' . $paymentId) ?>
                                                     <input type="hidden" name="subscription_payment_id" value="<?= htmlspecialchars((string) $paymentId) ?>">
@@ -335,8 +486,8 @@ $cardBrandOptions = [
                                             </div>
 
                                             <div class="sb-method-card">
-                                                <h4>Registrar pagamento com cartao</h4>
-                                                <p>Quita esta competencia agora e ativa recorrencia automatica para as proximas cobrancas da assinatura com base no metodo escolhido.</p>
+                                                <h4>Baixa manual administrativa</h4>
+                                                <p>Use apenas como contingencia interna. Para recorrencia real em credito ou debito, prefira o checkout do gateway na area acima.</p>
                                                 <form method="POST" action="<?= htmlspecialchars(base_url('/admin/dashboard/subscription/card')) ?>">
                                                     <?= form_security_fields('dashboard.subscription.card.' . $paymentId) ?>
                                                     <input type="hidden" name="subscription_payment_id" value="<?= htmlspecialchars((string) $paymentId) ?>">
@@ -363,8 +514,8 @@ $cardBrandOptions = [
                                                         </div>
                                                     </div>
                                                     <div class="sb-form-footer" style="margin-top:10px">
-                                                        <p class="sb-form-note">Nao salve numero completo nem CVV. Apenas a bandeira e os 4 ultimos digitos ficam registrados para auditoria e recorrencia.</p>
-                                                        <button class="btn" type="submit">Cobrar com cartao</button>
+                                                        <p class="sb-form-note">Nao salve numero completo nem CVV. Apenas a bandeira e os 4 ultimos digitos ficam registrados para auditoria e conciliacao manual.</p>
+                                                        <button class="btn" type="submit">Registrar baixa manual</button>
                                                     </div>
                                                 </form>
                                             </div>
@@ -379,12 +530,43 @@ $cardBrandOptions = [
                         <div class="sb-card-head">
                             <div>
                                 <h3>Historico da assinatura</h3>
-                                <p class="sb-card-note">Todas as competencias ficam na mesma trilha da assinatura atual, permitindo auditoria do ciclo, vencimento, forma de pagamento e baixa.</p>
+                                <p class="sb-card-note">Todas as competencias ficam na mesma trilha da assinatura atual, com filtro por status, metodo e busca por referencia, origem, gateway ou PIX.</p>
                             </div>
                             <div class="sb-badges">
-                                <span class="badge status-default">Ultimos <?= htmlspecialchars((string) count($subscriptionHistory)) ?> registros</span>
+                                <span class="badge status-default">Pagina <?= htmlspecialchars((string) $historyPage) ?> de <?= htmlspecialchars((string) $historyLastPage) ?></span>
+                                <span class="badge status-default">Total filtrado: <?= htmlspecialchars((string) ($subscriptionHistoryPagination['total'] ?? count($subscriptionHistory))) ?></span>
                             </div>
                         </div>
+
+                        <form method="GET" action="<?= htmlspecialchars(base_url('/admin/dashboard')) ?>" style="margin-top:12px">
+                            <input type="hidden" name="section" value="subscription">
+                            <div class="sb-filter-grid">
+                                <div class="field">
+                                    <label for="subscription_history_search">Busca inteligente</label>
+                                    <input id="subscription_history_search" name="subscription_history_search" type="text" value="<?= htmlspecialchars($historySearch) ?>" placeholder="Referencia, gateway, PIX, metodo ou origem">
+                                </div>
+                                <div class="field">
+                                    <label for="subscription_history_status">Status</label>
+                                    <select id="subscription_history_status" name="subscription_history_status">
+                                        <?php foreach ($historyStatusOptions as $value => $label): ?>
+                                            <option value="<?= htmlspecialchars($value) ?>" <?= $historyStatus === (string) $value ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label for="subscription_history_method">Metodo</label>
+                                    <select id="subscription_history_method" name="subscription_history_method">
+                                        <?php foreach ($historyMethodOptions as $value => $label): ?>
+                                            <option value="<?= htmlspecialchars($value) ?>" <?= $historyMethod === (string) $value ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="sb-gateway-actions">
+                                    <button class="btn" type="submit">Aplicar</button>
+                                    <a class="btn secondary" href="<?= htmlspecialchars(base_url('/admin/dashboard?section=subscription')) ?>">Limpar</a>
+                                </div>
+                            </div>
+                        </form>
 
                         <?php if ($subscriptionHistory === []): ?>
                             <div class="empty-state" style="margin-top:12px">
@@ -422,6 +604,23 @@ $cardBrandOptions = [
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>
+                            </div>
+
+                            <div class="sb-pagination">
+                                <div class="sb-page-info">
+                                    <?php if ((int) ($subscriptionHistoryPagination['total'] ?? 0) > 0): ?>
+                                        Exibindo <?= htmlspecialchars((string) ($subscriptionHistoryPagination['from'] ?? 0)) ?>-<?= htmlspecialchars((string) ($subscriptionHistoryPagination['to'] ?? 0)) ?> de <?= htmlspecialchars((string) ($subscriptionHistoryPagination['total'] ?? 0)) ?> registros
+                                    <?php else: ?>
+                                        Nenhum registro encontrado
+                                    <?php endif; ?>
+                                </div>
+                                <div class="sb-pagination-controls">
+                                    <a class="sb-page-btn<?= $historyPage <= 1 ? ' is-disabled' : '' ?>" href="<?= htmlspecialchars($buildSubscriptionUrl(['subscription_history_page' => max(1, $historyPage - 1)])) ?>">Anterior</a>
+                                    <?php foreach ($historyPages as $pageNumber): ?>
+                                        <a class="sb-page-btn<?= $pageNumber === $historyPage ? ' is-active' : '' ?>" href="<?= htmlspecialchars($buildSubscriptionUrl(['subscription_history_page' => $pageNumber])) ?>"><?= htmlspecialchars((string) $pageNumber) ?></a>
+                                    <?php endforeach; ?>
+                                    <a class="sb-page-btn<?= $historyPage >= $historyLastPage ? ' is-disabled' : '' ?>" href="<?= htmlspecialchars($buildSubscriptionUrl(['subscription_history_page' => min($historyLastPage, $historyPage + 1)])) ?>">Proxima</a>
+                                </div>
                             </div>
                         <?php endif; ?>
                     </div>

@@ -24,9 +24,17 @@ final class SubscriptionRepository extends BaseRepository
                 s.auto_charge_enabled,
                 s.card_brand,
                 s.card_last_digits,
+                s.gateway_provider,
+                s.gateway_subscription_id,
+                s.gateway_checkout_url,
+                s.gateway_status,
+                s.gateway_webhook_payload_json,
+                s.gateway_last_synced_at,
                 s.created_at,
                 c.name AS company_name,
                 c.slug AS company_slug,
+                c.email AS company_email,
+                c.document_number AS company_document_number,
                 p.name AS plan_name,
                 p.slug AS plan_slug
             FROM subscriptions s
@@ -75,8 +83,16 @@ final class SubscriptionRepository extends BaseRepository
                 s.auto_charge_enabled,
                 s.card_brand,
                 s.card_last_digits,
+                s.gateway_provider,
+                s.gateway_subscription_id,
+                s.gateway_checkout_url,
+                s.gateway_status,
+                s.gateway_webhook_payload_json,
+                s.gateway_last_synced_at,
                 c.name AS company_name,
                 c.slug AS company_slug,
+                c.email AS company_email,
+                c.document_number AS company_document_number,
                 p.name AS plan_name,
                 p.slug AS plan_slug,
                 p.description AS plan_description,
@@ -110,10 +126,18 @@ final class SubscriptionRepository extends BaseRepository
                 s.auto_charge_enabled,
                 s.card_brand,
                 s.card_last_digits,
+                s.gateway_provider,
+                s.gateway_subscription_id,
+                s.gateway_checkout_url,
+                s.gateway_status,
+                s.gateway_webhook_payload_json,
+                s.gateway_last_synced_at,
                 s.created_at,
                 s.updated_at,
                 c.name AS company_name,
                 c.slug AS company_slug,
+                c.email AS company_email,
+                c.document_number AS company_document_number,
                 c.subscription_status AS company_subscription_status,
                 c.subscription_starts_at AS company_subscription_starts_at,
                 c.subscription_ends_at AS company_subscription_ends_at,
@@ -146,6 +170,48 @@ final class SubscriptionRepository extends BaseRepository
         return $row ?: null;
     }
 
+    public function findByGatewaySubscriptionId(string $gatewaySubscriptionId): ?array
+    {
+        $gatewaySubscriptionId = trim($gatewaySubscriptionId);
+        if ($gatewaySubscriptionId === '') {
+            return null;
+        }
+
+        $stmt = $this->db()->prepare("
+            SELECT
+                s.id,
+                s.company_id,
+                s.plan_id,
+                s.status,
+                s.billing_cycle,
+                s.amount,
+                s.starts_at,
+                s.ends_at,
+                s.canceled_at,
+                s.preferred_payment_method,
+                s.auto_charge_enabled,
+                s.card_brand,
+                s.card_last_digits,
+                s.gateway_provider,
+                s.gateway_subscription_id,
+                s.gateway_checkout_url,
+                s.gateway_status,
+                s.gateway_webhook_payload_json,
+                s.gateway_last_synced_at,
+                s.created_at,
+                s.updated_at
+            FROM subscriptions s
+            WHERE s.gateway_subscription_id = :gateway_subscription_id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'gateway_subscription_id' => $gatewaySubscriptionId,
+        ]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     public function activeForBilling(): array
     {
         $stmt = $this->db()->prepare("
@@ -160,6 +226,10 @@ final class SubscriptionRepository extends BaseRepository
                 s.ends_at,
                 s.preferred_payment_method,
                 s.auto_charge_enabled,
+                s.gateway_provider,
+                s.gateway_subscription_id,
+                s.gateway_checkout_url,
+                s.gateway_status,
                 c.name AS company_name,
                 c.slug AS company_slug,
                 p.name AS plan_name
@@ -193,6 +263,32 @@ final class SubscriptionRepository extends BaseRepository
             'auto_charge_enabled' => !empty($data['auto_charge_enabled']) ? 1 : 0,
             'card_brand' => $data['card_brand'] ?? null,
             'card_last_digits' => $data['card_last_digits'] ?? null,
+        ]);
+    }
+
+    public function updateGatewayProfile(int $subscriptionId, array $data): void
+    {
+        $stmt = $this->db()->prepare("
+            UPDATE subscriptions
+            SET
+                gateway_provider = :gateway_provider,
+                gateway_subscription_id = :gateway_subscription_id,
+                gateway_checkout_url = :gateway_checkout_url,
+                gateway_status = :gateway_status,
+                gateway_webhook_payload_json = :gateway_webhook_payload_json,
+                gateway_last_synced_at = :gateway_last_synced_at,
+                updated_at = NOW()
+            WHERE id = :subscription_id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'subscription_id' => $subscriptionId,
+            'gateway_provider' => $data['gateway_provider'] ?? null,
+            'gateway_subscription_id' => $data['gateway_subscription_id'] ?? null,
+            'gateway_checkout_url' => $data['gateway_checkout_url'] ?? null,
+            'gateway_status' => $data['gateway_status'] ?? null,
+            'gateway_webhook_payload_json' => $data['gateway_webhook_payload_json'] ?? null,
+            'gateway_last_synced_at' => $data['gateway_last_synced_at'] ?? null,
         ]);
     }
 

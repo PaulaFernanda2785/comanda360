@@ -4,6 +4,7 @@ declare(strict_types=1);
 use App\Controllers\Auth\LoginController;
 use App\Controllers\Auth\AccountController;
 use App\Controllers\MediaController;
+use App\Controllers\WebhookController;
 use App\Controllers\Admin\DashboardController;
 use App\Controllers\Admin\ProductController;
 use App\Controllers\Admin\TableController;
@@ -46,6 +47,7 @@ $router->post('/account/password', [AccountController::class, 'updatePassword'],
 $router->get('/media/company', [MediaController::class, 'company']);
 $router->get('/media/product', [MediaController::class, 'product']);
 $router->get('/media/table-qr', [MediaController::class, 'tableQr']);
+$router->post('/webhooks/mercado-pago', [WebhookController::class, 'mercadoPago']);
 
 $router->get('/admin/dashboard', [DashboardController::class, 'index'], $companyAccess('dashboard.view'));
 $router->get('/admin/dashboard/report', [DashboardController::class, 'report'], $companyAccess('dashboard.view'));
@@ -60,8 +62,10 @@ $router->post('/admin/dashboard/users/status', [DashboardController::class, 'upd
 $router->post('/admin/dashboard/users/password', [DashboardController::class, 'updateUserPassword'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/support/store', [DashboardController::class, 'storeSupportTicket'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/support/reply', [DashboardController::class, 'replySupportTicket'], $companyAccess('dashboard.view'));
+$router->post('/admin/dashboard/subscription/pix/generate', [DashboardController::class, 'generateSubscriptionPix'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/subscription/card', [DashboardController::class, 'paySubscriptionWithCard'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/subscription/pix', [DashboardController::class, 'confirmSubscriptionPix'], $companyAccess('dashboard.view'));
+$router->post('/admin/dashboard/subscription/gateway/checkout', [DashboardController::class, 'createSubscriptionRecurringCheckout'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/subscription/auto-charge/disable', [DashboardController::class, 'disableSubscriptionAutoCharge'], $companyAccess('dashboard.view'));
 
 $router->get('/admin/products', [ProductController::class, 'index'], $companyAccess('products.view'));

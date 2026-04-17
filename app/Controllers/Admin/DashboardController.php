@@ -30,7 +30,7 @@ final class DashboardController extends Controller
 
         $companyId = (int) ($user['company_id'] ?? 0);
         $panel = $this->service->panel($companyId, $request->query);
-        $panel['subscription_module'] = $this->subscriptionService->panel($companyId);
+        $panel['subscription_module'] = $this->subscriptionService->panel($companyId, $request->query);
 
         return $this->view('admin/dashboard/index', [
             'title' => 'Dashboard Administrativo',
@@ -395,6 +395,55 @@ final class DashboardController extends Controller
         }
     }
 
+    public function generateSubscriptionPix(Request $request): Response
+    {
+        if (!Auth::check()) {
+            return $this->redirect('/login');
+        }
+
+        $paymentId = (int) ($request->input('subscription_payment_id', 0));
+        $redirectTo = $this->resolveSubscriptionRedirect($request);
+        $guard = $this->guardSingleSubmit($request, 'dashboard.subscription.pix.generate.' . $paymentId, $redirectTo);
+        if ($guard !== null) {
+            return $guard;
+        }
+
+        $user = Auth::user() ?? [];
+        $this->ensureAccess($user);
+        $companyId = (int) ($user['company_id'] ?? 0);
+
+        try {
+            $this->subscriptionService->generatePixGatewayCharge($companyId, $request->all());
+            return $this->backWithSuccess('QR PIX gerado no gateway para a cobranca selecionada.', $redirectTo);
+        } catch (ValidationException $e) {
+            return $this->backWithError($e->getMessage(), $redirectTo);
+        }
+    }
+
+    public function createSubscriptionRecurringCheckout(Request $request): Response
+    {
+        if (!Auth::check()) {
+            return $this->redirect('/login');
+        }
+
+        $redirectTo = $this->resolveSubscriptionRedirect($request);
+        $guard = $this->guardSingleSubmit($request, 'dashboard.subscription.gateway.checkout', $redirectTo);
+        if ($guard !== null) {
+            return $guard;
+        }
+
+        $user = Auth::user() ?? [];
+        $this->ensureAccess($user);
+        $companyId = (int) ($user['company_id'] ?? 0);
+
+        try {
+            $this->subscriptionService->generateRecurringGatewayCheckout($companyId);
+            return $this->backWithSuccess('Link de adesao recorrente gerado no gateway. Conclua a autorizacao para ativar a recorrencia real.', $redirectTo);
+        } catch (ValidationException $e) {
+            return $this->backWithError($e->getMessage(), $redirectTo);
+        }
+    }
+
     public function disableSubscriptionAutoCharge(Request $request): Response
     {
         if (!Auth::check()) {
@@ -519,8 +568,25 @@ final class DashboardController extends Controller
             return $default;
         }
 
-        return '/admin/dashboard?' . http_build_query([
-            'section' => 'subscription',
-        ]);
+        $allowedKeys = [
+            'section',
+            'subscription_history_search',
+            'subscription_history_status',
+            'subscription_history_method',
+            'subscription_history_page',
+        ];
+
+        $safe = ['section' => 'subscription'];
+        foreach ($allowedKeys as $key) {
+            if ($key === 'section') {
+                continue;
+            }
+
+            if (array_key_exists($key, $params)) {
+                $safe[$key] = (string) $params[$key];
+            }
+        }
+
+        return '/admin/dashboard?' . http_build_query($safe);
     }
 }

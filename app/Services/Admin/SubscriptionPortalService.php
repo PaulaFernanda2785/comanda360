@@ -18,10 +18,11 @@ final class SubscriptionPortalService
     public function __construct(
         private readonly SubscriptionRepository $subscriptions = new SubscriptionRepository(),
         private readonly SubscriptionPaymentRepository $subscriptionPayments = new SubscriptionPaymentRepository(),
-        private readonly CompanyRepository $companies = new CompanyRepository()
+        private readonly CompanyRepository $companies = new CompanyRepository(),
+        private readonly SubscriptionGatewayService $gatewayService = new SubscriptionGatewayService()
     ) {}
 
-    public function panel(int $companyId): array
+    public function panel(int $companyId, array $filters = []): array
     {
         if ($companyId <= 0) {
             throw new ValidationException('Empresa invalida para acompanhar a assinatura.');
@@ -33,15 +34,23 @@ final class SubscriptionPortalService
         }
 
         $this->synchronizeByCompany($companyId);
+        $this->gatewayService->syncSubscriptionByCompany($companyId);
 
         $subscription = $this->subscriptions->findCurrentByCompanyId($companyId);
         if ($subscription === null) {
             return $this->emptyPanel();
         }
 
-        $history = $this->subscriptionPayments->listBySubscriptionId((int) $subscription['id'], 120);
+        $normalizedFilters = $this->normalizeHistoryFilters($filters);
+        $historyPagination = $this->subscriptionPayments->listBySubscriptionIdPaginated(
+            (int) $subscription['id'],
+            $normalizedFilters,
+            (int) $normalizedFilters['page'],
+            10
+        );
+        $history = is_array($historyPagination['items'] ?? null) ? $historyPagination['items'] : [];
         $openPayments = array_values(array_filter(
-            $history,
+            $this->subscriptionPayments->listBySubscriptionId((int) $subscription['id'], 120),
             static fn (array $payment): bool => in_array((string) ($payment['status'] ?? ''), ['pendente', 'vencido'], true)
         ));
         usort($openPayments, static function (array $left, array $right): int {
@@ -51,9 +60,15 @@ final class SubscriptionPortalService
         return [
             'subscription' => $subscription,
             'open_payments' => $openPayments,
-            'payment_history' => array_slice($history, 0, 16),
+            'payment_history' => $history,
+            'history_filters' => $normalizedFilters,
+            'history_pagination' => $this->buildPaginationPayload($historyPagination),
             'features' => $this->extractFeatureSummary($subscription),
-            'summary' => $this->buildSummary($subscription, $history, $openPayments),
+            'summary' => $this->buildSummary($subscription, $this->subscriptionPayments->listBySubscriptionId((int) $subscription['id'], 120), $openPayments),
+            'gateway' => [
+                'configured' => $this->gatewayService->isConfigured(),
+                'provider' => $this->gatewayService->providerName(),
+            ],
         ];
     }
 
@@ -172,6 +187,23 @@ final class SubscriptionPortalService
             'card_last_digits' => null,
         ]);
 
+        $this->synchronizeByCompany($companyId);
+    }
+
+    public function generatePixGatewayCharge(int $companyId, array $input): void
+    {
+        $paymentId = (int) ($input['subscription_payment_id'] ?? 0);
+        if ($paymentId <= 0) {
+            throw new ValidationException('Cobranca invalida para gerar o QR PIX.');
+        }
+
+        $this->gatewayService->createPixCharge($companyId, $paymentId);
+        $this->synchronizeByCompany($companyId);
+    }
+
+    public function generateRecurringGatewayCheckout(int $companyId): void
+    {
+        $this->gatewayService->createRecurringCheckout($companyId);
         $this->synchronizeByCompany($companyId);
     }
 
@@ -649,6 +681,20 @@ final class SubscriptionPortalService
             'subscription' => null,
             'open_payments' => [],
             'payment_history' => [],
+            'history_filters' => [
+                'search' => '',
+                'status' => '',
+                'method' => '',
+                'page' => 1,
+            ],
+            'history_pagination' => [
+                'page' => 1,
+                'last_page' => 1,
+                'total' => 0,
+                'from' => 0,
+                'to' => 0,
+                'pages' => [1],
+            ],
             'features' => [],
             'summary' => [
                 'total_history' => 0,
@@ -662,6 +708,47 @@ final class SubscriptionPortalService
                 'preferred_payment_method' => null,
                 'auto_charge_enabled' => false,
             ],
+            'gateway' => [
+                'configured' => $this->gatewayService->isConfigured(),
+                'provider' => $this->gatewayService->providerName(),
+            ],
+        ];
+    }
+
+    private function normalizeHistoryFilters(array $filters): array
+    {
+        return [
+            'search' => trim((string) ($filters['subscription_history_search'] ?? '')),
+            'status' => trim((string) ($filters['subscription_history_status'] ?? '')),
+            'method' => trim((string) ($filters['subscription_history_method'] ?? '')),
+            'page' => max(1, (int) ($filters['subscription_history_page'] ?? 1)),
+        ];
+    }
+
+    private function buildPaginationPayload(array $pagination): array
+    {
+        $page = max(1, (int) ($pagination['page'] ?? 1));
+        $perPage = max(1, (int) ($pagination['per_page'] ?? 10));
+        $total = max(0, (int) ($pagination['total'] ?? 0));
+        $lastPage = max(1, (int) ($pagination['last_page'] ?? 1));
+        $from = $total > 0 ? (($page - 1) * $perPage) + 1 : 0;
+        $to = $total > 0 ? min($total, $page * $perPage) : 0;
+
+        $start = max(1, $page - 2);
+        $end = min($lastPage, $page + 2);
+        $pages = [];
+        for ($cursor = $start; $cursor <= $end; $cursor++) {
+            $pages[] = $cursor;
+        }
+
+        return [
+            'page' => $page,
+            'last_page' => $lastPage,
+            'total' => $total,
+            'per_page' => $perPage,
+            'from' => $from,
+            'to' => $to,
+            'pages' => $pages,
         ];
     }
 }
