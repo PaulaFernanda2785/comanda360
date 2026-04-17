@@ -24,6 +24,30 @@ final class CompanyRepository extends BaseRepository
         }
     }
 
+    public function updateSubscriptionSnapshot(int $companyId, array $data): void
+    {
+        $stmt = $this->db()->prepare("
+            UPDATE companies
+            SET
+                plan_id = :plan_id,
+                subscription_status = :subscription_status,
+                trial_ends_at = :trial_ends_at,
+                subscription_starts_at = :subscription_starts_at,
+                subscription_ends_at = :subscription_ends_at,
+                updated_at = NOW()
+            WHERE id = :company_id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'plan_id' => $data['plan_id'] ?? null,
+            'subscription_status' => $data['subscription_status'],
+            'trial_ends_at' => $data['trial_ends_at'] ?? null,
+            'subscription_starts_at' => $data['subscription_starts_at'] ?? null,
+            'subscription_ends_at' => $data['subscription_ends_at'] ?? null,
+        ]);
+    }
+
     public function listForSaasPaginated(array $filters, int $page, int $perPage): array
     {
         $page = max(1, $page);

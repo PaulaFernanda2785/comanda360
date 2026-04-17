@@ -60,6 +60,9 @@ $router->post('/admin/dashboard/users/status', [DashboardController::class, 'upd
 $router->post('/admin/dashboard/users/password', [DashboardController::class, 'updateUserPassword'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/support/store', [DashboardController::class, 'storeSupportTicket'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/support/reply', [DashboardController::class, 'replySupportTicket'], $companyAccess('dashboard.view'));
+$router->post('/admin/dashboard/subscription/card', [DashboardController::class, 'paySubscriptionWithCard'], $companyAccess('dashboard.view'));
+$router->post('/admin/dashboard/subscription/pix', [DashboardController::class, 'confirmSubscriptionPix'], $companyAccess('dashboard.view'));
+$router->post('/admin/dashboard/subscription/auto-charge/disable', [DashboardController::class, 'disableSubscriptionAutoCharge'], $companyAccess('dashboard.view'));
 
 $router->get('/admin/products', [ProductController::class, 'index'], $companyAccess('products.view'));
 $router->get('/admin/products/create', [ProductController::class, 'create'], $companyAccess('products.create'));

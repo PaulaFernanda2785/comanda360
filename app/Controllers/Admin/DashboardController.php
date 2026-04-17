@@ -10,11 +10,13 @@ use App\Core\Response;
 use App\Exceptions\HttpException;
 use App\Exceptions\ValidationException;
 use App\Services\Admin\DashboardService;
+use App\Services\Admin\SubscriptionPortalService;
 
 final class DashboardController extends Controller
 {
     public function __construct(
-        private readonly DashboardService $service = new DashboardService()
+        private readonly DashboardService $service = new DashboardService(),
+        private readonly SubscriptionPortalService $subscriptionService = new SubscriptionPortalService()
     ) {}
 
     public function index(Request $request): Response
@@ -27,11 +29,13 @@ final class DashboardController extends Controller
         $this->ensureAccess($user);
 
         $companyId = (int) ($user['company_id'] ?? 0);
+        $panel = $this->service->panel($companyId, $request->query);
+        $panel['subscription_module'] = $this->subscriptionService->panel($companyId);
 
         return $this->view('admin/dashboard/index', [
             'title' => 'Dashboard Administrativo',
             'user' => $user,
-            'panel' => $this->service->panel($companyId, $request->query),
+            'panel' => $panel,
             'activeSection' => trim((string) ($request->input('section', 'overview'))),
         ]);
     }
@@ -339,6 +343,83 @@ final class DashboardController extends Controller
         }
     }
 
+    public function paySubscriptionWithCard(Request $request): Response
+    {
+        if (!Auth::check()) {
+            return $this->redirect('/login');
+        }
+
+        $paymentId = (int) ($request->input('subscription_payment_id', 0));
+        $redirectTo = $this->resolveSubscriptionRedirect($request);
+        $guard = $this->guardSingleSubmit($request, 'dashboard.subscription.card.' . $paymentId, $redirectTo);
+        if ($guard !== null) {
+            return $guard;
+        }
+
+        $user = Auth::user() ?? [];
+        $this->ensureAccess($user);
+
+        $companyId = (int) ($user['company_id'] ?? 0);
+
+        try {
+            $this->subscriptionService->payChargeWithCard($companyId, $request->all());
+            return $this->backWithSuccess('Cobranca quitada com cartao e recorrencia automatica ativada.', $redirectTo);
+        } catch (ValidationException $e) {
+            return $this->backWithError($e->getMessage(), $redirectTo);
+        }
+    }
+
+    public function confirmSubscriptionPix(Request $request): Response
+    {
+        if (!Auth::check()) {
+            return $this->redirect('/login');
+        }
+
+        $paymentId = (int) ($request->input('subscription_payment_id', 0));
+        $redirectTo = $this->resolveSubscriptionRedirect($request);
+        $guard = $this->guardSingleSubmit($request, 'dashboard.subscription.pix.' . $paymentId, $redirectTo);
+        if ($guard !== null) {
+            return $guard;
+        }
+
+        $user = Auth::user() ?? [];
+        $this->ensureAccess($user);
+
+        $companyId = (int) ($user['company_id'] ?? 0);
+
+        try {
+            $this->subscriptionService->confirmPixPayment($companyId, $request->all());
+            return $this->backWithSuccess('Pagamento via PIX confirmado na assinatura.', $redirectTo);
+        } catch (ValidationException $e) {
+            return $this->backWithError($e->getMessage(), $redirectTo);
+        }
+    }
+
+    public function disableSubscriptionAutoCharge(Request $request): Response
+    {
+        if (!Auth::check()) {
+            return $this->redirect('/login');
+        }
+
+        $redirectTo = $this->resolveSubscriptionRedirect($request);
+        $guard = $this->guardSingleSubmit($request, 'dashboard.subscription.auto_charge.disable', $redirectTo);
+        if ($guard !== null) {
+            return $guard;
+        }
+
+        $user = Auth::user() ?? [];
+        $this->ensureAccess($user);
+
+        $companyId = (int) ($user['company_id'] ?? 0);
+
+        try {
+            $this->subscriptionService->disableAutoCharge($companyId);
+            return $this->backWithSuccess('Recorrencia automatica desativada. As proximas cobrancas ficarao em PIX manual.', $redirectTo);
+        } catch (ValidationException $e) {
+            return $this->backWithError($e->getMessage(), $redirectTo);
+        }
+    }
+
     private function ensureAccess(array $user): void
     {
         $roleSlug = strtolower(trim((string) ($user['role_slug'] ?? '')));
@@ -423,5 +504,23 @@ final class DashboardController extends Controller
         }
 
         return '/admin/dashboard?' . http_build_query($safe);
+    }
+
+    private function resolveSubscriptionRedirect(Request $request): string
+    {
+        $default = '/admin/dashboard?section=subscription';
+        $queryRaw = trim((string) ($request->input('return_query', '')));
+        if ($queryRaw === '') {
+            return $default;
+        }
+
+        parse_str($queryRaw, $params);
+        if (!is_array($params)) {
+            return $default;
+        }
+
+        return '/admin/dashboard?' . http_build_query([
+            'section' => 'subscription',
+        ]);
     }
 }

@@ -17,6 +17,7 @@ $supportThreads = is_array($supportModule['threads'] ?? null) ? $supportModule['
 $supportFilters = is_array($supportModule['filters'] ?? null) ? $supportModule['filters'] : (is_array($panel['support_filters'] ?? null) ? $panel['support_filters'] : []);
 $supportPagination = is_array($supportModule['págination'] ?? null) ? $supportModule['págination'] : (is_array($panel['support_págination'] ?? null) ? $panel['support_págination'] : []);
 $supportSummary = is_array($supportModule['summary'] ?? null) ? $supportModule['summary'] : (is_array($panel['support_summary'] ?? null) ? $panel['support_summary'] : []);
+$subscriptionModule = is_array($panel['subscription_module'] ?? null) ? $panel['subscription_module'] : [];
 
 $kpis = is_array($analytics['kpis'] ?? null) ? $analytics['kpis'] : [];
 $salesByDay = is_array($analytics['sales_by_day'] ?? null) ? $analytics['sales_by_day'] : [];
@@ -28,7 +29,7 @@ $cashHistory = is_array($analytics['cash_history'] ?? null) ? $analytics['cash_h
 $topProducts = is_array($analytics['top_products'] ?? null) ? $analytics['top_products'] : [];
 
 $activeSectionRaw = trim((string) ($activeSection ?? 'overview'));
-$allowedSections = ['overview', 'branding', 'users', 'support'];
+$allowedSections = ['overview', 'branding', 'users', 'support', 'subscription'];
 $activeSection = in_array($activeSectionRaw, $allowedSections, true) ? $activeSectionRaw : 'overview';
 
 $startDate = trim((string) ($filters['start_date'] ?? date('Y-m-d', strtotime('-29 days'))));
@@ -258,12 +259,14 @@ $supportStatusLabels = [
         <button type="button" class="dash-tab-btn<?= $activeSection === 'branding' ? ' active' : '' ?>" data-section-target="branding">Personalização</button>
         <button type="button" class="dash-tab-btn<?= $activeSection === 'users' ? ' active' : '' ?>" data-section-target="users">Usuários internos</button>
         <button type="button" class="dash-tab-btn<?= $activeSection === 'support' ? ' active' : '' ?>" data-section-target="support">Fale com a equipe técnica</button>
+        <button type="button" class="dash-tab-btn<?= $activeSection === 'subscription' ? ' active' : '' ?>" data-section-target="subscription">Assinatura</button>
     </div>
 
     <?php require __DIR__ . '/_overview.php'; ?>
     <?php require __DIR__ . '/_branding.php'; ?>
     <?php require __DIR__ . '/_users.php'; ?>
     <?php require __DIR__ . '/_support.php'; ?>
+    <?php require __DIR__ . '/_subscription.php'; ?>
 </div>
 
 <script>

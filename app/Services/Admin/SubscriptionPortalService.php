@@ -1,0 +1,667 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Services\Admin;
+
+use App\Core\Database;
+use App\Exceptions\ValidationException;
+use App\Repositories\CompanyRepository;
+use App\Repositories\SubscriptionPaymentRepository;
+use App\Repositories\SubscriptionRepository;
+use DateTimeImmutable;
+use Throwable;
+
+final class SubscriptionPortalService
+{
+    private const CARD_METHODS = ['credito', 'debito'];
+
+    public function __construct(
+        private readonly SubscriptionRepository $subscriptions = new SubscriptionRepository(),
+        private readonly SubscriptionPaymentRepository $subscriptionPayments = new SubscriptionPaymentRepository(),
+        private readonly CompanyRepository $companies = new CompanyRepository()
+    ) {}
+
+    public function panel(int $companyId): array
+    {
+        if ($companyId <= 0) {
+            throw new ValidationException('Empresa invalida para acompanhar a assinatura.');
+        }
+
+        $subscription = $this->subscriptions->findCurrentByCompanyId($companyId);
+        if ($subscription === null) {
+            return $this->emptyPanel();
+        }
+
+        $this->synchronizeByCompany($companyId);
+
+        $subscription = $this->subscriptions->findCurrentByCompanyId($companyId);
+        if ($subscription === null) {
+            return $this->emptyPanel();
+        }
+
+        $history = $this->subscriptionPayments->listBySubscriptionId((int) $subscription['id'], 120);
+        $openPayments = array_values(array_filter(
+            $history,
+            static fn (array $payment): bool => in_array((string) ($payment['status'] ?? ''), ['pendente', 'vencido'], true)
+        ));
+        usort($openPayments, static function (array $left, array $right): int {
+            return strcmp((string) ($left['due_date'] ?? ''), (string) ($right['due_date'] ?? ''));
+        });
+
+        return [
+            'subscription' => $subscription,
+            'open_payments' => $openPayments,
+            'payment_history' => array_slice($history, 0, 16),
+            'features' => $this->extractFeatureSummary($subscription),
+            'summary' => $this->buildSummary($subscription, $history, $openPayments),
+        ];
+    }
+
+    public function payChargeWithCard(int $companyId, array $input): void
+    {
+        $paymentId = (int) ($input['subscription_payment_id'] ?? 0);
+        $paymentMethod = $this->normalizeCardMethod($input['payment_method'] ?? '');
+        $cardBrand = $this->normalizeCardBrand($input['card_brand'] ?? '');
+        $cardLastDigits = $this->normalizeCardLastDigits($input['card_last_digits'] ?? '');
+
+        $payment = $this->loadCompanyPayment($companyId, $paymentId);
+        $this->assertPayableCharge($payment);
+
+        $db = Database::connection();
+        $db->beginTransaction();
+
+        try {
+            $this->subscriptions->updateBillingProfile((int) $payment['subscription_id'], [
+                'preferred_payment_method' => $paymentMethod,
+                'auto_charge_enabled' => 1,
+                'card_brand' => $cardBrand,
+                'card_last_digits' => $cardLastDigits,
+            ]);
+
+            $details = [
+                'source' => 'company_dashboard',
+                'mode' => 'manual_card',
+                'card_brand' => $cardBrand,
+                'card_last_digits' => $cardLastDigits,
+                'captured_at' => date('c'),
+            ];
+
+            $this->subscriptionPayments->updateRecord($paymentId, [
+                'status' => 'pago',
+                'payment_method' => $paymentMethod,
+                'paid_at' => date('Y-m-d H:i:s'),
+                'due_date' => (string) $payment['due_date'],
+                'transaction_reference' => $this->buildChargeReference('MANUAL', $paymentId, $paymentMethod),
+                'charge_origin' => $payment['charge_origin'] ?? 'manual',
+                'pix_code' => null,
+                'pix_qr_payload' => null,
+                'payment_details_json' => json_encode($details, JSON_UNESCAPED_SLASHES),
+            ]);
+
+            $db->commit();
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+
+        $this->synchronizeByCompany($companyId);
+    }
+
+    public function confirmPixPayment(int $companyId, array $input): void
+    {
+        $paymentId = (int) ($input['subscription_payment_id'] ?? 0);
+        $transactionReference = $this->normalizeNullableText($input['transaction_reference'] ?? null);
+
+        $payment = $this->loadCompanyPayment($companyId, $paymentId);
+        $this->assertPayableCharge($payment);
+
+        $pixPayload = $this->ensurePixPayload($payment);
+        $db = Database::connection();
+        $db->beginTransaction();
+
+        try {
+            $this->subscriptions->updateBillingProfile((int) $payment['subscription_id'], [
+                'preferred_payment_method' => 'pix',
+                'auto_charge_enabled' => 0,
+                'card_brand' => null,
+                'card_last_digits' => null,
+            ]);
+
+            $details = [
+                'source' => 'company_dashboard',
+                'mode' => 'manual_pix',
+                'confirmed_at' => date('c'),
+            ];
+
+            $this->subscriptionPayments->updateRecord($paymentId, [
+                'status' => 'pago',
+                'payment_method' => 'pix',
+                'paid_at' => date('Y-m-d H:i:s'),
+                'due_date' => (string) $payment['due_date'],
+                'transaction_reference' => $transactionReference ?? $this->buildChargeReference('PIX', $paymentId, 'pix'),
+                'charge_origin' => 'pix',
+                'pix_code' => $pixPayload['pix_code'],
+                'pix_qr_payload' => $pixPayload['pix_qr_payload'],
+                'payment_details_json' => json_encode($details, JSON_UNESCAPED_SLASHES),
+            ]);
+
+            $db->commit();
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+
+        $this->synchronizeByCompany($companyId);
+    }
+
+    public function disableAutoCharge(int $companyId): void
+    {
+        $subscription = $this->subscriptions->findCurrentByCompanyId($companyId);
+        if ($subscription === null) {
+            throw new ValidationException('Assinatura nao encontrada para a empresa autenticada.');
+        }
+
+        $this->subscriptions->updateBillingProfile((int) $subscription['id'], [
+            'preferred_payment_method' => 'pix',
+            'auto_charge_enabled' => 0,
+            'card_brand' => null,
+            'card_last_digits' => null,
+        ]);
+
+        $this->synchronizeByCompany($companyId);
+    }
+
+    private function synchronizeByCompany(int $companyId): void
+    {
+        $subscription = $this->subscriptions->findCurrentByCompanyId($companyId);
+        if ($subscription === null) {
+            return;
+        }
+
+        $this->synchronizeSubscription($subscription);
+    }
+
+    private function synchronizeSubscription(array $subscription): void
+    {
+        $subscriptionId = (int) ($subscription['id'] ?? 0);
+        $companyId = (int) ($subscription['company_id'] ?? 0);
+        if ($subscriptionId <= 0 || $companyId <= 0) {
+            return;
+        }
+
+        $status = trim((string) ($subscription['status'] ?? ''));
+        $preferredMethod = trim((string) ($subscription['preferred_payment_method'] ?? ''));
+        $autoChargeEnabled = !empty($subscription['auto_charge_enabled']);
+        $usesAutoCard = $autoChargeEnabled && in_array($preferredMethod, self::CARD_METHODS, true);
+
+        if ($status !== 'cancelada') {
+            foreach ($this->expectedCharges($subscription) as $charge) {
+                $existing = $this->subscriptionPayments->findByReference(
+                    $subscriptionId,
+                    (int) $charge['reference_month'],
+                    (int) $charge['reference_year']
+                );
+                if ($existing !== null) {
+                    continue;
+                }
+
+                $pixPayload = $usesAutoCard ? ['pix_code' => null, 'pix_qr_payload' => null] : $this->buildPixPayload(
+                    $companyId,
+                    $subscriptionId,
+                    (int) $charge['reference_year'],
+                    (int) $charge['reference_month'],
+                    (float) $charge['amount']
+                );
+
+                $this->subscriptionPayments->create([
+                    'subscription_id' => $subscriptionId,
+                    'company_id' => $companyId,
+                    'reference_month' => $charge['reference_month'],
+                    'reference_year' => $charge['reference_year'],
+                    'amount' => $charge['amount'],
+                    'status' => 'pendente',
+                    'payment_method' => $usesAutoCard ? $preferredMethod : 'pix',
+                    'paid_at' => null,
+                    'due_date' => $charge['due_date'],
+                    'transaction_reference' => null,
+                    'charge_origin' => $usesAutoCard ? 'auto' : 'pix',
+                    'pix_code' => $pixPayload['pix_code'],
+                    'pix_qr_payload' => $pixPayload['pix_qr_payload'],
+                    'payment_details_json' => null,
+                ]);
+            }
+        }
+
+        $payments = $this->subscriptionPayments->listBySubscriptionId($subscriptionId, 240);
+        $today = new DateTimeImmutable('today');
+
+        foreach ($payments as $payment) {
+            $paymentId = (int) ($payment['id'] ?? 0);
+            if ($paymentId <= 0) {
+                continue;
+            }
+
+            $paymentStatus = trim((string) ($payment['status'] ?? ''));
+            if ($paymentStatus === 'cancelado' || $paymentStatus === 'pago') {
+                continue;
+            }
+
+            $dueDate = $this->dateOrToday((string) ($payment['due_date'] ?? ''));
+            if ($usesAutoCard && $dueDate <= $today) {
+                $details = [
+                    'source' => 'billing_sync',
+                    'mode' => 'auto_card',
+                    'card_brand' => $this->normalizeNullableText($subscription['card_brand'] ?? null),
+                    'card_last_digits' => $this->normalizeNullableText($subscription['card_last_digits'] ?? null),
+                    'captured_at' => date('c'),
+                ];
+
+                $this->subscriptionPayments->updateRecord($paymentId, [
+                    'status' => 'pago',
+                    'payment_method' => $preferredMethod,
+                    'paid_at' => date('Y-m-d H:i:s'),
+                    'due_date' => (string) $payment['due_date'],
+                    'transaction_reference' => $this->buildChargeReference('AUTO', $paymentId, $preferredMethod),
+                    'charge_origin' => 'auto',
+                    'pix_code' => null,
+                    'pix_qr_payload' => null,
+                    'payment_details_json' => json_encode($details, JSON_UNESCAPED_SLASHES),
+                ]);
+                continue;
+            }
+
+            if (!$usesAutoCard) {
+                $pixPayload = $this->ensurePixPayload($payment);
+                $targetStatus = $paymentStatus;
+                if ($paymentStatus === 'pendente' && $dueDate < $today) {
+                    $targetStatus = 'vencido';
+                }
+
+                $this->subscriptionPayments->updateRecord($paymentId, [
+                    'status' => $targetStatus,
+                    'payment_method' => 'pix',
+                    'paid_at' => null,
+                    'due_date' => (string) $payment['due_date'],
+                    'transaction_reference' => null,
+                    'charge_origin' => 'pix',
+                    'pix_code' => $pixPayload['pix_code'],
+                    'pix_qr_payload' => $pixPayload['pix_qr_payload'],
+                    'payment_details_json' => $payment['payment_details_json'] ?? null,
+                ]);
+            }
+        }
+
+        $payments = $this->subscriptionPayments->listBySubscriptionId($subscriptionId, 240);
+        $hasOverdue = false;
+        $hasPaid = false;
+        foreach ($payments as $payment) {
+            $paymentStatus = trim((string) ($payment['status'] ?? ''));
+            if ($paymentStatus === 'vencido') {
+                $hasOverdue = true;
+            }
+            if ($paymentStatus === 'pago') {
+                $hasPaid = true;
+            }
+        }
+
+        $targetSubscriptionStatus = $status;
+        $targetCompanyStatus = trim((string) ($subscription['company_subscription_status'] ?? ''));
+
+        if ($status === 'cancelada') {
+            $targetSubscriptionStatus = 'cancelada';
+            $targetCompanyStatus = 'cancelada';
+        } elseif ($hasOverdue) {
+            $targetSubscriptionStatus = 'vencida';
+            $targetCompanyStatus = 'inadimplente';
+        } elseif ($status === 'trial' && !$hasPaid) {
+            $targetSubscriptionStatus = 'trial';
+            $targetCompanyStatus = 'trial';
+        } else {
+            $targetSubscriptionStatus = 'ativa';
+            $targetCompanyStatus = 'ativa';
+        }
+
+        if ($targetSubscriptionStatus !== $status) {
+            $this->subscriptions->updateStatus($subscriptionId, $targetSubscriptionStatus);
+        }
+
+        $this->companies->updateSubscriptionSnapshot($companyId, [
+            'plan_id' => $subscription['plan_id'] ?? null,
+            'subscription_status' => $targetCompanyStatus,
+            'trial_ends_at' => $targetSubscriptionStatus === 'trial'
+                ? ($subscription['company_trial_ends_at'] ?? null)
+                : null,
+            'subscription_starts_at' => $subscription['company_subscription_starts_at'] ?? $subscription['starts_at'] ?? null,
+            'subscription_ends_at' => $subscription['ends_at'] ?? $subscription['company_subscription_ends_at'] ?? null,
+        ]);
+    }
+
+    private function expectedCharges(array $subscription): array
+    {
+        $startsAt = $this->dateOrToday((string) ($subscription['starts_at'] ?? date('Y-m-d')));
+        $limit = $this->generationLimit($subscription);
+        if ($limit < $startsAt) {
+            return [];
+        }
+
+        $billingCycle = trim((string) ($subscription['billing_cycle'] ?? 'mensal'));
+        $amount = round((float) ($subscription['amount'] ?? 0), 2);
+        $charges = [];
+
+        if ($billingCycle === 'anual') {
+            $startYear = (int) $startsAt->format('Y');
+            $limitYear = (int) $limit->format('Y');
+            $referenceMonth = (int) $startsAt->format('n');
+            $referenceDay = (int) $startsAt->format('j');
+
+            for ($year = $startYear; $year <= $limitYear; $year++) {
+                if ($year === $limitYear && (int) $limit->format('n') < $referenceMonth) {
+                    break;
+                }
+
+                $charges[] = [
+                    'reference_month' => $referenceMonth,
+                    'reference_year' => $year,
+                    'amount' => $amount,
+                    'due_date' => $this->buildDueDate($year, $referenceMonth, $referenceDay)->format('Y-m-d'),
+                ];
+            }
+
+            return $charges;
+        }
+
+        $cursorYear = (int) $startsAt->format('Y');
+        $cursorMonth = (int) $startsAt->format('n');
+        $limitYear = (int) $limit->format('Y');
+        $limitMonth = (int) $limit->format('n');
+        $referenceDay = (int) $startsAt->format('j');
+
+        while ($cursorYear < $limitYear || ($cursorYear === $limitYear && $cursorMonth <= $limitMonth)) {
+            $charges[] = [
+                'reference_month' => $cursorMonth,
+                'reference_year' => $cursorYear,
+                'amount' => $amount,
+                'due_date' => $this->buildDueDate($cursorYear, $cursorMonth, $referenceDay)->format('Y-m-d'),
+            ];
+
+            $cursorMonth++;
+            if ($cursorMonth > 12) {
+                $cursorMonth = 1;
+                $cursorYear++;
+            }
+        }
+
+        return $charges;
+    }
+
+    private function generationLimit(array $subscription): DateTimeImmutable
+    {
+        $today = new DateTimeImmutable('today');
+        $status = trim((string) ($subscription['status'] ?? ''));
+
+        if ($status === 'cancelada') {
+            $canceledAt = trim((string) ($subscription['canceled_at'] ?? ''));
+            if ($canceledAt !== '') {
+                $canceledDate = $this->dateOrToday($canceledAt);
+                return $canceledDate < $today ? $canceledDate : $today;
+            }
+        }
+
+        return $today;
+    }
+
+    private function buildSummary(array $subscription, array $history, array $openPayments): array
+    {
+        $openAmount = 0.0;
+        $paidAmount = 0.0;
+        $overdueCount = 0;
+        $nextDueDate = null;
+
+        foreach ($history as $payment) {
+            $amount = (float) ($payment['amount'] ?? 0);
+            $status = trim((string) ($payment['status'] ?? ''));
+            if ($status === 'pago') {
+                $paidAmount += $amount;
+            }
+            if ($status === 'vencido') {
+                $overdueCount++;
+            }
+        }
+
+        foreach ($openPayments as $payment) {
+            $openAmount += (float) ($payment['amount'] ?? 0);
+            $dueDate = trim((string) ($payment['due_date'] ?? ''));
+            if ($dueDate === '') {
+                continue;
+            }
+
+            if ($nextDueDate === null || strcmp($dueDate, $nextDueDate) < 0) {
+                $nextDueDate = $dueDate;
+            }
+        }
+
+        return [
+            'total_history' => count($history),
+            'open_count' => count($openPayments),
+            'overdue_count' => $overdueCount,
+            'open_amount' => round($openAmount, 2),
+            'paid_amount' => round($paidAmount, 2),
+            'next_due_date' => $nextDueDate,
+            'plan_name' => $subscription['plan_name'] ?? null,
+            'billing_cycle' => $subscription['billing_cycle'] ?? null,
+            'preferred_payment_method' => $subscription['preferred_payment_method'] ?? null,
+            'auto_charge_enabled' => !empty($subscription['auto_charge_enabled']),
+        ];
+    }
+
+    private function extractFeatureSummary(array $subscription): array
+    {
+        $raw = trim((string) ($subscription['plan_features_json'] ?? ''));
+        if ($raw === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $featureLabels = [
+            'cardapio_digital' => 'Cardapio digital',
+            'qrcode_mesa' => 'QR Code de mesa',
+            'caixa' => 'Caixa',
+            'delivery' => 'Delivery',
+            'relatorios' => 'Relatorios',
+        ];
+
+        $features = [];
+        foreach ($featureLabels as $key => $label) {
+            if (!empty($decoded[$key])) {
+                $features[] = $label;
+            }
+        }
+
+        $limitLabels = [
+            'usuarios_ilimitados' => 'Usuarios ilimitados',
+            'produtos_ilimitados' => 'Produtos ilimitados',
+            'mesas_ilimitadas' => 'Mesas ilimitadas',
+        ];
+
+        foreach ($limitLabels as $key => $label) {
+            if (!empty($decoded[$key])) {
+                $features[] = $label;
+            }
+        }
+
+        return $features;
+    }
+
+    private function ensurePixPayload(array $payment): array
+    {
+        $pixCode = trim((string) ($payment['pix_code'] ?? ''));
+        $pixQrPayload = trim((string) ($payment['pix_qr_payload'] ?? ''));
+        if ($pixCode !== '' && $pixQrPayload !== '') {
+            return [
+                'pix_code' => $pixCode,
+                'pix_qr_payload' => $pixQrPayload,
+            ];
+        }
+
+        return $this->buildPixPayload(
+            (int) ($payment['company_id'] ?? 0),
+            (int) ($payment['subscription_id'] ?? 0),
+            (int) ($payment['reference_year'] ?? 0),
+            (int) ($payment['reference_month'] ?? 0),
+            (float) ($payment['amount'] ?? 0)
+        );
+    }
+
+    private function buildPixPayload(
+        int $companyId,
+        int $subscriptionId,
+        int $referenceYear,
+        int $referenceMonth,
+        float $amount
+    ): array {
+        $pixCode = sprintf(
+            'PIX-C%05d-S%05d-%04d%02d',
+            max(0, $companyId),
+            max(0, $subscriptionId),
+            max(0, $referenceYear),
+            max(0, $referenceMonth)
+        );
+
+        $payload = sprintf(
+            'pix://subscription/%d/%d/%04d/%02d?amount=%s',
+            max(0, $companyId),
+            max(0, $subscriptionId),
+            max(0, $referenceYear),
+            max(0, $referenceMonth),
+            number_format(max(0, $amount), 2, '.', '')
+        );
+
+        return [
+            'pix_code' => $pixCode,
+            'pix_qr_payload' => $payload,
+        ];
+    }
+
+    private function buildDueDate(int $year, int $month, int $day): DateTimeImmutable
+    {
+        $maxDay = cal_days_in_month(CAL_GREGORIAN, $month, $year);
+        $safeDay = max(1, min($day, $maxDay));
+        return new DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $safeDay));
+    }
+
+    private function loadCompanyPayment(int $companyId, int $paymentId): array
+    {
+        if ($companyId <= 0 || $paymentId <= 0) {
+            throw new ValidationException('Cobranca invalida para a empresa autenticada.');
+        }
+
+        $payment = $this->subscriptionPayments->findByIdForCompany($companyId, $paymentId);
+        if ($payment === null) {
+            throw new ValidationException('Cobranca nao encontrada para esta empresa.');
+        }
+
+        return $payment;
+    }
+
+    private function assertPayableCharge(array $payment): void
+    {
+        $status = trim((string) ($payment['status'] ?? ''));
+        if ($status === 'pago') {
+            throw new ValidationException('Esta cobranca ja foi quitada.');
+        }
+
+        if ($status === 'cancelado') {
+            throw new ValidationException('Nao e possivel pagar uma cobranca cancelada.');
+        }
+    }
+
+    private function normalizeCardMethod(mixed $value): string
+    {
+        $method = strtolower(trim((string) $value));
+        if (!in_array($method, self::CARD_METHODS, true)) {
+            throw new ValidationException('Selecione credito ou debito para registrar o pagamento com cartao.');
+        }
+
+        return $method;
+    }
+
+    private function normalizeCardBrand(mixed $value): string
+    {
+        $brand = trim((string) $value);
+        if ($brand === '') {
+            throw new ValidationException('Informe a bandeira do cartao utilizada na cobranca.');
+        }
+
+        if (strlen($brand) > 30) {
+            throw new ValidationException('A bandeira do cartao deve ter no maximo 30 caracteres.');
+        }
+
+        return $brand;
+    }
+
+    private function normalizeCardLastDigits(mixed $value): string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $value) ?? '';
+        if (strlen($digits) !== 4) {
+            throw new ValidationException('Informe apenas os 4 ultimos digitos do cartao.');
+        }
+
+        return $digits;
+    }
+
+    private function normalizeNullableText(mixed $value): ?string
+    {
+        $text = trim((string) ($value ?? ''));
+        return $text !== '' ? $text : null;
+    }
+
+    private function buildChargeReference(string $prefix, int $paymentId, string $method): string
+    {
+        return sprintf('%s-%s-%06d', strtoupper($prefix), strtoupper($method), max(0, $paymentId));
+    }
+
+    private function dateOrToday(string $value): DateTimeImmutable
+    {
+        $normalized = trim($value);
+        if ($normalized === '') {
+            return new DateTimeImmutable('today');
+        }
+
+        $timestamp = strtotime($normalized);
+        if ($timestamp === false) {
+            return new DateTimeImmutable('today');
+        }
+
+        return new DateTimeImmutable(date('Y-m-d', $timestamp));
+    }
+
+    private function emptyPanel(): array
+    {
+        return [
+            'subscription' => null,
+            'open_payments' => [],
+            'payment_history' => [],
+            'features' => [],
+            'summary' => [
+                'total_history' => 0,
+                'open_count' => 0,
+                'overdue_count' => 0,
+                'open_amount' => 0.0,
+                'paid_amount' => 0.0,
+                'next_due_date' => null,
+                'plan_name' => null,
+                'billing_cycle' => null,
+                'preferred_payment_method' => null,
+                'auto_charge_enabled' => false,
+            ],
+        ];
+    }
+}

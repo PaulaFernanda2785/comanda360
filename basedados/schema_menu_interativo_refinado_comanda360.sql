@@ -115,6 +115,10 @@ CREATE TABLE subscriptions (
     starts_at DATETIME NOT NULL COMMENT 'Data inicial da assinatura',
     ends_at DATETIME NULL COMMENT 'Data final prevista',
     canceled_at DATETIME NULL COMMENT 'Data de cancelamento',
+    preferred_payment_method VARCHAR(20) NULL COMMENT 'Metodo preferencial da assinatura',
+    auto_charge_enabled TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Recorrencia automatica por cartao habilitada',
+    card_brand VARCHAR(30) NULL COMMENT 'Bandeira do cartao salvo para recorrencia',
+    card_last_digits VARCHAR(4) NULL COMMENT 'Ultimos 4 digitos do cartao salvo',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Data de criação',
     updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Data da última atualização',
 
@@ -158,6 +162,10 @@ CREATE TABLE subscription_payments (
     paid_at DATETIME NULL COMMENT 'Data/hora do pagamento',
     due_date DATE NOT NULL COMMENT 'Data de vencimento',
     transaction_reference VARCHAR(120) NULL COMMENT 'Código de transação externa',
+    charge_origin VARCHAR(20) NOT NULL DEFAULT 'manual' COMMENT 'Origem da geracao da cobranca',
+    pix_code VARCHAR(180) NULL COMMENT 'Codigo textual PIX vinculado a cobranca',
+    pix_qr_payload TEXT NULL COMMENT 'Payload textual para representacao do QR PIX',
+    payment_details_json JSON NULL COMMENT 'Metadados operacionais do pagamento',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Data de criação',
     updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Data da última atualização',
 
