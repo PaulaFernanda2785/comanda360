@@ -133,6 +133,16 @@ $supportStatusLabels = [
     .dash-page-btn{border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:8px;padding:7px 10px;cursor:pointer;min-width:36px}
     .dash-page-btn.is-active{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
     .dash-pagination-info{font-size:12px;color:#475569}
+    .dash-overview-hero{background:linear-gradient(115deg,#0f172a 0%,#1e293b 55%,#334155 100%);color:#fff;overflow:hidden;position:relative}
+    .dash-overview-hero::before{content:"";position:absolute;top:-38px;right:-60px;width:220px;height:220px;border-radius:999px;background:rgba(56,189,248,.18)}
+    .dash-overview-hero::after{content:"";position:absolute;bottom:-50px;left:-42px;width:200px;height:200px;border-radius:999px;background:rgba(34,197,94,.15)}
+    .dash-overview-hero-body{position:relative;z-index:1}
+    .dash-overview-hero h2{margin:0 0 8px;color:#fff}
+    .dash-overview-hero p{margin:0;color:#cbd5e1;max-width:840px}
+    .dash-overview-filters{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:10px}
+    .dash-overview-filters .field{margin:0}
+    .dash-overview-actions{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:end}
+    .dash-overview-actions .field{margin:0}
     .brand-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
     .brand-preview{display:grid;gap:10px}
     .brand-media{border:1px solid #dbeafe;border-radius:12px;background:#f8fafc;padding:10px}
@@ -218,12 +228,18 @@ $supportStatusLabels = [
         .dash-filter-grid{grid-template-columns:1fr 1fr}
         .dash-kpi-grid{grid-template-columns:repeat(2,minmax(120px,1fr))}
         .dash-bar-row{grid-template-columns:60px 1fr 90px}
+        .dash-overview-filters{grid-template-columns:1fr 1fr}
+        .dash-overview-actions{grid-template-columns:1fr}
+        .dash-section[data-section="overview"] .dash-filter-grid[style*="repeat(4"]{grid-template-columns:1fr 1fr !important}
+        .dash-section[data-section="overview"] div[style*="grid-template-columns:1fr auto auto"]{grid-template-columns:1fr !important}
         .permission-builder-grid,.users-form-grid,.user-manage-grid{grid-template-columns:1fr}
         .users-filter-grid{grid-template-columns:1fr 1fr}
     }
     @media (max-width:620px){
         .dash-filter-grid,.dash-kpi-grid{grid-template-columns:1fr}
         .dash-bar-row{grid-template-columns:52px 1fr 80px}
+        .dash-overview-filters{grid-template-columns:1fr}
+        .dash-section[data-section="overview"] .dash-filter-grid[style*="repeat(4"]{grid-template-columns:1fr !important}
         .users-filter-grid{grid-template-columns:1fr}
     }
 </style>

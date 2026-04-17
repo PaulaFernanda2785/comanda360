@@ -114,15 +114,20 @@ $total = (float) ($group['total_amount'] ?? ($order['total_amount'] ?? 0));
     }
 
     @media print {
+        html,body{margin:0 !important;padding:0 !important;background:#fff !important}
         body{background:#fff}
         .shell{display:block !important}
         .shell > aside{display:none !important}
-        main{padding:0 !important}
+        .shell-main{display:block !important;min-height:auto !important}
+        .shell-header,.shell-footer,.flash{display:none !important}
+        main{padding:0 !important;overflow:visible !important}
+        .card{border:none !important;box-shadow:none !important;background:#fff !important}
         .ticket-screen-only{display:none !important}
+        .ticket-preview-page{display:block}
         .ticket-preview-grid{display:block}
         .ticket-sheet-card{padding:0 !important;box-shadow:none !important;background:#fff !important}
         .ticket-sheet-stage{padding:0 !important;border:0 !important;background:#fff !important}
-        .ticket-paper{border:none;box-shadow:none;width:80mm;max-width:80mm;padding:0}
+        .ticket-paper{border:none;box-shadow:none;width:80mm;max-width:80mm;margin:0 auto;padding:0}
     }
 </style>
 

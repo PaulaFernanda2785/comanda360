@@ -5,6 +5,7 @@ namespace App\Services\Admin;
 
 use App\Exceptions\ValidationException;
 use App\Repositories\KitchenPrintLogRepository;
+use App\Repositories\OrderItemRepository;
 use App\Repositories\OrderRepository;
 use App\Repositories\OrderStatusHistoryRepository;
 
@@ -12,6 +13,7 @@ final class KitchenService
 {
     public function __construct(
         private readonly OrderRepository $orders = new OrderRepository(),
+        private readonly OrderItemRepository $orderItems = new OrderItemRepository(),
         private readonly OrderStatusHistoryRepository $statusHistory = new OrderStatusHistoryRepository(),
         private readonly KitchenPrintLogRepository $printLogs = new KitchenPrintLogRepository(),
         private readonly OrderService $orderService = new OrderService()
@@ -32,6 +34,7 @@ final class KitchenService
         $orderIds = array_map(static fn (array $order): int => (int) $order['id'], $orders);
         $latestHistoryByOrderId = $this->statusHistory->latestByOrderIds($companyId, $orderIds);
         $latestPrintByOrderId = $this->printLogs->latestKitchenTicketByOrderIds($companyId, $orderIds);
+        $itemsByOrderId = $this->itemsByOrderId($companyId, $orderIds);
 
         $grouped = [
             'received' => [],
@@ -49,6 +52,7 @@ final class KitchenService
             $order['latest_status_changed_by'] = $history['changed_by_user_name'] ?? null;
             $order['last_printed_at'] = $print['printed_at'] ?? null;
             $order['last_printed_by'] = $print['printed_by_user_name'] ?? null;
+            $order['items'] = is_array($itemsByOrderId[$orderId] ?? null) ? $itemsByOrderId[$orderId] : [];
 
             $status = (string) ($order['status'] ?? '');
             if (!isset($grouped[$status])) {
@@ -60,6 +64,89 @@ final class KitchenService
         }
 
         return $grouped;
+    }
+
+    private function itemsByOrderId(int $companyId, array $orderIds): array
+    {
+        $orderIds = array_values(array_unique(array_map(static fn (mixed $id): int => (int) $id, $orderIds)));
+        $orderIds = array_values(array_filter($orderIds, static fn (int $id): bool => $id > 0));
+        if ($orderIds === []) {
+            return [];
+        }
+
+        $itemRows = $this->orderItems->activeItemsByOrderIds($companyId, $orderIds);
+        if ($itemRows === []) {
+            return [];
+        }
+
+        $orderItemIds = array_map(static fn (array $item): int => (int) ($item['id'] ?? 0), $itemRows);
+        $additionalRows = $this->orderItems->additionalsByOrderItemIds($companyId, $orderItemIds);
+        $additionalsByOrderItemId = $this->indexAdditionalsByOrderItemId($additionalRows);
+
+        return $this->indexItemsByOrderId($itemRows, $additionalsByOrderItemId);
+    }
+
+    private function indexAdditionalsByOrderItemId(array $rows): array
+    {
+        $indexed = [];
+
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $orderItemId = (int) ($row['order_item_id'] ?? 0);
+            if ($orderItemId <= 0) {
+                continue;
+            }
+
+            if (!isset($indexed[$orderItemId])) {
+                $indexed[$orderItemId] = [];
+            }
+
+            $indexed[$orderItemId][] = [
+                'name' => (string) ($row['additional_name_snapshot'] ?? ''),
+                'quantity' => (int) ($row['quantity'] ?? 0),
+                'unit_price' => (float) ($row['unit_price'] ?? 0),
+                'line_subtotal' => (float) ($row['line_subtotal'] ?? 0),
+            ];
+        }
+
+        return $indexed;
+    }
+
+    private function indexItemsByOrderId(array $rows, array $additionalsByOrderItemId): array
+    {
+        $indexed = [];
+
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $orderId = (int) ($row['order_id'] ?? 0);
+            $orderItemId = (int) ($row['id'] ?? 0);
+            if ($orderId <= 0 || $orderItemId <= 0) {
+                continue;
+            }
+
+            if (!isset($indexed[$orderId])) {
+                $indexed[$orderId] = [];
+            }
+
+            $notes = trim((string) ($row['notes'] ?? ''));
+            $indexed[$orderId][] = [
+                'id' => $orderItemId,
+                'name' => (string) ($row['product_name_snapshot'] ?? ''),
+                'quantity' => (int) ($row['quantity'] ?? 0),
+                'unit_price' => (float) ($row['unit_price'] ?? 0),
+                'line_subtotal' => (float) ($row['line_subtotal'] ?? 0),
+                'notes' => $notes !== '' ? $notes : null,
+                'additionals' => is_array($additionalsByOrderItemId[$orderItemId] ?? null) ? $additionalsByOrderItemId[$orderItemId] : [],
+            ];
+        }
+
+        return $indexed;
     }
 
     public function recentPrints(int $companyId, int $limit = 20): array

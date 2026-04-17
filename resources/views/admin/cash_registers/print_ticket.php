@@ -50,15 +50,20 @@ $difference = $cashRegister['difference_amount'] !== null ? (float) $cashRegiste
     @page { size: 80mm auto; margin: 4mm; }
     @media (max-width:960px){.cash-ticket-layout{grid-template-columns:1fr}.cash-ticket-summary-grid{grid-template-columns:1fr}}
     @media print {
+        html,body{margin:0 !important;padding:0 !important;background:#fff !important}
         body{background:#fff}
         .shell{display:block !important}
         .shell > aside{display:none !important}
-        main{padding:0 !important}
+        .shell-main{display:block !important;min-height:auto !important}
+        .shell-header,.shell-footer,.flash{display:none !important}
+        main{padding:0 !important;overflow:visible !important}
+        .card{border:none !important;box-shadow:none !important;background:#fff !important}
         .cash-ticket-screen-only{display:none !important}
+        .cash-ticket-page{display:block}
         .cash-ticket-layout{display:block}
         .cash-ticket-sheet-card{padding:0 !important;box-shadow:none !important;background:#fff !important}
         .cash-ticket-sheet-stage{padding:0 !important;border:0 !important;background:#fff !important}
-        .cash-paper{border:none;box-shadow:none;width:80mm;max-width:80mm;padding:0}
+        .cash-paper{border:none;box-shadow:none;width:80mm;max-width:80mm;margin:0 auto;padding:0}
     }
 </style>
 

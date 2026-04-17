@@ -24,14 +24,14 @@ $canCreateOrder = $totalProducts > 0;
     .kpi-item{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px}
     .kpi-item strong{display:block;font-size:24px;line-height:1.1}
     .kpi-item span{color:#64748b;font-size:12px}
-    .order-form-layout{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(300px,.7fr);gap:16px}
+    .order-form-layout{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(280px,.7fr);gap:16px}
     .order-form-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px}
     .steps{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
     .step-pill{padding:4px 10px;border-radius:999px;background:#e2e8f0;color:#334155;font-size:12px}
     .warning-strip{border:1px solid #fcd34d;background:#fffbeb;border-radius:10px;padding:10px;color:#92400e}
     .items-header{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
-    .items-table-wrap{border:1px solid #e2e8f0;border-radius:12px;overflow:auto;background:#f8fafc}
-    .items-table{width:100%;border-collapse:separate;border-spacing:0;margin:0;min-width:760px}
+    .items-table-wrap{border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#f8fafc}
+    .items-table{width:100%;border-collapse:separate;border-spacing:0;margin:0;table-layout:fixed}
     .items-table th{background:#e2e8f0;color:#334155;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
     .items-table th,.items-table td{border-bottom:1px solid #e2e8f0;padding:10px;vertical-align:top}
     .items-table tbody tr:last-child td{border-bottom:0}
@@ -76,11 +76,33 @@ $canCreateOrder = $totalProducts > 0;
     @media (max-width:1080px){
         .kpi-grid{grid-template-columns:repeat(3,minmax(120px,1fr))}
         .order-form-layout{grid-template-columns:1fr}
-        .items-table{min-width:680px}
         .channel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
         .delivery-fields-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
     }
-    @media (max-width:760px){.delivery-fields-grid{grid-template-columns:1fr}}
+    @media (max-width:760px){
+        .kpi-grid{grid-template-columns:repeat(2,minmax(120px,1fr))}
+        .channel-grid,.delivery-fields-grid{grid-template-columns:1fr}
+    }
+    @media (max-width:860px){
+        .items-table-wrap{border:none;background:transparent}
+        .items-table,
+        .items-table tbody,
+        .items-table tr,
+        .items-table td{display:block;width:100%}
+        .items-table{display:grid;gap:10px}
+        .items-table thead{display:none}
+        .items-table tbody{display:grid;gap:10px}
+        .items-table tbody tr{border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;padding:12px}
+        .items-table th,
+        .items-table td{border:0;padding:0}
+        .items-table td + td{margin-top:10px}
+        .items-table td::before{content:attr(data-label);display:block;margin-bottom:6px;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+        .items-table td[data-cell="line-total"] .line-total{display:inline-flex}
+        .items-table td[data-cell="action"] .btn{width:100%}
+    }
+    @media (max-width:560px){
+        .kpi-grid{grid-template-columns:1fr}
+    }
 </style>
 
 <div class="order-create-page">
@@ -241,12 +263,12 @@ $canCreateOrder = $totalProducts > 0;
                     <table class="items-table" id="itemsTable">
                         <thead>
                             <tr>
-                                <th style="width:24%">Produto</th>
-                                <th style="width:9%">Qtd</th>
-                                <th style="width:40%">Adicionais</th>
-                                <th style="width:15%">Observacao</th>
-                                <th style="width:8%">Total linha</th>
-                                <th style="width:4%">Acao</th>
+                                <th>Produto</th>
+                                <th>Qtd</th>
+                                <th>Adicionais</th>
+                                <th>Observacao</th>
+                                <th>Total linha</th>
+                                <th>Acao</th>
                             </tr>
                         </thead>
                         <tbody id="itemsBody"></tbody>
@@ -888,7 +910,7 @@ $canCreateOrder = $totalProducts > 0;
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>
+            <td data-label="Produto" data-cell="product">
                 <div class="product-picker">
                     <input class="product-search-input" type="text" placeholder="Digite nome/categoria do produto" autocomplete="off">
                     <input name="product_id[]" type="hidden" value="">
@@ -896,22 +918,22 @@ $canCreateOrder = $totalProducts > 0;
                     <div class="product-suggestions" hidden></div>
                 </div>
             </td>
-            <td>
+            <td data-label="Quantidade" data-cell="quantity">
                 <input name="quantity[]" type="number" min="1" step="1" value="1" required>
             </td>
-            <td>
+            <td data-label="Adicionais" data-cell="additionals">
                 <div class="additionals-container">
                     <span class="additionals-placeholder">Selecione um produto para ver os adicionais.</span>
                 </div>
                 <input type="hidden" name="additional_item_ids[]" value="">
             </td>
-            <td>
+            <td data-label="Observacao" data-cell="notes">
                 <textarea name="item_notes[]" class="notes-textarea compact" rows="2" placeholder="Opcional"></textarea>
             </td>
-            <td>
+            <td data-label="Total da linha" data-cell="line-total">
                 <span class="line-total item-line-total">R$ 0,00</span>
             </td>
-            <td>
+            <td data-label="Acao" data-cell="action">
                 <button class="btn secondary remove-item" type="button">Remover</button>
             </td>
         `;

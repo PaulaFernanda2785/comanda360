@@ -101,13 +101,16 @@ $routeMatches = static function (string $path, array $routes): bool {
         }
 
         *{box-sizing:border-box}
+        html{max-width:100%;overflow-x:hidden}
         body{
             font-family:"Segoe UI Variable","Trebuchet MS","Tahoma",sans-serif;
             margin:0;
             background:radial-gradient(circle at 8% 4%, #eff6ff 0%, #e9eef7 45%, #e2e8f0 100%);
-            color:var(--text)
+            color:var(--text);
+            max-width:100%;
+            overflow-x:hidden;
         }
-        .shell{display:grid;grid-template-columns:304px minmax(0,1fr);min-height:100vh}
+        .shell{display:grid;grid-template-columns:304px minmax(0,1fr);min-height:100vh;width:100%;max-width:100%}
 
         .sidebar{
             background:linear-gradient(198deg, var(--theme-secondary) 0%, #020617 100%);
@@ -216,7 +219,7 @@ $routeMatches = static function (string $path, array $routes): bool {
         .logout-button .nav-link-copy small{color:#fca5a5}
         .logout-button .nav-link-arrow{color:#fecaca}
 
-        .shell-main{display:grid;grid-template-rows:auto 1fr auto;min-height:100vh}
+        .shell-main{display:grid;grid-template-rows:auto 1fr auto;min-height:100vh;min-width:0}
         .shell-header{
             padding:14px 22px;
             border-bottom:1px solid var(--line);
@@ -227,9 +230,11 @@ $routeMatches = static function (string $path, array $routes): bool {
             display:flex;
             justify-content:space-between;
             align-items:center;
+            flex-wrap:wrap;
             gap:14px;
             min-height:108px;
         }
+        .shell-header > *{min-width:0}
         .shell-header.with-banner{
             background:
                 linear-gradient(110deg, rgba(15,23,42,.84) 0%, rgba(15,23,42,.58) 48%, rgba(15,23,42,.7) 100%),
@@ -245,12 +250,13 @@ $routeMatches = static function (string $path, array $routes): bool {
             padding:10px 12px;
             text-align:right;
             min-width:220px;
+            max-width:100%;
             backdrop-filter:blur(2px);
         }
         .shell-user-chip strong{display:block;font-size:14px}
         .shell-user-chip span{font-size:12px;color:#cbd5e1}
 
-        main{padding:22px;overflow:auto}
+        main{padding:22px;overflow-y:auto;overflow-x:hidden;min-width:0}
         .shell-footer{
             padding:10px 22px;
             background:
@@ -259,23 +265,26 @@ $routeMatches = static function (string $path, array $routes): bool {
             color:#cbd5e1;
             font-size:12px;
             border-top:1px solid rgba(148,163,184,.25);
+            overflow-wrap:anywhere;
         }
 
-        .card{background:var(--surface);border-radius:12px;padding:24px;box-shadow:0 10px 28px rgba(15,23,42,.08);border:1px solid rgba(226,232,240,.9)}
+        .card{background:var(--surface);border-radius:12px;padding:24px;box-shadow:0 10px 28px rgba(15,23,42,.08);border:1px solid rgba(226,232,240,.9);min-width:0;max-width:100%}
         .flash{padding:12px 14px;border-radius:8px;margin-bottom:16px}
         .flash.success{background:#dcfce7;color:#166534}
         .flash.error{background:#fee2e2;color:#991b1b}
-        table{width:100%;border-collapse:collapse;margin-top:16px}
-        th,td{padding:12px;border-bottom:1px solid #e5e7eb;text-align:left}
-        .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:16px}
+        table{width:100%;max-width:100%;border-collapse:collapse;margin-top:16px;table-layout:fixed}
+        th,td{padding:12px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top;overflow-wrap:anywhere;word-break:break-word}
+        .topbar{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;margin-bottom:16px;gap:16px}
+        .topbar > *{min-width:0}
 
-        .btn{display:inline-block;padding:10px 14px;background:var(--theme-primary);color:#fff;text-decoration:none;border-radius:8px;border:0;cursor:pointer}
+        .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;background:var(--theme-primary);color:#fff;text-decoration:none;border-radius:8px;border:0;cursor:pointer;max-width:100%;text-align:center;white-space:normal;word-break:break-word}
         .btn.secondary{background:#475569}
-        .grid{display:grid;gap:16px}
+        .grid{display:grid;gap:16px;min-width:0}
         .grid.two{grid-template-columns:1fr 1fr}
-        input, select, textarea{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;background:#fff}
+        input, select, textarea{width:100%;max-width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;box-sizing:border-box;background:#fff}
         label{display:block;font-weight:bold;margin-bottom:6px}
-        .field{margin-bottom:14px}
+        .field{margin-bottom:14px;min-width:0}
+        img,svg,canvas,video,iframe{max-width:100%}
 
         .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#e2e8f0;color:#334155;font-size:12px}
         .badge.status-default{background:#e2e8f0;color:#334155}
@@ -322,6 +331,11 @@ $routeMatches = static function (string $path, array $routes): bool {
             .shell-user-chip{width:100%;text-align:left;min-width:0}
             main{padding:16px}
             .shell-footer{padding:10px 16px}
+        }
+        @media (max-width:640px){
+            .grid.two{grid-template-columns:1fr}
+            .card{padding:18px}
+            .nav-link-copy strong{white-space:normal}
         }
     </style>
 </head>

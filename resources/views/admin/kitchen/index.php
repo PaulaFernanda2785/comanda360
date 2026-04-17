@@ -140,6 +140,17 @@ $elapsedSince = static function (?string $value): string {
     .ticket-flow-badge.preparing{background:#fef3c7;color:#b45309}
     .ticket-flow-badge.ready{background:#dcfce7;color:#15803d}
 
+    .ticket-items{display:grid;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:12px;background:rgba(248,250,252,.9)}
+    .ticket-items-title{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+    .ticket-item{display:grid;gap:4px;padding:9px 10px;border-radius:10px;background:#fff;border:1px solid #e5e7eb}
+    .ticket-item-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+    .ticket-item-head strong{font-size:13px;color:#0f172a;line-height:1.35;word-break:break-word}
+    .ticket-item-price{font-size:12px;font-weight:700;color:#0f172a;white-space:nowrap}
+    .ticket-item-note{font-size:12px;color:#92400e;background:#fffbeb;border:1px dashed #fcd34d;border-radius:8px;padding:6px 8px}
+    .ticket-item-additionals{display:grid;gap:5px}
+    .ticket-item-additional{font-size:12px;color:#334155;padding-left:10px;position:relative;word-break:break-word}
+    .ticket-item-additional::before{content:'+';position:absolute;left:0;top:0;color:#15803d;font-weight:700}
+
     .ticket-actions{display:grid;gap:8px}
     .ticket-actions form{display:grid;gap:8px}
     .ticket-actions .btn{width:100%;text-align:center}
@@ -269,6 +280,7 @@ $elapsedSince = static function (?string $value): string {
                             $changedAtLabel = $formatDateTime((string) ($order['latest_status_changed_at'] ?? ''));
                             $lastPrintedAtLabel = $formatDateTime((string) ($order['last_printed_at'] ?? ''));
                             $lastPrintedBy = trim((string) ($order['last_printed_by'] ?? ''));
+                            $orderItems = is_array($order['items'] ?? null) ? $order['items'] : [];
 
                             $showPaidWaiting = (($order['payment_status'] ?? '') === 'paid')
                                 && in_array($status, ['received', 'preparing'], true);
@@ -299,6 +311,39 @@ $elapsedSince = static function (?string $value): string {
                                         <span>Ultima mudanca</span>
                                         <strong><?= htmlspecialchars($changedAtLabel) ?></strong>
                                     </div>
+                                </div>
+
+                                <div class="ticket-items">
+                                    <div class="ticket-items-title">Pedido e adicionais</div>
+                                    <?php if (empty($orderItems)): ?>
+                                        <div class="ticket-note">Itens detalhados indisponiveis para este pedido.</div>
+                                    <?php else: ?>
+                                        <?php foreach ($orderItems as $item): ?>
+                                            <?php
+                                            $itemAdditionals = is_array($item['additionals'] ?? null) ? $item['additionals'] : [];
+                                            $itemNotes = trim((string) ($item['notes'] ?? ''));
+                                            ?>
+                                            <div class="ticket-item">
+                                                <div class="ticket-item-head">
+                                                    <strong><?= (int) ($item['quantity'] ?? 0) ?>x <?= htmlspecialchars((string) ($item['name'] ?? 'Produto')) ?></strong>
+                                                    <span class="ticket-item-price">R$ <?= number_format((float) ($item['line_subtotal'] ?? 0), 2, ',', '.') ?></span>
+                                                </div>
+                                                <?php if ($itemNotes !== ''): ?>
+                                                    <div class="ticket-item-note">Obs.: <?= htmlspecialchars($itemNotes) ?></div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($itemAdditionals)): ?>
+                                                    <div class="ticket-item-additionals">
+                                                        <?php foreach ($itemAdditionals as $additional): ?>
+                                                            <div class="ticket-item-additional">
+                                                                <?= (int) ($additional['quantity'] ?? 0) ?>x <?= htmlspecialchars((string) ($additional['name'] ?? 'Adicional')) ?>
+                                                                (R$ <?= number_format((float) ($additional['line_subtotal'] ?? 0), 2, ',', '.') ?>)
+                                                            </div>
+                                                        <?php endforeach; ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </div>
 
                                 <?php if ($showPaidWaiting): ?>

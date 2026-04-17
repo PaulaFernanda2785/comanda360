@@ -100,6 +100,13 @@ foreach ($commandOperational as $row) {
     .command-edit-footer{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
     .command-edit-note{font-size:12px;color:#64748b;line-height:1.4;max-width:620px}
     .command-strip{display:flex;gap:6px;flex-wrap:wrap}
+    .command-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:start}
+    .command-stat{min-width:0;border:1px solid #e2e8f0;border-radius:10px;padding:9px 10px;background:#f8fafc;display:grid;gap:4px;align-content:start}
+    .command-stat strong{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;line-height:1.1}
+    .command-stat span{font-size:15px;font-weight:700;color:#0f172a;line-height:1.15;word-break:break-word}
+    .command-stat.is-orders{background:#eff6ff;border-color:#bfdbfe}
+    .command-stat.is-items{background:#f8fafc}
+    .command-stat.is-total{background:#f0fdf4;border-color:#bbf7d0}
     .command-strip-title{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.04em}
     .command-border-hint{font-size:12px;color:#64748b}
     .legend-panel{display:grid;gap:10px}
@@ -120,6 +127,7 @@ foreach ($commandOperational as $row) {
         .kpi-grid{grid-template-columns:repeat(2,minmax(120px,1fr))}
         .commands-grid{grid-template-columns:1fr}
         .command-edit-grid{grid-template-columns:1fr}
+        .command-stats{grid-template-columns:1fr}
     }
 </style>
 
@@ -291,10 +299,19 @@ foreach ($commandOperational as $row) {
                         </div>
                     </div>
 
-                    <div class="command-strip">
-                        <span class="badge status-received">Pedidos ativos: <?= $ordersCount ?></span>
-                        <span class="badge status-default">Itens: <?= $itemsTotal ?></span>
-                        <span class="badge status-paid">R$ <?= number_format($amountTotal, 2, ',', '.') ?></span>
+                    <div class="command-stats">
+                        <div class="command-stat is-orders">
+                            <strong>Pedidos ativos</strong>
+                            <span><?= $ordersCount ?></span>
+                        </div>
+                        <div class="command-stat is-items">
+                            <strong>Itens</strong>
+                            <span><?= $itemsTotal ?></span>
+                        </div>
+                        <div class="command-stat is-total">
+                            <strong>Total da comanda</strong>
+                            <span>R$ <?= number_format($amountTotal, 2, ',', '.') ?></span>
+                        </div>
                     </div>
 
                     <div>
