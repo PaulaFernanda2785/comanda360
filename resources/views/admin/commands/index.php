@@ -63,8 +63,8 @@ foreach ($commandOperational as $row) {
     .kpi-item span{color:#64748b;font-size:12px}
     .search-row{display:grid;grid-template-columns:1fr auto;gap:8px}
     .search-info{color:#64748b;font-size:12px;margin-top:6px}
-    .commands-grid{display:grid;grid-template-columns:repeat(3,minmax(230px,1fr));gap:12px}
-    .command-card{background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:12px;display:grid;gap:10px}
+    .commands-grid{display:grid;grid-template-columns:repeat(3,minmax(230px,1fr));gap:12px;align-items:start}
+    .command-card{background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:12px;display:grid;gap:10px;align-content:start;align-self:start}
     .command-card.status-op-pending{border-color:#f59e0b}
     .command-card.status-op-received{border-color:#3b82f6}
     .command-card.status-op-preparing{border-color:#6366f1}
@@ -86,6 +86,19 @@ foreach ($commandOperational as $row) {
     .command-notes{border:1px solid #dbeafe;background:#eff6ff;border-radius:10px;padding:9px}
     .command-notes strong{display:block;font-size:11px;color:#1e3a8a;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
     .command-notes p{margin:0;color:#334155;font-size:13px;line-height:1.35}
+    .command-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .command-actions .btn{padding:8px 12px}
+    .command-edit-panel{border-top:1px dashed #cbd5e1;padding-top:10px}
+    .command-edit-panel summary{cursor:pointer;font-weight:700;color:#0f172a;list-style:none}
+    .command-edit-panel summary::-webkit-details-marker{display:none}
+    .command-edit-panel summary::after{content:'Expandir edicao';font-size:11px;color:#64748b;margin-left:8px;font-weight:600}
+    .command-edit-panel[open] summary::after{content:'Fechar edicao'}
+    .command-edit-form{display:grid;gap:10px;margin-top:10px}
+    .command-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .command-edit-grid .field{margin:0}
+    .command-edit-form .field{margin:0}
+    .command-edit-footer{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+    .command-edit-note{font-size:12px;color:#64748b;line-height:1.4;max-width:620px}
     .command-strip{display:flex;gap:6px;flex-wrap:wrap}
     .command-strip-title{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.04em}
     .command-border-hint{font-size:12px;color:#64748b}
@@ -106,6 +119,7 @@ foreach ($commandOperational as $row) {
     @media (max-width:680px){
         .kpi-grid{grid-template-columns:repeat(2,minmax(120px,1fr))}
         .commands-grid{grid-template-columns:1fr}
+        .command-edit-grid{grid-template-columns:1fr}
     }
 </style>
 
@@ -202,6 +216,8 @@ foreach ($commandOperational as $row) {
                 $amountTotal = (float) ($operational['amount_total'] ?? 0);
                 $statusCounts = is_array($operational['status_counts'] ?? null) ? $operational['status_counts'] : [];
                 $paymentCounts = is_array($operational['payment_status_counts'] ?? null) ? $operational['payment_status_counts'] : [];
+                $pendingPaymentTotal = (int) ($operational['pending_payment_total'] ?? 0);
+                $canCancelCommand = !empty($operational['can_cancel_command']);
 
                 $borderStatusClass = 'status-op-table-' . $tableStatusValue;
                 $borderStatusLabel = 'Status vigente: Sem pedidos - Mesa ' . $tableStatusLabel;
@@ -301,7 +317,7 @@ foreach ($commandOperational as $row) {
                     <div>
                         <div class="command-strip-title">Status de pagamento</div>
                         <div class="command-strip" style="margin-top:4px">
-                            <?php if ($ordersCount <= 0): ?>
+                            <?php if ($pendingPaymentTotal <= 0): ?>
                                 <span class="badge status-default">Sem pagamentos pendentes</span>
                             <?php else: ?>
                                 <?php foreach ($paymentCounts as $paymentStatusKey => $count): ?>
@@ -321,6 +337,45 @@ foreach ($commandOperational as $row) {
                             <p><?= htmlspecialchars($notes) ?></p>
                         </div>
                     <?php endif; ?>
+
+                    <div class="command-actions">
+                        <details class="command-edit-panel">
+                            <summary>Editar comanda</summary>
+                            <form class="command-edit-form" method="POST" action="<?= htmlspecialchars(base_url('/admin/commands/update')) ?>">
+                                <?= form_security_fields('commands.update.' . $commandId) ?>
+                                <input type="hidden" name="command_id" value="<?= $commandId ?>">
+
+                                <div class="command-edit-grid">
+                                    <div class="field">
+                                        <label for="command_customer_<?= $commandId ?>">Nome do cliente</label>
+                                        <input id="command_customer_<?= $commandId ?>" name="customer_name" type="text" required value="<?= htmlspecialchars($customerName !== '' ? $customerName : '') ?>" placeholder="Ex.: Joao da Silva">
+                                    </div>
+                                    <div class="field">
+                                        <label for="command_opened_at_<?= $commandId ?>">Abertura</label>
+                                        <input id="command_opened_at_<?= $commandId ?>" type="text" value="<?= htmlspecialchars($openedAt) ?>" disabled>
+                                    </div>
+                                </div>
+
+                                <div class="field">
+                                    <label for="command_notes_<?= $commandId ?>">Observacoes</label>
+                                    <textarea id="command_notes_<?= $commandId ?>" name="notes" rows="3" placeholder="Observacoes da comanda"><?= htmlspecialchars($notes) ?></textarea>
+                                </div>
+
+                                <div class="command-edit-footer">
+                                    <p class="command-edit-note">A edicao permanece disponivel em qualquer status da comanda aberta. O cancelamento so aparece quando a comanda estiver sem pedidos ativos e sem pagamentos pendentes.</p>
+                                    <button class="btn secondary" type="submit">Salvar edicao</button>
+                                </div>
+                            </form>
+                        </details>
+
+                        <?php if ($canCancelCommand): ?>
+                            <form method="POST" action="<?= htmlspecialchars(base_url('/admin/commands/cancel')) ?>" onsubmit="return confirm('Cancelar esta comanda agora?');">
+                                <?= form_security_fields('commands.cancel.' . $commandId) ?>
+                                <input type="hidden" name="command_id" value="<?= $commandId ?>">
+                                <button class="btn secondary" type="submit">Cancelar comanda</button>
+                            </form>
+                        <?php endif; ?>
+                    </div>
                 </article>
             <?php endforeach; ?>
         <?php endif; ?>

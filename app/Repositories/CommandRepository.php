@@ -56,6 +56,26 @@ final class CommandRepository extends BaseRepository
         return (int) $this->db()->lastInsertId();
     }
 
+    public function updateOpenCommand(int $companyId, int $commandId, array $data): void
+    {
+        $stmt = $this->db()->prepare("
+            UPDATE commands
+            SET customer_name = :customer_name,
+                notes = :notes,
+                updated_at = NOW()
+            WHERE company_id = :company_id
+              AND id = :id
+              AND status = 'aberta'
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'customer_name' => $data['customer_name'],
+            'notes' => $data['notes'],
+            'company_id' => $companyId,
+            'id' => $commandId,
+        ]);
+    }
+
     public function findOpenByTable(int $companyId, int $tableId): ?array
     {
         $stmt = $this->db()->prepare("

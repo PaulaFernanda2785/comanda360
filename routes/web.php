@@ -85,6 +85,8 @@ $router->get('/admin/tables/modal-content', [TableController::class, 'modalConte
 $router->get('/admin/commands', [CommandController::class, 'index'], $companyAccess('commands.view'));
 $router->get('/admin/commands/create', [CommandController::class, 'create'], $companyAccess('commands.create'));
 $router->post('/admin/commands/store', [CommandController::class, 'store'], $companyAccess('commands.create'));
+$router->post('/admin/commands/update', [CommandController::class, 'update'], $companyAccess('commands.edit'));
+$router->post('/admin/commands/cancel', [CommandController::class, 'cancel'], $companyAccess('commands.edit'));
 
 $router->get('/admin/orders', [OrderController::class, 'index'], $companyAccess('orders.view'));
 $router->get('/admin/orders/create', [OrderController::class, 'create'], $companyAccess('orders.create'));

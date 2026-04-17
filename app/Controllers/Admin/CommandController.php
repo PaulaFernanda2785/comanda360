@@ -61,6 +61,34 @@ final class CommandController extends Controller
         }
     }
 
+    public function update(Request $request): Response
+    {
+        $user = Auth::user();
+        $companyId = (int) ($user['company_id'] ?? 0);
+        $commandId = (int) ($request->input('command_id', 0));
+
+        try {
+            $this->service->update($companyId, $commandId, $request->all());
+            return $this->backWithSuccess('Comanda atualizada com sucesso.', '/admin/commands');
+        } catch (ValidationException $e) {
+            return $this->backWithError($e->getMessage(), '/admin/commands');
+        }
+    }
+
+    public function cancel(Request $request): Response
+    {
+        $user = Auth::user();
+        $companyId = (int) ($user['company_id'] ?? 0);
+        $commandId = (int) ($request->input('command_id', 0));
+
+        try {
+            $this->service->cancel($companyId, $commandId);
+            return $this->backWithSuccess('Comanda cancelada com sucesso.', '/admin/commands');
+        } catch (ValidationException $e) {
+            return $this->backWithError($e->getMessage(), '/admin/commands');
+        }
+    }
+
     private function buildCommandOperationalMap(int $companyId, array $commands): array
     {
         $map = [];
@@ -90,6 +118,8 @@ final class CommandController extends Controller
                     'partial' => 0,
                     'paid' => 0,
                 ],
+                'pending_payment_total' => 0,
+                'can_cancel_command' => false,
             ];
         }
 
@@ -108,6 +138,14 @@ final class CommandController extends Controller
                 continue;
             }
 
+            $paymentStatus = (string) ($order['payment_status'] ?? '');
+            if ((string) ($order['status'] ?? '') !== 'canceled' && isset($map[$commandId]['payment_status_counts'][$paymentStatus])) {
+                $map[$commandId]['payment_status_counts'][$paymentStatus]++;
+                if (in_array($paymentStatus, ['pending', 'partial'], true)) {
+                    $map[$commandId]['pending_payment_total']++;
+                }
+            }
+
             $orderStatus = (string) ($order['status'] ?? '');
             if (in_array($orderStatus, ['finished', 'canceled'], true)) {
                 continue;
@@ -124,10 +162,12 @@ final class CommandController extends Controller
                 $map[$commandId]['status_counts'][$orderStatus]++;
             }
 
-            $paymentStatus = (string) ($order['payment_status'] ?? '');
-            if (isset($map[$commandId]['payment_status_counts'][$paymentStatus])) {
-                $map[$commandId]['payment_status_counts'][$paymentStatus]++;
-            }
+        }
+
+        foreach ($map as $commandId => $operational) {
+            $ordersCount = (int) ($operational['orders_count'] ?? 0);
+            $pendingPaymentTotal = (int) ($operational['pending_payment_total'] ?? 0);
+            $map[$commandId]['can_cancel_command'] = $ordersCount <= 0 && $pendingPaymentTotal <= 0;
         }
 
         return $map;
