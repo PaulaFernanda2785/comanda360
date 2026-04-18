@@ -22,7 +22,7 @@ final class SubscriptionController extends Controller
         return $this->view('saas/subscriptions/index', [
             'title' => 'Assinaturas',
             'user' => $user,
-            'subscriptions' => $this->service->list(),
+            'subscriptionPanel' => $this->service->panel($request->query),
         ], 'layouts/saas');
     }
 }

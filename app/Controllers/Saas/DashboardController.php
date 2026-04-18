@@ -22,7 +22,7 @@ final class DashboardController extends Controller
         return $this->view('saas/dashboard/index', [
             'title' => 'Dashboard SaaS',
             'user' => $user,
-            'summary' => $this->service->summary(),
+            'dashboardPanel' => $this->service->panel($request->query),
         ], 'layouts/saas');
     }
 }
