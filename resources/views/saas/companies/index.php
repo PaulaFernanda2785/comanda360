@@ -521,6 +521,10 @@ $dateInputValue = static function (mixed $value): string {
                                 <input id="new_company_whatsapp" name="whatsapp" type="text">
                             </div>
                             <div class="field">
+                                <label for="new_company_initial_admin_password">Senha inicial do administrador</label>
+                                <input id="new_company_initial_admin_password" name="initial_admin_password" type="password" minlength="6" required>
+                            </div>
+                            <div class="field">
                                 <label for="new_company_plan">Plano</label>
                                 <select id="new_company_plan" name="plan_id" required>
                                     <option value="">Selecione</option>
@@ -576,7 +580,7 @@ $dateInputValue = static function (mixed $value): string {
                         </div>
 
                         <div class="saas-company-form-footer" style="margin-top:12px">
-                            <p class="saas-company-form-note">O cadastro manual cria a empresa e o registro comercial minimo da assinatura. A data de vencimento da próxima cobrança vira a referência do alerta de atraso e do bloqueio após 3 dias corridos de carência.</p>
+                            <p class="saas-company-form-note">O cadastro manual cria a empresa, o registro comercial minimo da assinatura e o usuario administrador principal da empresa. O login inicial desse administrador sera o e-mail principal da empresa com a senha informada acima.</p>
                             <button class="btn" type="submit">Cadastrar empresa</button>
                         </div>
                     </form>

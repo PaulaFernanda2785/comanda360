@@ -6,6 +6,7 @@ namespace App\Services\Saas;
 use App\Services\Admin\SubscriptionPortalService;
 use App\Exceptions\ValidationException;
 use App\Repositories\CompanyRepository;
+use App\Repositories\DashboardRepository;
 use App\Repositories\PlanRepository;
 use DateInterval;
 use DateTimeImmutable;
@@ -13,6 +14,7 @@ use DateTimeImmutable;
 final class CompanyService
 {
     private const COMPANY_LIST_PER_PAGE = 10;
+    private const INITIAL_ADMIN_ROLE_SLUG = 'admin_establishment';
 
     private const ALLOWED_COMPANY_STATUS = [
         'ativa',
@@ -36,6 +38,7 @@ final class CompanyService
 
     public function __construct(
         private readonly CompanyRepository $companies = new CompanyRepository(),
+        private readonly DashboardRepository $dashboard = new DashboardRepository(),
         private readonly PlanRepository $plans = new PlanRepository(),
         private readonly SubscriptionPortalService $subscriptionPortal = new SubscriptionPortalService()
     ) {}
@@ -96,6 +99,8 @@ final class CompanyService
                 $this->companies->createSubscription($subscription);
             }
 
+            $this->createInitialAdminUser($companyId, $payload['initial_admin_user'] ?? []);
+
             return $companyId;
         });
 
@@ -118,7 +123,7 @@ final class CompanyService
         $currentSubscription = $this->companies->findCurrentSubscriptionByCompanyId($companyId);
         $payload = $this->normalizePayload($input, $existing);
 
-        $this->companies->transaction(function () use ($companyId, $payload, $currentSubscription): void {
+        $this->companies->transaction(function () use ($companyId, $payload, $currentSubscription, $existing): void {
             $this->companies->updateCompany($companyId, $payload['company']);
 
             $subscription = $payload['subscription'];
@@ -128,11 +133,13 @@ final class CompanyService
 
             if ($currentSubscription !== null) {
                 $this->companies->updateSubscription((int) $currentSubscription['id'], $subscription);
+                $this->syncInitialAdminUser($companyId, $existing, $payload['company']);
                 return;
             }
 
             $subscription['company_id'] = $companyId;
             $this->companies->createSubscription($subscription);
+            $this->syncInitialAdminUser($companyId, $existing, $payload['company']);
         });
 
         $this->syncBillingSchedule($companyId, $payload['next_charge_due_date']);
@@ -241,6 +248,22 @@ final class CompanyService
             throw new ValidationException('Informe um e-mail valido para a empresa.');
         }
 
+        $initialAdminPassword = trim((string) ($input['initial_admin_password'] ?? ''));
+        if ($existing === null) {
+            if ($initialAdminPassword === '') {
+                throw new ValidationException('Informe a senha inicial do administrador da empresa.');
+            }
+
+            if (strlen($initialAdminPassword) < 6) {
+                throw new ValidationException('A senha inicial do administrador deve ter no minimo 6 caracteres.');
+            }
+
+            $existingByEmail = $this->dashboard->findUserByEmail($email);
+            if ($existingByEmail !== null && trim((string) ($existingByEmail['deleted_at'] ?? '')) === '') {
+                throw new ValidationException('Ja existe usuario cadastrado com o e-mail principal informado para a empresa.');
+            }
+        }
+
         $planId = (int) ($input['plan_id'] ?? ($existing['plan_id'] ?? 0));
         if ($planId <= 0 || !isset($plansById[$planId])) {
             throw new ValidationException('Selecione um plano valido para a empresa.');
@@ -346,6 +369,13 @@ final class CompanyService
                 'canceled_at' => $companySubscriptionStatus === 'cancelada' ? ($subscriptionEndsAt ?? date('Y-m-d H:i:s')) : null,
             ],
             'next_charge_due_date' => $nextChargeDueDate,
+            'initial_admin_user' => $existing === null ? [
+                'name' => $name,
+                'email' => $email,
+                'phone' => $phone ?: $whatsapp,
+                'password_hash' => password_hash($initialAdminPassword, PASSWORD_DEFAULT),
+                'status' => 'ativo',
+            ] : null,
         ];
     }
 
@@ -443,6 +473,92 @@ final class CompanyService
             'inadimplente', 'suspensa' => 'vencida',
             default => 'trial',
         };
+    }
+
+    private function createInitialAdminUser(int $companyId, array $data): void
+    {
+        if ($companyId <= 0) {
+            throw new ValidationException('Empresa invalida para criacao do usuario administrador.');
+        }
+
+        $email = strtolower(trim((string) ($data['email'] ?? '')));
+        $passwordHash = trim((string) ($data['password_hash'] ?? ''));
+        if ($email === '' || $passwordHash === '') {
+            throw new ValidationException('Dados incompletos para criar o usuario administrador da empresa.');
+        }
+
+        $role = $this->dashboard->findCompanyRoleBySlug($companyId, self::INITIAL_ADMIN_ROLE_SLUG);
+        if ($role === null) {
+            throw new ValidationException('Perfil administrativo padrao da empresa nao foi encontrado.');
+        }
+
+        $existingByEmail = $this->dashboard->findUserByEmail($email);
+        if ($existingByEmail !== null && trim((string) ($existingByEmail['deleted_at'] ?? '')) === '') {
+            throw new ValidationException('Ja existe usuario cadastrado com o e-mail principal informado para a empresa.');
+        }
+
+        $this->dashboard->createCompanyUser([
+            'company_id' => $companyId,
+            'role_id' => (int) ($role['id'] ?? 0),
+            'name' => trim((string) ($data['name'] ?? 'Empresa')),
+            'email' => $email,
+            'phone' => trim((string) ($data['phone'] ?? '')) ?: null,
+            'password_hash' => $passwordHash,
+            'status' => 'ativo',
+        ]);
+    }
+
+    private function syncInitialAdminUser(int $companyId, array $existingCompany, array $companyData): void
+    {
+        if ($companyId <= 0) {
+            return;
+        }
+
+        $previousEmail = strtolower(trim((string) ($existingCompany['email'] ?? '')));
+        $nextEmail = strtolower(trim((string) ($companyData['email'] ?? '')));
+        $nextName = trim((string) ($companyData['name'] ?? ''));
+        $nextPhone = trim((string) ($companyData['phone'] ?? $companyData['whatsapp'] ?? ''));
+
+        if ($previousEmail === '' || $nextEmail === '') {
+            return;
+        }
+
+        if ($previousEmail === $nextEmail && $nextName === trim((string) ($existingCompany['name'] ?? '')) && $nextPhone === trim((string) ($existingCompany['phone'] ?? ''))) {
+            return;
+        }
+
+        $companyUsers = $this->dashboard->listUsersByCompany($companyId);
+        $matches = array_values(array_filter(
+            $companyUsers,
+            static fn (array $user): bool => strtolower(trim((string) ($user['role_slug'] ?? ''))) === self::INITIAL_ADMIN_ROLE_SLUG
+                && strtolower(trim((string) ($user['email'] ?? ''))) === $previousEmail
+        ));
+
+        if (count($matches) !== 1) {
+            return;
+        }
+
+        $adminUser = $matches[0];
+        $adminUserId = (int) ($adminUser['id'] ?? 0);
+        if ($adminUserId <= 0) {
+            return;
+        }
+
+        $existingByEmail = $this->dashboard->findUserByEmail($nextEmail);
+        if ($existingByEmail !== null) {
+            $existingUserId = (int) ($existingByEmail['id'] ?? 0);
+            $deletedAt = trim((string) ($existingByEmail['deleted_at'] ?? ''));
+            if ($deletedAt === '' && $existingUserId !== $adminUserId) {
+                throw new ValidationException('Nao foi possivel atualizar o usuario administrador automaticamente porque o novo e-mail da empresa ja esta em uso por outro usuario.');
+            }
+        }
+
+        $this->dashboard->updateCompanyUser($companyId, $adminUserId, [
+            'role_id' => (int) ($adminUser['role_id'] ?? 0),
+            'name' => $nextName !== '' ? $nextName : (string) ($adminUser['name'] ?? 'Empresa'),
+            'email' => $nextEmail,
+            'phone' => $nextPhone !== '' ? $nextPhone : null,
+        ]);
     }
 
     private function buildPaginationPages(int $currentPage, int $lastPage): array

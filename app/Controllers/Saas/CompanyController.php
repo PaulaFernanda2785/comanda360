@@ -41,7 +41,7 @@ final class CompanyController extends Controller
 
         try {
             $this->service->createCompany($request->all());
-            return $this->backWithSuccess('Empresa cadastrada com sucesso.', $redirectTo);
+            return $this->backWithSuccess('Empresa cadastrada com sucesso. O usuario administrador principal foi criado com o e-mail da empresa e a senha inicial informada no cadastro.', $redirectTo);
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), $redirectTo);
         }

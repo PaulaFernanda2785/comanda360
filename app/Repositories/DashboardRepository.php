@@ -594,6 +594,38 @@ final class DashboardRepository extends BaseRepository
         return $row ?: null;
     }
 
+    public function findCompanyRoleBySlug(int $companyId, string $slug): ?array
+    {
+        $normalizedSlug = strtolower(trim($slug));
+        if ($normalizedSlug === '') {
+            return null;
+        }
+
+        $params = [
+            'slug' => $normalizedSlug,
+            'custom_prefix' => $this->customCompanyRolePrefix($companyId),
+        ];
+        $systemSlugsSql = $this->systemCompanyRoleSlugSql($params);
+
+        $stmt = $this->db()->prepare("
+            SELECT
+                r.id,
+                r.name,
+                r.slug,
+                r.description,
+                CASE WHEN r.slug LIKE :custom_prefix THEN 1 ELSE 0 END AS is_custom
+            FROM roles r
+            WHERE r.slug = :slug
+              AND r.context = 'company'
+              AND (r.slug IN ({$systemSlugsSql}) OR r.slug LIKE :custom_prefix)
+            LIMIT 1
+        ");
+        $stmt->execute($params);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     public function createCompanyRole(string $name, string $slug, ?string $description): int
     {
         $stmt = $this->db()->prepare("

@@ -379,44 +379,6 @@ final class SubscriptionPortalService
         $autoChargeEnabled = !empty($subscription['auto_charge_enabled']);
         $usesAutoCard = $autoChargeEnabled && in_array($preferredMethod, self::CARD_METHODS, true);
 
-        if ($status !== 'cancelada') {
-            foreach ($this->expectedCharges($subscription) as $charge) {
-                $existing = $this->subscriptionPayments->findByReference(
-                    $subscriptionId,
-                    (int) $charge['reference_month'],
-                    (int) $charge['reference_year']
-                );
-                if ($existing !== null) {
-                    continue;
-                }
-
-                $pixPayload = $usesAutoCard ? ['pix_code' => null, 'pix_qr_payload' => null] : $this->buildPixPayload(
-                    $companyId,
-                    $subscriptionId,
-                    (int) $charge['reference_year'],
-                    (int) $charge['reference_month'],
-                    (float) $charge['amount']
-                );
-
-                $this->subscriptionPayments->create([
-                    'subscription_id' => $subscriptionId,
-                    'company_id' => $companyId,
-                    'reference_month' => $charge['reference_month'],
-                    'reference_year' => $charge['reference_year'],
-                    'amount' => $charge['amount'],
-                    'status' => 'pendente',
-                    'payment_method' => $usesAutoCard ? $preferredMethod : 'pix',
-                    'paid_at' => null,
-                    'due_date' => $charge['due_date'],
-                    'transaction_reference' => null,
-                    'charge_origin' => $usesAutoCard ? 'auto' : 'pix',
-                    'pix_code' => $pixPayload['pix_code'],
-                    'pix_qr_payload' => $pixPayload['pix_qr_payload'],
-                    'payment_details_json' => null,
-                ]);
-            }
-        }
-
         $payments = $this->subscriptionPayments->listBySubscriptionId($subscriptionId, 240);
         $today = new DateTimeImmutable('today');
 
@@ -559,7 +521,10 @@ final class SubscriptionPortalService
         $baseReferenceMonth = (int) ($lastCharge['reference_month'] ?? $baseDueDate->format('n'));
         $baseReferenceYear = (int) ($lastCharge['reference_year'] ?? $baseDueDate->format('Y'));
 
-        if ($billingCycle === 'anual') {
+        if ($lastCharge === null) {
+            $targetReferenceMonth = $baseReferenceMonth;
+            $targetReferenceYear = $baseReferenceYear;
+        } elseif ($billingCycle === 'anual') {
             $targetReferenceMonth = $baseReferenceMonth;
             $targetReferenceYear = $baseReferenceYear + 1;
         } else {

@@ -132,6 +132,7 @@ $nextDueDate = $subscriptionSummary['next_due_date'] ?? ($subscriptionBillingAcc
         .sp-row strong{font-size:13px;color:#0f172a;text-align:right}
         .sp-feature-list{display:flex;gap:6px;flex-wrap:wrap}
         .sp-feature{padding:6px 10px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:700}
+        .sp-history-wrap{overflow:auto;-webkit-overflow-scrolling:touch}
         .sp-history-table{width:100%;border-collapse:collapse}
         .sp-history-table th,.sp-history-table td{padding:10px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:left;vertical-align:top}
         .sp-history-table th{font-size:12px;color:#64748b;text-transform:uppercase}
@@ -144,7 +145,18 @@ $nextDueDate = $subscriptionSummary['next_due_date'] ?? ($subscriptionBillingAcc
         .sp-page-btn.is-disabled{pointer-events:none;opacity:.45}
         @media (max-width:1100px){.sp-layout{grid-template-columns:1fr}}
         @media (max-width:900px){.sp-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        @media (max-width:760px){.sp-grid,.sp-meta,.sp-filter-grid,.sp-qr{grid-template-columns:1fr}}
+        @media (max-width:760px){
+            .sp-grid,.sp-meta,.sp-filter-grid,.sp-qr{grid-template-columns:1fr}
+            .sp-history-wrap{overflow:visible}
+            .sp-history-table,.sp-history-table tbody,.sp-history-table tr,.sp-history-table td{display:block;width:100%}
+            .sp-history-table thead{display:none}
+            .sp-history-table{border-collapse:separate;border-spacing:0 10px}
+            .sp-history-table tbody{display:grid;gap:10px}
+            .sp-history-table tr{border:1px solid #dbe4ee;border-radius:12px;background:#f8fafc;padding:4px 0}
+            .sp-history-table td{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px;padding:8px 12px;border-bottom:1px dashed #dbe4ee}
+            .sp-history-table td:last-child{border-bottom:none}
+            .sp-history-table td::before{content:attr(data-label);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#64748b}
+        }
     </style>
 
     <div class="sp-shell">
@@ -345,7 +357,7 @@ $nextDueDate = $subscriptionSummary['next_due_date'] ?? ($subscriptionBillingAcc
                                 Ainda não existe histórico financeiro registrado para esta assinatura.
                             </div>
                         <?php else: ?>
-                            <div style="overflow:auto;margin-top:12px">
+                            <div class="sp-history-wrap" style="margin-top:12px">
                                 <table class="sp-history-table">
                                     <thead>
                                         <tr>
@@ -361,17 +373,17 @@ $nextDueDate = $subscriptionSummary['next_due_date'] ?? ($subscriptionBillingAcc
                                     <tbody>
                                         <?php foreach ($subscriptionHistory as $payment): ?>
                                             <tr>
-                                                <td><?= htmlspecialchars(sprintf('%02d/%04d', (int) ($payment['reference_month'] ?? 0), (int) ($payment['reference_year'] ?? 0))) ?></td>
-                                                <td><?= htmlspecialchars($formatSubscriptionDate($payment['due_date'] ?? null)) ?></td>
-                                                <td><?= htmlspecialchars($formatSubscriptionMoney($payment['amount'] ?? 0)) ?></td>
-                                                <td>
+                                                <td data-label="Referencia"><?= htmlspecialchars(sprintf('%02d/%04d', (int) ($payment['reference_month'] ?? 0), (int) ($payment['reference_year'] ?? 0))) ?></td>
+                                                <td data-label="Vencimento"><?= htmlspecialchars($formatSubscriptionDate($payment['due_date'] ?? null)) ?></td>
+                                                <td data-label="Valor"><?= htmlspecialchars($formatSubscriptionMoney($payment['amount'] ?? 0)) ?></td>
+                                                <td data-label="Status">
                                                     <span class="badge <?= htmlspecialchars(status_badge_class('subscription_payment_status', (string) ($payment['status'] ?? ''))) ?>">
                                                         <?= htmlspecialchars(status_label('subscription_payment_status', (string) ($payment['status'] ?? ''))) ?>
                                                     </span>
                                                 </td>
-                                                <td><?= htmlspecialchars($paymentMethodLabels[(string) ($payment['payment_method'] ?? '')] ?? 'Nao definido') ?></td>
-                                                <td><?= htmlspecialchars($formatSubscriptionDate($payment['paid_at'] ?? null, true)) ?></td>
-                                                <td><?= htmlspecialchars((string) ($payment['transaction_reference'] ?? '-')) ?></td>
+                                                <td data-label="Metodo"><?= htmlspecialchars($paymentMethodLabels[(string) ($payment['payment_method'] ?? '')] ?? 'Nao definido') ?></td>
+                                                <td data-label="Pago em"><?= htmlspecialchars($formatSubscriptionDate($payment['paid_at'] ?? null, true)) ?></td>
+                                                <td data-label="Referencia externa"><?= htmlspecialchars((string) ($payment['transaction_reference'] ?? '-')) ?></td>
                                             </tr>
                                         <?php endforeach; ?>
                                     </tbody>
