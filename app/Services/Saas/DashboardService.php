@@ -32,6 +32,7 @@ final class DashboardService
     public function panel(array $filters = []): array
     {
         $paymentFilters = $this->normalizeDashboardPaymentFilters($filters);
+        $supportFilters = $this->normalizeDashboardSupportFilters($filters);
         $companySummary = $this->companies->summary();
         $companyPage = $this->companies->listForSaasPaginated([
             'search' => '',
@@ -65,7 +66,7 @@ final class DashboardService
         $paymentPanel = $this->subscriptionPayments->panel($paymentFilters);
         $paymentSummary = is_array($paymentPanel['summary'] ?? null) ? $paymentPanel['summary'] : [];
 
-        $supportPanel = $this->support->panel([]);
+        $supportPanel = $this->support->panel($supportFilters);
         $supportSummary = is_array($supportPanel['summary'] ?? null) ? $supportPanel['summary'] : [];
 
         return [
@@ -103,7 +104,13 @@ final class DashboardService
             ],
             'support' => [
                 'summary' => $supportSummary,
-                'items' => array_slice(is_array($supportPanel['tickets'] ?? null) ? $supportPanel['tickets'] : [], 0, 6),
+                'items' => is_array($supportPanel['tickets'] ?? null) ? $supportPanel['tickets'] : [],
+                'filters' => [
+                    'search' => $supportFilters['support_company_search'],
+                    'status' => $supportFilters['support_status'],
+                    'priority' => $supportFilters['support_priority'],
+                ],
+                'pagination' => is_array($supportPanel['pagination'] ?? null) ? $supportPanel['pagination'] : [],
             ],
         ];
     }
@@ -119,6 +126,23 @@ final class DashboardService
             'search' => trim((string) ($filters['dashboard_payment_search'] ?? '')),
             'status' => trim((string) ($filters['dashboard_payment_status'] ?? '')),
             'payment_page' => $page,
+        ];
+    }
+
+    private function normalizeDashboardSupportFilters(array $filters): array
+    {
+        $page = (int) ($filters['dashboard_support_page'] ?? 1);
+        if ($page <= 0) {
+            $page = 1;
+        }
+
+        return [
+            'support_search' => '',
+            'support_company_search' => trim((string) ($filters['dashboard_support_search'] ?? '')),
+            'support_status' => trim((string) ($filters['dashboard_support_status'] ?? '')),
+            'support_priority' => trim((string) ($filters['dashboard_support_priority'] ?? '')),
+            'support_assignment' => '',
+            'support_page' => $page,
         ];
     }
 }
