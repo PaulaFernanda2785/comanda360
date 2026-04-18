@@ -26,5 +26,12 @@ Projeto base do Comanda360 em PHP puro com arquitetura MVC modular.
 4. Importe o schema SQL no banco
 5. Acesse `/login`
 
+## Sincronizacao de assinaturas
+- Para atualizar assinaturas em lote sem depender de webhook, execute:
+  `php scripts/subscription_gateway_sync.php`
+- Para sincronizar apenas uma empresa:
+  `php scripts/subscription_gateway_sync.php --company=ID_DA_EMPRESA`
+- O script consulta o gateway, atualiza o status local da assinatura e reprocessa o financeiro da empresa.
+
 ## Usuário demo esperado
 Use os registros que foram preparados no `seed_demo_comanda360.sql`.

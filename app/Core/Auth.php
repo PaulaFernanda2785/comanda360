@@ -23,6 +23,12 @@ final class Auth
         Session::put('auth_user', $user);
     }
 
+    public static function updateUser(array $user): void
+    {
+        Session::start();
+        Session::put('auth_user', $user);
+    }
+
     public static function logout(): void
     {
         Session::start();

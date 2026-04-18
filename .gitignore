@@ -17,6 +17,7 @@ storage/*.log
 # Dependency/build artifacts
 vendor/
 node_modules/
+deploy/
 
 # IDE / OS files
 .idea/

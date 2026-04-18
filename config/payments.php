@@ -8,5 +8,6 @@ return [
         'access_token' => trim((string) (getenv('MERCADO_PAGO_ACCESS_TOKEN') ?: '')),
         'webhook_secret' => trim((string) (getenv('MERCADO_PAGO_WEBHOOK_SECRET') ?: '')),
         'base_url' => 'https://api.mercadopago.com',
+        'ssl_cafile' => trim((string) (getenv('MERCADO_PAGO_SSL_CAFILE') ?: '')),
     ],
 ];

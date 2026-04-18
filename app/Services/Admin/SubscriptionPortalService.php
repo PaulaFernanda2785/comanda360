@@ -34,7 +34,6 @@ final class SubscriptionPortalService
         }
 
         $this->synchronizeByCompany($companyId);
-        $this->gatewayService->syncSubscriptionByCompany($companyId);
 
         $subscription = $this->subscriptions->findCurrentByCompanyId($companyId);
         if ($subscription === null) {
@@ -65,6 +64,7 @@ final class SubscriptionPortalService
             'history_pagination' => $this->buildPaginationPayload($historyPagination),
             'features' => $this->extractFeatureSummary($subscription),
             'summary' => $this->buildSummary($subscription, $this->subscriptionPayments->listBySubscriptionId((int) $subscription['id'], 120), $openPayments),
+            'billing_access' => $this->resolveAccessState($companyId),
             'gateway' => [
                 'configured' => $this->gatewayService->isConfigured(),
                 'provider' => $this->gatewayService->providerName(),
@@ -204,7 +204,121 @@ final class SubscriptionPortalService
     public function generateRecurringGatewayCheckout(int $companyId): void
     {
         $this->gatewayService->createRecurringCheckout($companyId);
+    }
+
+    public function refreshGatewayStatus(int $companyId): void
+    {
+        if ($companyId <= 0) {
+            throw new ValidationException('Empresa invalida para atualizar o status da assinatura.');
+        }
+
+        $subscription = $this->subscriptions->findCurrentByCompanyId($companyId);
+        if ($subscription === null) {
+            throw new ValidationException('Assinatura nao encontrada para atualizar o status.');
+        }
+
+        $this->gatewayService->syncSubscriptionByCompany($companyId);
         $this->synchronizeByCompany($companyId);
+    }
+
+    public function synchronizeCompanyBilling(int $companyId): void
+    {
+        $this->synchronizeByCompany($companyId);
+    }
+
+    public function setNextChargeDueDate(int $companyId, string $dueDate): void
+    {
+        if ($companyId <= 0) {
+            throw new ValidationException('Empresa invalida para ajustar vencimento.');
+        }
+
+        $normalizedDueDate = $this->normalizeDueDateInput($dueDate);
+        $this->synchronizeByCompany($companyId);
+
+        $subscription = $this->subscriptions->findCurrentByCompanyId($companyId);
+        if ($subscription === null) {
+            throw new ValidationException('Assinatura nao encontrada para ajustar vencimento.');
+        }
+
+        $openPayments = $this->subscriptionPayments->listOpenBySubscriptionId((int) ($subscription['id'] ?? 0));
+        if ($openPayments === []) {
+            $this->ensureNextOpenCharge($subscription, false);
+            $openPayments = $this->subscriptionPayments->listOpenBySubscriptionId((int) ($subscription['id'] ?? 0));
+        }
+
+        $payment = $openPayments[0] ?? null;
+        if (!is_array($payment)) {
+            throw new ValidationException('Nao foi possivel localizar a proxima cobranca para ajustar o vencimento.');
+        }
+
+        $this->updatePaymentDueDate($payment, $normalizedDueDate);
+        $this->synchronizeByCompany($companyId);
+    }
+
+    public function resolveAccessState(int $companyId): array
+    {
+        if ($companyId <= 0) {
+            return $this->defaultAccessState();
+        }
+
+        return $this->buildAccessState($companyId, true);
+    }
+
+    public function resolveAccessStateForMiddleware(int $companyId): array
+    {
+        if ($companyId <= 0) {
+            return $this->defaultAccessState();
+        }
+
+        return $this->buildAccessState($companyId, false);
+    }
+
+    private function buildAccessState(int $companyId, bool $synchronize): array
+    {
+        if ($synchronize) {
+            $this->synchronizeByCompany($companyId);
+        }
+
+        $subscription = $this->subscriptions->findCurrentByCompanyId($companyId);
+        if ($subscription === null) {
+            return $this->defaultAccessState();
+        }
+
+        $openPayments = $this->subscriptionPayments->listOpenBySubscriptionId((int) ($subscription['id'] ?? 0));
+        $nextPayment = $openPayments[0] ?? null;
+        if (!is_array($nextPayment)) {
+            return $this->defaultAccessState();
+        }
+
+        $today = new DateTimeImmutable('today');
+        $dueDate = $this->dateOrToday((string) ($nextPayment['due_date'] ?? ''));
+        $overdueDays = $dueDate < $today ? (int) $dueDate->diff($today)->days : 0;
+        $isBlocked = $overdueDays >= 4;
+        $isWarning = $overdueDays >= 1 && $overdueDays <= 3;
+
+        $headline = '';
+        $message = '';
+        if ($isBlocked) {
+            $headline = 'Sistema bloqueado por falta de pagamento';
+            $message = 'O vencimento da assinatura passou do prazo de carencia. Regularize a cobranca para liberar novamente o acesso completo ao sistema.';
+        } elseif ($isWarning) {
+            $daysUntilBlock = max(0, 4 - $overdueDays);
+            $headline = 'Assinatura em atraso';
+            $message = $daysUntilBlock === 1
+                ? 'A cobranca venceu e o sistema sera bloqueado amanha se o pagamento nao for regularizado.'
+                : 'A cobranca venceu e o sistema sera bloqueado em ' . $daysUntilBlock . ' dia(s) se o pagamento nao for regularizado.';
+        }
+
+        return [
+            'restricted' => $isWarning || $isBlocked,
+            'is_warning' => $isWarning,
+            'is_blocked' => $isBlocked,
+            'overdue_days' => $overdueDays,
+            'next_due_date' => (string) ($nextPayment['due_date'] ?? ''),
+            'allowed_sections' => ['support', 'subscription'],
+            'headline' => $headline,
+            'message' => $message,
+        ];
     }
 
     private function synchronizeByCompany(int $companyId): void
@@ -327,6 +441,8 @@ final class SubscriptionPortalService
             }
         }
 
+        $this->ensureNextOpenCharge($subscription, $usesAutoCard);
+
         $payments = $this->subscriptionPayments->listBySubscriptionId($subscriptionId, 240);
         $hasOverdue = false;
         $hasPaid = false;
@@ -369,6 +485,98 @@ final class SubscriptionPortalService
                 : null,
             'subscription_starts_at' => $subscription['company_subscription_starts_at'] ?? $subscription['starts_at'] ?? null,
             'subscription_ends_at' => $subscription['ends_at'] ?? $subscription['company_subscription_ends_at'] ?? null,
+        ]);
+    }
+
+    private function ensureNextOpenCharge(array $subscription, bool $usesAutoCard): void
+    {
+        $subscriptionId = (int) ($subscription['id'] ?? 0);
+        $companyId = (int) ($subscription['company_id'] ?? 0);
+        $status = trim((string) ($subscription['status'] ?? ''));
+        if ($subscriptionId <= 0 || $companyId <= 0 || $status === 'cancelada') {
+            return;
+        }
+
+        if ($this->subscriptionPayments->listOpenBySubscriptionId($subscriptionId) !== []) {
+            return;
+        }
+
+        $history = $this->subscriptionPayments->listBySubscriptionId($subscriptionId, 240);
+        $lastCharge = $history[0] ?? null;
+
+        $billingCycle = trim((string) ($subscription['billing_cycle'] ?? 'mensal'));
+        $amount = round((float) ($subscription['amount'] ?? 0), 2);
+        $baseDueDate = $this->dateOrToday((string) ($lastCharge['due_date'] ?? ($subscription['starts_at'] ?? date('Y-m-d'))));
+        $baseReferenceMonth = (int) ($lastCharge['reference_month'] ?? $baseDueDate->format('n'));
+        $baseReferenceYear = (int) ($lastCharge['reference_year'] ?? $baseDueDate->format('Y'));
+
+        if ($billingCycle === 'anual') {
+            $targetReferenceMonth = $baseReferenceMonth;
+            $targetReferenceYear = $baseReferenceYear + 1;
+        } else {
+            $targetReferenceMonth = $baseReferenceMonth + 1;
+            $targetReferenceYear = $baseReferenceYear;
+            if ($targetReferenceMonth > 12) {
+                $targetReferenceMonth = 1;
+                $targetReferenceYear++;
+            }
+        }
+
+        if ($this->subscriptionPayments->findByReference($subscriptionId, $targetReferenceMonth, $targetReferenceYear) !== null) {
+            return;
+        }
+
+        $targetDueDate = $this->buildDueDate(
+            $targetReferenceYear,
+            $targetReferenceMonth,
+            (int) $baseDueDate->format('j')
+        )->format('Y-m-d');
+
+        $pixPayload = $usesAutoCard
+            ? ['pix_code' => null, 'pix_qr_payload' => null]
+            : $this->buildPixPayload($companyId, $subscriptionId, $targetReferenceYear, $targetReferenceMonth, $amount);
+
+        $this->subscriptionPayments->create([
+            'subscription_id' => $subscriptionId,
+            'company_id' => $companyId,
+            'reference_month' => $targetReferenceMonth,
+            'reference_year' => $targetReferenceYear,
+            'amount' => $amount,
+            'status' => 'pendente',
+            'payment_method' => $usesAutoCard ? trim((string) ($subscription['preferred_payment_method'] ?? '')) : 'pix',
+            'paid_at' => null,
+            'due_date' => $targetDueDate,
+            'transaction_reference' => null,
+            'charge_origin' => $usesAutoCard ? 'auto' : 'pix',
+            'pix_code' => $pixPayload['pix_code'],
+            'pix_qr_payload' => $pixPayload['pix_qr_payload'],
+            'payment_details_json' => null,
+        ]);
+    }
+
+    private function updatePaymentDueDate(array $payment, string $dueDate): void
+    {
+        $currentDueDate = $this->dateOrToday($dueDate);
+        $today = new DateTimeImmutable('today');
+        $targetStatus = $currentDueDate < $today ? 'vencido' : 'pendente';
+
+        $this->subscriptionPayments->updateRecord((int) ($payment['id'] ?? 0), [
+            'status' => $targetStatus,
+            'payment_method' => $payment['payment_method'] ?? null,
+            'paid_at' => null,
+            'due_date' => $dueDate,
+            'transaction_reference' => null,
+            'charge_origin' => $payment['charge_origin'] ?? 'manual',
+            'pix_code' => $payment['pix_code'] ?? null,
+            'pix_qr_payload' => $payment['pix_qr_payload'] ?? null,
+            'pix_qr_image_base64' => $payment['pix_qr_image_base64'] ?? null,
+            'pix_ticket_url' => $payment['pix_ticket_url'] ?? null,
+            'payment_details_json' => $payment['payment_details_json'] ?? null,
+            'gateway_payment_id' => $payment['gateway_payment_id'] ?? null,
+            'gateway_payment_url' => $payment['gateway_payment_url'] ?? null,
+            'gateway_status' => $payment['gateway_status'] ?? null,
+            'gateway_webhook_payload_json' => $payment['gateway_webhook_payload_json'] ?? null,
+            'gateway_last_synced_at' => $payment['gateway_last_synced_at'] ?? null,
         ]);
     }
 
@@ -708,6 +916,7 @@ final class SubscriptionPortalService
                 'preferred_payment_method' => null,
                 'auto_charge_enabled' => false,
             ],
+            'billing_access' => $this->defaultAccessState(),
             'gateway' => [
                 'configured' => $this->gatewayService->isConfigured(),
                 'provider' => $this->gatewayService->providerName(),
@@ -749,6 +958,35 @@ final class SubscriptionPortalService
             'from' => $from,
             'to' => $to,
             'pages' => $pages,
+        ];
+    }
+
+    private function normalizeDueDateInput(string $value): string
+    {
+        $raw = trim($value);
+        if ($raw === '') {
+            throw new ValidationException('Informe a data de vencimento da proxima cobranca.');
+        }
+
+        $date = date_create_immutable($raw);
+        if (!$date instanceof DateTimeImmutable) {
+            throw new ValidationException('Data invalida para o vencimento da proxima cobranca.');
+        }
+
+        return $date->format('Y-m-d');
+    }
+
+    private function defaultAccessState(): array
+    {
+        return [
+            'restricted' => false,
+            'is_warning' => false,
+            'is_blocked' => false,
+            'overdue_days' => 0,
+            'next_due_date' => '',
+            'allowed_sections' => ['support', 'subscription'],
+            'headline' => '',
+            'message' => '',
         ];
     }
 }

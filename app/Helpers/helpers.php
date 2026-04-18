@@ -1,6 +1,27 @@
 <?php
 declare(strict_types=1);
 
+if (!function_exists('request_base_path')) {
+    function request_base_path(): string
+    {
+        $scriptName = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+        if ($scriptName === '') {
+            return '';
+        }
+
+        $directory = trim(dirname($scriptName), "/\\.");
+        return $directory !== '' ? '/' . $directory : '';
+    }
+}
+
+if (!function_exists('app_url')) {
+    function app_url(string $path = ''): string
+    {
+        $app = config('app');
+        return rtrim($app['base_url'], '/') . '/' . ltrim($path, '/');
+    }
+}
+
 if (!function_exists('config')) {
     function config(string $file): array
     {
@@ -15,8 +36,14 @@ if (!function_exists('config')) {
 if (!function_exists('base_url')) {
     function base_url(string $path = ''): string
     {
-        $app = config('app');
-        return rtrim($app['base_url'], '/') . '/' . ltrim($path, '/');
+        $basePath = request_base_path();
+        $normalizedPath = ltrim($path, '/');
+
+        if ($normalizedPath === '') {
+            return $basePath !== '' ? $basePath . '/' : '/';
+        }
+
+        return ($basePath !== '' ? $basePath : '') . '/' . $normalizedPath;
     }
 }
 

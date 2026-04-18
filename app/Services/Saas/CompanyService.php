@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Services\Saas;
 
+use App\Services\Admin\SubscriptionPortalService;
 use App\Exceptions\ValidationException;
 use App\Repositories\CompanyRepository;
 use App\Repositories\PlanRepository;
@@ -35,7 +36,8 @@ final class CompanyService
 
     public function __construct(
         private readonly CompanyRepository $companies = new CompanyRepository(),
-        private readonly PlanRepository $plans = new PlanRepository()
+        private readonly PlanRepository $plans = new PlanRepository(),
+        private readonly SubscriptionPortalService $subscriptionPortal = new SubscriptionPortalService()
     ) {}
 
     public function panel(array $filters): array
@@ -86,8 +88,7 @@ final class CompanyService
     public function createCompany(array $input): int
     {
         $payload = $this->normalizePayload($input, null);
-
-        return $this->companies->transaction(function () use ($payload): int {
+        $companyId = $this->companies->transaction(function () use ($payload): int {
             $companyId = $this->companies->createCompany($payload['company']);
             $subscription = $payload['subscription'];
             if ($subscription !== null) {
@@ -97,6 +98,10 @@ final class CompanyService
 
             return $companyId;
         });
+
+        $this->syncBillingSchedule($companyId, $payload['next_charge_due_date']);
+
+        return $companyId;
     }
 
     public function updateCompany(int $companyId, array $input): void
@@ -129,6 +134,8 @@ final class CompanyService
             $subscription['company_id'] = $companyId;
             $this->companies->createSubscription($subscription);
         });
+
+        $this->syncBillingSchedule($companyId, $payload['next_charge_due_date']);
     }
 
     public function cancelCompany(int $companyId): void
@@ -287,6 +294,9 @@ final class CompanyService
             (string) ($input['trial_ends_at'] ?? ($existing['trial_ends_at'] ?? '')),
             true
         );
+        $nextChargeDueDate = $this->normalizeOptionalDueDateInput(
+            (string) ($input['next_charge_due_date'] ?? ($existing['next_charge_due_date'] ?? ''))
+        );
 
         if ($companySubscriptionStatus === 'trial') {
             if ($trialEndsAt === null) {
@@ -335,6 +345,7 @@ final class CompanyService
                 'ends_at' => $companySubscriptionStatus === 'trial' ? $trialEndsAt : $subscriptionEndsAt,
                 'canceled_at' => $companySubscriptionStatus === 'cancelada' ? ($subscriptionEndsAt ?? date('Y-m-d H:i:s')) : null,
             ],
+            'next_charge_due_date' => $nextChargeDueDate,
         ];
     }
 
@@ -408,6 +419,21 @@ final class CompanyService
         return $end->setTime(23, 59, 59)->format('Y-m-d H:i:s');
     }
 
+    private function normalizeOptionalDueDateInput(string $value): ?string
+    {
+        $raw = trim($value);
+        if ($raw === '') {
+            return null;
+        }
+
+        $date = date_create_immutable($raw);
+        if (!$date instanceof DateTimeImmutable) {
+            throw new ValidationException('Data invalida para o vencimento da proxima cobranca.');
+        }
+
+        return $date->format('Y-m-d');
+    }
+
     private function mapCompanySubscriptionStatusToSubscriptionStatus(string $status): string
     {
         return match ($status) {
@@ -441,6 +467,19 @@ final class CompanyService
         sort($result);
 
         return $result;
+    }
+
+    private function syncBillingSchedule(int $companyId, ?string $nextChargeDueDate): void
+    {
+        if ($companyId <= 0) {
+            return;
+        }
+
+        $this->subscriptionPortal->synchronizeCompanyBilling($companyId);
+
+        if ($nextChargeDueDate !== null) {
+            $this->subscriptionPortal->setNextChargeDueDate($companyId, $nextChargeDueDate);
+        }
     }
 
     private function nullableTrim(mixed $value): ?string

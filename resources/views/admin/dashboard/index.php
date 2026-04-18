@@ -18,6 +18,7 @@ $supportFilters = is_array($supportModule['filters'] ?? null) ? $supportModule['
 $supportPagination = is_array($supportModule['págination'] ?? null) ? $supportModule['págination'] : (is_array($panel['support_págination'] ?? null) ? $panel['support_págination'] : []);
 $supportSummary = is_array($supportModule['summary'] ?? null) ? $supportModule['summary'] : (is_array($panel['support_summary'] ?? null) ? $panel['support_summary'] : []);
 $subscriptionModule = is_array($panel['subscription_module'] ?? null) ? $panel['subscription_module'] : [];
+$billingAccess = is_array($subscriptionModule['billing_access'] ?? null) ? $subscriptionModule['billing_access'] : [];
 
 $kpis = is_array($analytics['kpis'] ?? null) ? $analytics['kpis'] : [];
 $salesByDay = is_array($analytics['sales_by_day'] ?? null) ? $analytics['sales_by_day'] : [];
@@ -29,8 +30,11 @@ $cashHistory = is_array($analytics['cash_history'] ?? null) ? $analytics['cash_h
 $topProducts = is_array($analytics['top_products'] ?? null) ? $analytics['top_products'] : [];
 
 $activeSectionRaw = trim((string) ($activeSection ?? 'overview'));
-$allowedSections = ['overview', 'branding', 'users', 'support', 'subscription'];
-$activeSection = in_array($activeSectionRaw, $allowedSections, true) ? $activeSectionRaw : 'overview';
+$billingAccessBlocked = !empty($billingAccess['is_blocked']);
+$allowedSections = $billingAccessBlocked
+    ? ['support', 'subscription']
+    : ['overview', 'branding', 'users', 'support', 'subscription'];
+$activeSection = in_array($activeSectionRaw, $allowedSections, true) ? $activeSectionRaw : ($billingAccessBlocked ? 'subscription' : 'overview');
 
 $startDate = trim((string) ($filters['start_date'] ?? date('Y-m-d', strtotime('-29 days'))));
 $endDate = trim((string) ($filters['end_date'] ?? date('Y-m-d')));
@@ -254,10 +258,24 @@ $supportStatusLabels = [
         <span class="badge status-default">Acesso exclusivo: Administrador e Gerente</span>
     </div>
 
+    <?php if (!empty($billingAccess['is_warning']) || !empty($billingAccess['is_blocked'])): ?>
+        <div class="card" style="border-color:<?= !empty($billingAccess['is_blocked']) ? '#fecaca' : '#fde68a' ?>;background:<?= !empty($billingAccess['is_blocked']) ? '#fff1f2' : '#fffbeb' ?>;">
+            <strong style="display:block;margin-bottom:6px;color:#0f172a"><?= htmlspecialchars((string) ($billingAccess['headline'] ?? 'Status da assinatura')) ?></strong>
+            <p style="margin:0;color:#334155;line-height:1.5">
+                <?= htmlspecialchars((string) ($billingAccess['message'] ?? '')) ?>
+                <?php if (trim((string) ($billingAccess['next_due_date'] ?? '')) !== ''): ?>
+                    Vencimento considerado: <?= htmlspecialchars(date('d/m/Y', strtotime((string) $billingAccess['next_due_date']))) ?>.
+                <?php endif; ?>
+            </p>
+        </div>
+    <?php endif; ?>
+
     <div class="dash-nav" id="dashboardSectionNav">
-        <button type="button" class="dash-tab-btn<?= $activeSection === 'overview' ? ' active' : '' ?>" data-section-target="overview">Painel estatístico</button>
-        <button type="button" class="dash-tab-btn<?= $activeSection === 'branding' ? ' active' : '' ?>" data-section-target="branding">Personalização</button>
-        <button type="button" class="dash-tab-btn<?= $activeSection === 'users' ? ' active' : '' ?>" data-section-target="users">Usuários internos</button>
+        <?php if (!$billingAccessBlocked): ?>
+            <button type="button" class="dash-tab-btn<?= $activeSection === 'overview' ? ' active' : '' ?>" data-section-target="overview">Painel estatístico</button>
+            <button type="button" class="dash-tab-btn<?= $activeSection === 'branding' ? ' active' : '' ?>" data-section-target="branding">Personalização</button>
+            <button type="button" class="dash-tab-btn<?= $activeSection === 'users' ? ' active' : '' ?>" data-section-target="users">Usuários internos</button>
+        <?php endif; ?>
         <button type="button" class="dash-tab-btn<?= $activeSection === 'support' ? ' active' : '' ?>" data-section-target="support">Fale com a equipe técnica</button>
         <button type="button" class="dash-tab-btn<?= $activeSection === 'subscription' ? ' active' : '' ?>" data-section-target="subscription">Assinatura</button>
     </div>

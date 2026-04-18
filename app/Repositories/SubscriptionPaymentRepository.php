@@ -7,8 +7,31 @@ use PDO;
 
 final class SubscriptionPaymentRepository extends BaseRepository
 {
-    public function allForSaas(): array
+    public function allForSaas(array $filters = []): array
     {
+        $where = [];
+        $params = [];
+
+        $search = trim((string) ($filters['search'] ?? ''));
+        if ($search !== '') {
+            $where[] = '(
+                c.name LIKE :search
+                OR c.slug LIKE :search
+                OR p.name LIKE :search
+                OR sp.transaction_reference LIKE :search
+                OR sp.gateway_payment_id LIKE :search
+            )';
+            $params['search'] = '%' . $search . '%';
+        }
+
+        $status = trim((string) ($filters['status'] ?? ''));
+        if ($status !== '') {
+            $where[] = 'sp.status = :status';
+            $params['status'] = $status;
+        }
+
+        $whereSql = $where === [] ? '' : 'WHERE ' . implode(' AND ', $where);
+
         $sql = "
             SELECT
                 sp.id,
@@ -43,11 +66,21 @@ final class SubscriptionPaymentRepository extends BaseRepository
             INNER JOIN companies c ON c.id = sp.company_id
             INNER JOIN subscriptions s ON s.id = sp.subscription_id
             INNER JOIN plans p ON p.id = s.plan_id
-            ORDER BY sp.due_date DESC, sp.id DESC
+            {$whereSql}
+            ORDER BY
+                CASE sp.status
+                    WHEN 'vencido' THEN 0
+                    WHEN 'pendente' THEN 1
+                    WHEN 'pago' THEN 2
+                    WHEN 'cancelado' THEN 3
+                    ELSE 4
+                END,
+                sp.due_date ASC,
+                sp.id DESC
         ";
 
         $stmt = $this->db()->prepare($sql);
-        $stmt->execute();
+        $stmt->execute($params);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }

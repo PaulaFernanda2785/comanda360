@@ -118,6 +118,11 @@ final class MercadoPagoGateway
         curl_setopt($curl, CURLOPT_CUSTOMREQUEST, strtoupper($method));
         curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
 
+        $caFile = $this->resolveCaFile();
+        if ($caFile !== null) {
+            curl_setopt($curl, CURLOPT_CAINFO, $caFile);
+        }
+
         if ($payload !== null) {
             $json = json_encode($payload, JSON_UNESCAPED_SLASHES);
             if ($json === false) {
@@ -155,5 +160,28 @@ final class MercadoPagoGateway
     private function accessToken(): string
     {
         return trim((string) ($this->config['access_token'] ?? ''));
+    }
+
+    private function resolveCaFile(): ?string
+    {
+        $candidates = [
+            trim((string) ($this->config['ssl_cafile'] ?? '')),
+            trim((string) ini_get('curl.cainfo')),
+            trim((string) ini_get('openssl.cafile')),
+            'D:/wamp64/bin/php/certs/cacert.pem',
+            'D:\\wamp64\\bin\\php\\certs\\cacert.pem',
+        ];
+
+        foreach ($candidates as $candidate) {
+            if ($candidate === '') {
+                continue;
+            }
+
+            if (is_file($candidate) && is_readable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 }

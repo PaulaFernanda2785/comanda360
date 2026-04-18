@@ -1,5 +1,14 @@
 RewriteEngine On
 
+# Hostinger/ModSecurity can block webhook POST tests from Mercado Pago with 403
+<IfModule mod_security.c>
+SecFilterEngine Off
+SecFilterScanPOST Off
+</IfModule>
+<IfModule mod_security2.c>
+SecRuleEngine Off
+</IfModule>
+
 # Upload de imagens de produtos (WAMP/mod_php)
 php_value file_uploads On
 php_value upload_max_filesize 12M

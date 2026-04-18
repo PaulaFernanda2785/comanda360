@@ -1,7 +1,7 @@
 <div class="topbar">
     <div>
-        <h1>Nova Cobranca</h1>
-        <p class="muted">Gerar cobranca para assinatura ativa/trial.</p>
+        <h1>Nova cobranca PIX</h1>
+        <p class="muted">Crie uma cobranca manual apenas quando precisar ajustar ou complementar o financeiro da assinatura.</p>
     </div>
     <a class="btn secondary" href="<?= htmlspecialchars(base_url('/saas/subscription-payments')) ?>">Voltar</a>
 </div>
@@ -10,7 +10,7 @@
     <form method="POST" action="<?= htmlspecialchars(base_url('/saas/subscription-payments/store')) ?>">
         <?= form_security_fields('saas.subscription_payments.store') ?>
         <div class="field">
-            <label for="subscription_id">Assinatura</label>
+            <label for="subscription_id">Empresa e plano</label>
             <select id="subscription_id" name="subscription_id" required>
                 <option value="">Selecione</option>
                 <?php foreach (($subscriptions ?? []) as $subscription): ?>
@@ -36,17 +36,17 @@
 
         <div class="grid two">
             <div class="field">
-                <label for="amount">Valor (R$)</label>
+                <label for="amount">Valor da cobranca</label>
                 <input id="amount" name="amount" type="number" min="0" step="0.01" required>
             </div>
             <div class="field">
-                <label for="due_date">Vencimento</label>
+                <label for="due_date">Data de vencimento</label>
                 <input id="due_date" name="due_date" type="date" required>
             </div>
         </div>
 
         <div class="field">
-            <label for="transaction_reference">Referencia externa</label>
+            <label for="transaction_reference">Observacao ou referencia interna</label>
             <input id="transaction_reference" name="transaction_reference" type="text" placeholder="Opcional">
         </div>
 

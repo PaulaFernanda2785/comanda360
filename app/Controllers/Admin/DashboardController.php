@@ -31,12 +31,20 @@ final class DashboardController extends Controller
         $companyId = (int) ($user['company_id'] ?? 0);
         $panel = $this->service->panel($companyId, $request->query);
         $panel['subscription_module'] = $this->subscriptionService->panel($companyId, $request->query);
+        $activeSection = trim((string) ($request->input('section', 'overview')));
+        $billingAccess = is_array($panel['subscription_module']['billing_access'] ?? null)
+            ? $panel['subscription_module']['billing_access']
+            : [];
+
+        if (!empty($billingAccess['is_blocked']) && !in_array($activeSection, ['support', 'subscription'], true)) {
+            $activeSection = 'subscription';
+        }
 
         return $this->view('admin/dashboard/index', [
             'title' => 'Dashboard Administrativo',
             'user' => $user,
             'panel' => $panel,
-            'activeSection' => trim((string) ($request->input('section', 'overview'))),
+            'activeSection' => $activeSection,
         ]);
     }
 
@@ -438,7 +446,31 @@ final class DashboardController extends Controller
 
         try {
             $this->subscriptionService->generateRecurringGatewayCheckout($companyId);
-            return $this->backWithSuccess('Link de adesao recorrente gerado no gateway. Conclua a autorizacao para ativar a recorrencia real.', $redirectTo);
+            return $this->backWithSuccess('Link de assinatura preparado. Abra o link, conclua a autorizacao no Mercado Pago e depois clique em atualizar status.', $redirectTo);
+        } catch (ValidationException $e) {
+            return $this->backWithError($e->getMessage(), $redirectTo);
+        }
+    }
+
+    public function refreshSubscriptionGatewayStatus(Request $request): Response
+    {
+        if (!Auth::check()) {
+            return $this->redirect('/login');
+        }
+
+        $redirectTo = $this->resolveSubscriptionRedirect($request);
+        $guard = $this->guardSingleSubmit($request, 'dashboard.subscription.gateway.sync', $redirectTo);
+        if ($guard !== null) {
+            return $guard;
+        }
+
+        $user = Auth::user() ?? [];
+        $this->ensureAccess($user);
+        $companyId = (int) ($user['company_id'] ?? 0);
+
+        try {
+            $this->subscriptionService->refreshGatewayStatus($companyId);
+            return $this->backWithSuccess('Status da assinatura atualizado no sistema com base no gateway.', $redirectTo);
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), $redirectTo);
         }

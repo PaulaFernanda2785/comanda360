@@ -244,6 +244,51 @@ final class SubscriptionRepository extends BaseRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
+    public function listForGatewaySync(?int $companyId = null): array
+    {
+        $where = [
+            "s.status IN ('ativa', 'trial', 'vencida')",
+            "(COALESCE(s.gateway_subscription_id, '') <> '' OR COALESCE(s.gateway_checkout_url, '') <> '')",
+        ];
+        $params = [];
+
+        if ($companyId !== null && $companyId > 0) {
+            $where[] = 's.company_id = :company_id';
+            $params['company_id'] = $companyId;
+        }
+
+        $sql = "
+            SELECT
+                s.id,
+                s.company_id,
+                s.plan_id,
+                s.status,
+                s.billing_cycle,
+                s.amount,
+                s.starts_at,
+                s.ends_at,
+                s.preferred_payment_method,
+                s.auto_charge_enabled,
+                s.gateway_provider,
+                s.gateway_subscription_id,
+                s.gateway_checkout_url,
+                s.gateway_status,
+                c.name AS company_name,
+                c.slug AS company_slug,
+                p.name AS plan_name
+            FROM subscriptions s
+            INNER JOIN companies c ON c.id = s.company_id
+            INNER JOIN plans p ON p.id = s.plan_id
+            WHERE " . implode(' AND ', $where) . "
+            ORDER BY c.name ASC, s.id DESC
+        ";
+
+        $stmt = $this->db()->prepare($sql);
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
     public function updateBillingProfile(int $subscriptionId, array $data): void
     {
         $stmt = $this->db()->prepare("

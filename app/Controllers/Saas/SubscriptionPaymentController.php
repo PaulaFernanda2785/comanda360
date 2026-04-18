@@ -19,12 +19,14 @@ final class SubscriptionPaymentController extends Controller
     public function index(Request $request): Response
     {
         $user = Auth::user();
+        $filters = $this->service->filters($request->query);
 
         return $this->view('saas/subscription_payments/index', [
             'title' => 'Cobrancas SaaS',
             'user' => $user,
             'summary' => $this->service->summary(),
-            'subscriptionPayments' => $this->service->list(),
+            'filters' => $filters,
+            'subscriptionPayments' => $this->service->list($filters),
         ], 'layouts/saas');
     }
 

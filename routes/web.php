@@ -22,6 +22,7 @@ use App\Controllers\Saas\SupportController as SaasSupportController;
 use App\Controllers\Saas\SubscriptionController as SaasSubscriptionController;
 use App\Controllers\Saas\SubscriptionPaymentController as SaasSubscriptionPaymentController;
 use App\Middlewares\AuthMiddleware;
+use App\Middlewares\CompanyBillingAccessMiddleware;
 use App\Middlewares\PermissionMiddleware;
 use App\Middlewares\RoleContextMiddleware;
 
@@ -30,6 +31,7 @@ use App\Middlewares\RoleContextMiddleware;
 $companyAccess = static fn (string $permissionSlug): array => [
     AuthMiddleware::class,
     [RoleContextMiddleware::class, 'company'],
+    CompanyBillingAccessMiddleware::class,
     [PermissionMiddleware::class, $permissionSlug],
 ];
 $saasAccess = static fn (string $permissionSlug): array => [
@@ -42,8 +44,8 @@ $router->get('/', [LoginController::class, 'show']);
 $router->get('/login', [LoginController::class, 'show']);
 $router->post('/login', [LoginController::class, 'store']);
 $router->post('/logout', [LoginController::class, 'logout']);
-$router->get('/account/password', [AccountController::class, 'editPassword'], [AuthMiddleware::class]);
-$router->post('/account/password', [AccountController::class, 'updatePassword'], [AuthMiddleware::class]);
+$router->get('/account/password', [AccountController::class, 'editPassword'], [AuthMiddleware::class, CompanyBillingAccessMiddleware::class]);
+$router->post('/account/password', [AccountController::class, 'updatePassword'], [AuthMiddleware::class, CompanyBillingAccessMiddleware::class]);
 $router->get('/media/company', [MediaController::class, 'company']);
 $router->get('/media/product', [MediaController::class, 'product']);
 $router->get('/media/table-qr', [MediaController::class, 'tableQr']);
@@ -66,6 +68,7 @@ $router->post('/admin/dashboard/subscription/pix/generate', [DashboardController
 $router->post('/admin/dashboard/subscription/card', [DashboardController::class, 'paySubscriptionWithCard'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/subscription/pix', [DashboardController::class, 'confirmSubscriptionPix'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/subscription/gateway/checkout', [DashboardController::class, 'createSubscriptionRecurringCheckout'], $companyAccess('dashboard.view'));
+$router->post('/admin/dashboard/subscription/gateway/sync', [DashboardController::class, 'refreshSubscriptionGatewayStatus'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/subscription/auto-charge/disable', [DashboardController::class, 'disableSubscriptionAutoCharge'], $companyAccess('dashboard.view'));
 
 $router->get('/admin/products', [ProductController::class, 'index'], $companyAccess('products.view'));

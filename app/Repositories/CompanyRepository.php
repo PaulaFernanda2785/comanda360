@@ -84,6 +84,13 @@ final class CompanyRepository extends BaseRepository
                 c.subscription_ends_at,
                 c.created_at,
                 c.updated_at,
+                (
+                    SELECT MIN(sp_open.due_date)
+                    FROM subscription_payments sp_open
+                    WHERE sp_open.company_id = c.id
+                      AND sp_open.subscription_id = s.id
+                      AND sp_open.status IN ('pendente', 'vencido')
+                ) AS next_charge_due_date,
                 p.name AS plan_name,
                 p.slug AS plan_slug,
                 s.id AS subscription_id,
@@ -158,6 +165,13 @@ final class CompanyRepository extends BaseRepository
                 c.subscription_ends_at,
                 c.created_at,
                 c.updated_at,
+                (
+                    SELECT MIN(sp_open.due_date)
+                    FROM subscription_payments sp_open
+                    WHERE sp_open.company_id = c.id
+                      AND sp_open.subscription_id = s.id
+                      AND sp_open.status IN ('pendente', 'vencido')
+                ) AS next_charge_due_date,
                 p.name AS plan_name,
                 p.slug AS plan_slug,
                 s.id AS subscription_id,

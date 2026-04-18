@@ -272,6 +272,7 @@ $dateInputValue = static function (mixed $value): string {
                             $operationalBadgeClass = status_badge_class('company_status', $companyStatusValue);
                             $subscriptionBadgeClass = status_badge_class('company_subscription_status', $companySubscriptionStatusValue);
                             $isCanceledCompany = $companyStatusValue === 'cancelada' && $companySubscriptionStatusValue === 'cancelada';
+                            $nextChargeDueDate = trim((string) ($company['next_charge_due_date'] ?? ''));
                             $effectiveEndDate = $companySubscriptionStatusValue === 'trial'
                                 ? ($company['trial_ends_at'] ?? '')
                                 : ($company['subscription_ends_at'] ?? $company['subscription_record_ends_at'] ?? '');
@@ -298,8 +299,8 @@ $dateInputValue = static function (mixed $value): string {
                                         <strong class="amount"><?= htmlspecialchars(status_label('billing_cycle', $companyBillingCycle)) ?> · R$ <?= number_format($companyAmount, 2, ',', '.') ?></strong>
                                     </div>
                                     <div class="saas-company-box">
-                                        <span>Vigencia</span>
-                                        <strong><?= htmlspecialchars($formatDate($effectiveEndDate, false)) ?></strong>
+                                        <span>Próxima cobrança</span>
+                                        <strong><?= htmlspecialchars($formatDate($nextChargeDueDate, false)) ?></strong>
                                     </div>
                                     <div class="saas-company-box">
                                         <span>Cadastrada em</span>
@@ -394,6 +395,10 @@ $dateInputValue = static function (mixed $value): string {
                                                         <input id="company_starts_at_<?= $companyId ?>" name="subscription_starts_at" type="date" value="<?= htmlspecialchars($dateInputValue($company['subscription_starts_at'] ?? $company['subscription_record_starts_at'] ?? '')) ?>">
                                                     </div>
                                                     <div class="field">
+                                                        <label for="company_next_charge_due_date_<?= $companyId ?>">Vencimento da próxima cobrança</label>
+                                                        <input id="company_next_charge_due_date_<?= $companyId ?>" name="next_charge_due_date" type="date" value="<?= htmlspecialchars($dateInputValue($company['next_charge_due_date'] ?? '')) ?>">
+                                                    </div>
+                                                    <div class="field">
                                                         <label for="company_trial_ends_at_<?= $companyId ?>">Fim do teste</label>
                                                         <input id="company_trial_ends_at_<?= $companyId ?>" name="trial_ends_at" type="date" value="<?= htmlspecialchars($dateInputValue($company['trial_ends_at'] ?? '')) ?>">
                                                     </div>
@@ -404,7 +409,7 @@ $dateInputValue = static function (mixed $value): string {
                                                 </div>
 
                                                 <div class="saas-company-form-footer" style="margin-top:12px">
-                                                    <p class="saas-company-form-note">Edicao administrativa unifica cadastro operacional e retrato atual do contrato. O cancelamento nao apaga historico; apenas encerra a situacao ativa da empresa.</p>
+                                                    <p class="saas-company-form-note">Edicao administrativa unifica cadastro operacional e retrato atual do contrato. O vencimento da próxima cobrança controla o alerta de atraso e o bloqueio no 4º dia corrido após o vencimento.</p>
                                                     <button class="btn" type="submit">Salvar ajustes</button>
                                                 </div>
                                             </form>
@@ -557,6 +562,10 @@ $dateInputValue = static function (mixed $value): string {
                                 <input id="new_company_starts_at" name="subscription_starts_at" type="date">
                             </div>
                             <div class="field">
+                                <label for="new_company_next_charge_due_date">Vencimento da próxima cobrança</label>
+                                <input id="new_company_next_charge_due_date" name="next_charge_due_date" type="date">
+                            </div>
+                            <div class="field">
                                 <label for="new_company_trial_ends_at">Fim do teste</label>
                                 <input id="new_company_trial_ends_at" name="trial_ends_at" type="date">
                             </div>
@@ -567,7 +576,7 @@ $dateInputValue = static function (mixed $value): string {
                         </div>
 
                         <div class="saas-company-form-footer" style="margin-top:12px">
-                            <p class="saas-company-form-note">O cadastro manual cria a empresa e o registro comercial minimo da assinatura para manter a gestao sincronizada com as telas de cobranca e contratos.</p>
+                            <p class="saas-company-form-note">O cadastro manual cria a empresa e o registro comercial minimo da assinatura. A data de vencimento da próxima cobrança vira a referência do alerta de atraso e do bloqueio após 3 dias corridos de carência.</p>
                             <button class="btn" type="submit">Cadastrar empresa</button>
                         </div>
                     </form>

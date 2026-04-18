@@ -67,7 +67,7 @@ final class SubscriptionGatewayService
             'description' => $this->buildChargeDescription($subscription, $payment),
             'payment_method_id' => 'pix',
             'external_reference' => $reference,
-            'notification_url' => base_url('/webhooks/mercado-pago'),
+            'notification_url' => app_url('/webhooks/mercado-pago'),
             'payer' => $this->buildPayer($subscription),
         ]);
 
@@ -104,6 +104,29 @@ final class SubscriptionGatewayService
             throw new ValidationException('A empresa precisa ter e-mail principal para aderir a recorrencia do gateway.');
         }
 
+        $gatewaySubscriptionId = trim((string) ($subscription['gateway_subscription_id'] ?? ''));
+        $gatewayStatus = strtolower(trim((string) ($subscription['gateway_status'] ?? '')));
+        $gatewayCheckoutUrl = trim((string) ($subscription['gateway_checkout_url'] ?? ''));
+        if ($gatewaySubscriptionId !== '' && !in_array($gatewayStatus, ['cancelled', 'cancelled_by_payer', 'canceled'], true)) {
+            if ($gatewayCheckoutUrl !== '') {
+                return;
+            }
+
+            $response = $this->gateway->getSubscription($gatewaySubscriptionId);
+            $this->subscriptions->updateGatewayProfile((int) $subscription['id'], [
+                'gateway_provider' => 'mercado_pago',
+                'gateway_subscription_id' => $response['id'] ?? $gatewaySubscriptionId,
+                'gateway_checkout_url' => $response['init_point'] ?? null,
+                'gateway_status' => $response['status'] ?? null,
+                'gateway_webhook_payload_json' => json_encode($response, JSON_UNESCAPED_SLASHES),
+                'gateway_last_synced_at' => date('Y-m-d H:i:s'),
+            ]);
+
+            if (trim((string) ($response['init_point'] ?? '')) !== '') {
+                return;
+            }
+        }
+
         $frequencyType = ((string) ($subscription['billing_cycle'] ?? 'mensal')) === 'anual' ? 'months' : 'months';
         $frequency = ((string) ($subscription['billing_cycle'] ?? 'mensal')) === 'anual' ? 12 : 1;
         $startsAt = trim((string) ($subscription['starts_at'] ?? ''));
@@ -113,7 +136,7 @@ final class SubscriptionGatewayService
             'reason' => 'Assinatura ' . trim((string) ($subscription['plan_name'] ?? 'Comanda360')),
             'external_reference' => 'subscription:' . (int) ($subscription['id'] ?? 0),
             'payer_email' => $companyEmail,
-            'back_url' => base_url('/admin/dashboard?section=subscription'),
+            'back_url' => app_url('/admin/dashboard?section=subscription'),
             'status' => 'pending',
             'auto_recurring' => [
                 'frequency' => $frequency,

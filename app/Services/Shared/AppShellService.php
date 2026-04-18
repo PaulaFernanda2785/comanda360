@@ -121,6 +121,13 @@ final class AppShellService
             ];
         }
 
+        if ($context === 'company' && (int) ($normalizedUser['billing_access_blocked'] ?? 0) === 1) {
+            $visibleItems = array_values(array_filter(
+                $visibleItems,
+                static fn (array $item): bool => trim((string) ($item['href'] ?? '')) === '/admin/dashboard'
+            ));
+        }
+
         return $visibleItems;
     }
 

@@ -14,9 +14,9 @@ final class SubscriptionPaymentService
         private readonly SubscriptionRepository $subscriptions = new SubscriptionRepository()
     ) {}
 
-    public function list(): array
+    public function list(array $filters = []): array
     {
-        return $this->subscriptionPayments->allForSaas();
+        return $this->subscriptionPayments->allForSaas($this->normalizeFilters($filters));
     }
 
     public function subscriptionsForBilling(): array
@@ -27,6 +27,11 @@ final class SubscriptionPaymentService
     public function summary(): array
     {
         return $this->subscriptionPayments->summary();
+    }
+
+    public function filters(array $input): array
+    {
+        return $this->normalizeFilters($input);
     }
 
     public function createCharge(array $input): int
@@ -198,5 +203,12 @@ final class SubscriptionPaymentService
         $text = trim((string) ($value ?? ''));
         return $text !== '' ? $text : null;
     }
-}
 
+    private function normalizeFilters(array $input): array
+    {
+        return [
+            'search' => trim((string) ($input['search'] ?? '')),
+            'status' => trim((string) ($input['status'] ?? '')),
+        ];
+    }
+}
