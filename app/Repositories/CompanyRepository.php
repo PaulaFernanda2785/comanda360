@@ -7,6 +7,30 @@ use PDO;
 
 final class CompanyRepository extends BaseRepository
 {
+    public function findPublicBySlug(string $slug): ?array
+    {
+        $normalizedSlug = strtolower(trim($slug));
+        if ($normalizedSlug === '') {
+            return null;
+        }
+
+        $stmt = $this->db()->prepare("
+            SELECT
+                id,
+                name,
+                slug,
+                status,
+                subscription_status
+            FROM companies
+            WHERE slug = :slug
+            LIMIT 1
+        ");
+        $stmt->execute(['slug' => $normalizedSlug]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     public function transaction(callable $callback): mixed
     {
         $db = $this->db();

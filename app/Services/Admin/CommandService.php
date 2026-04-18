@@ -48,7 +48,7 @@ final class CommandService
             'company_id' => $companyId,
             'table_id' => $tableId,
             'customer_id' => null,
-            'opened_by_user_id' => $userId,
+            'opened_by_user_id' => $userId > 0 ? $userId : null,
             'customer_name' => $customerName,
             'notes' => $notes !== '' ? $notes : null,
         ]);

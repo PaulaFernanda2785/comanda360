@@ -38,6 +38,39 @@ final class CommandRepository extends BaseRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
+    public function openCommandsByTable(int $companyId, int $tableId): array
+    {
+        $stmt = $this->db()->prepare("
+            SELECT
+                c.id,
+                c.company_id,
+                c.table_id,
+                c.customer_id,
+                c.opened_by_user_id,
+                c.customer_name,
+                c.status,
+                c.opened_at,
+                c.closed_at,
+                c.notes,
+                t.number AS table_number,
+                t.status AS table_status,
+                u.name AS opened_by_user_name
+            FROM commands c
+            LEFT JOIN tables t ON t.id = c.table_id
+            LEFT JOIN users u ON u.id = c.opened_by_user_id
+            WHERE c.company_id = :company_id
+              AND c.table_id = :table_id
+              AND c.status = 'aberta'
+            ORDER BY c.opened_at ASC, c.id ASC
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'table_id' => $tableId,
+        ]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
     public function create(array $data): int
     {
         $sql = "

@@ -72,6 +72,36 @@ final class OrderRepository extends BaseRepository
         return $row ?: null;
     }
 
+    public function findByIdForCommand(int $companyId, int $commandId, int $orderId): ?array
+    {
+        $stmt = $this->db()->prepare("
+            SELECT
+                id,
+                company_id,
+                command_id,
+                table_id,
+                order_number,
+                channel,
+                status,
+                payment_status,
+                customer_name,
+                created_at
+            FROM orders
+            WHERE company_id = :company_id
+              AND command_id = :command_id
+              AND id = :id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'command_id' => $commandId,
+            'id' => $orderId,
+        ]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     public function updateFinancialTotals(int $companyId, int $orderId, float $discountAmount, float $totalAmount): void
     {
         $stmt = $this->db()->prepare("
@@ -131,6 +161,87 @@ final class OrderRepository extends BaseRepository
 
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
+    }
+
+    public function allByCommand(int $companyId, int $commandId): array
+    {
+        $stmt = $this->db()->prepare("
+            SELECT
+                o.id,
+                o.company_id,
+                o.command_id,
+                o.table_id,
+                o.order_number,
+                o.channel,
+                o.status,
+                o.payment_status,
+                o.customer_name,
+                o.subtotal_amount,
+                o.discount_amount,
+                o.delivery_fee,
+                o.total_amount,
+                o.notes,
+                o.created_at,
+                t.number AS table_number
+            FROM orders o
+            LEFT JOIN tables t
+                ON t.id = o.table_id
+            WHERE o.company_id = :company_id
+              AND o.command_id = :command_id
+            ORDER BY o.created_at DESC, o.id DESC
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'command_id' => $commandId,
+        ]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public function allByCommandIds(int $companyId, array $commandIds): array
+    {
+        $ids = array_values(array_unique(array_map(static fn (mixed $value): int => (int) $value, $commandIds)));
+        $ids = array_values(array_filter($ids, static fn (int $value): bool => $value > 0));
+        if ($ids === []) {
+            return [];
+        }
+
+        $params = ['company_id' => $companyId];
+        $placeholders = [];
+        foreach ($ids as $index => $commandId) {
+            $key = 'command_id_' . $index;
+            $placeholders[] = ':' . $key;
+            $params[$key] = $commandId;
+        }
+
+        $stmt = $this->db()->prepare("
+            SELECT
+                o.id,
+                o.company_id,
+                o.command_id,
+                o.table_id,
+                o.order_number,
+                o.channel,
+                o.status,
+                o.payment_status,
+                o.customer_name,
+                o.subtotal_amount,
+                o.discount_amount,
+                o.delivery_fee,
+                o.total_amount,
+                o.notes,
+                o.created_at,
+                t.number AS table_number
+            FROM orders o
+            LEFT JOIN tables t
+                ON t.id = o.table_id
+            WHERE o.company_id = :company_id
+              AND o.command_id IN (" . implode(', ', $placeholders) . ")
+            ORDER BY o.created_at DESC, o.id DESC
+        ");
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
     public function findLastOrderNumberByPrefix(int $companyId, string $prefix): ?string

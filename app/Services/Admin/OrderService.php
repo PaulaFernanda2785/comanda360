@@ -200,12 +200,16 @@ final class OrderService
         [$items, $subtotal] = $this->normalizeItems($companyId, $input);
         $orderNotes = $this->normalizeNullableText($input['notes'] ?? null);
         $deliveryFee = 0.0;
-        $placedBy = $channel === 'table' ? 'waiter' : 'cashier';
+        $autoSendKitchen = !empty($input['auto_send_kitchen']) && $channel === 'table';
+        $placedBy = $channel === 'table'
+            ? ($userId > 0 ? 'waiter' : 'customer')
+            : 'cashier';
         $commandId = null;
         $tableId = null;
         $customerId = null;
         $customerName = $this->normalizeNullableText($input['customer_name'] ?? null);
         $deliveryPayload = null;
+        $initialStatus = $autoSendKitchen ? 'received' : 'pending';
 
         if ($channel === 'table') {
             $commandIdInput = (int) ($input['command_id'] ?? 0);
@@ -297,7 +301,7 @@ final class OrderService
                 'table_id' => $tableId,
                 'customer_id' => $customerId,
                 'channel' => $channel,
-                'status' => 'pending',
+                'status' => $initialStatus,
                 'payment_status' => 'pending',
                 'customer_name' => $customerName,
                 'subtotal_amount' => $subtotal,
@@ -314,9 +318,11 @@ final class OrderService
                 'company_id' => $companyId,
                 'order_id' => $orderId,
                 'old_status' => null,
-                'new_status' => 'pending',
+                'new_status' => $initialStatus,
                 'changed_by_user_id' => $userId > 0 ? $userId : null,
-                'notes' => 'Pedido criado (' . $channel . ').',
+                'notes' => $autoSendKitchen
+                    ? 'Pedido criado e enviado automaticamente para a fila de producao (' . $channel . ').'
+                    : 'Pedido criado (' . $channel . ').',
             ]);
 
             if ($channel === 'delivery' && $deliveryPayload !== null && $customerId !== null) {

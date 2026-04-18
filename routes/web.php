@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 use App\Controllers\Auth\LoginController;
 use App\Controllers\Auth\AccountController;
+use App\Controllers\DigitalMenuController;
 use App\Controllers\MediaController;
 use App\Controllers\WebhookController;
 use App\Controllers\Admin\DashboardController;
@@ -60,6 +61,10 @@ $router->get('/media/product', [MediaController::class, 'product']);
 $router->get('/media/support-attachment', [MediaController::class, 'supportAttachment'], [AuthMiddleware::class]);
 $router->get('/media/table-qr', [MediaController::class, 'tableQr']);
 $router->post('/webhooks/mercado-pago', [WebhookController::class, 'mercadoPago']);
+$router->get('/menu-digital', [DigitalMenuController::class, 'index']);
+$router->post('/menu-digital/command/open', [DigitalMenuController::class, 'openCommand']);
+$router->post('/menu-digital/order/store', [DigitalMenuController::class, 'storeOrder']);
+$router->get('/menu-digital/ticket', [DigitalMenuController::class, 'ticket']);
 
 $router->get('/admin/dashboard', [DashboardController::class, 'index'], $companyAccess('dashboard.view'));
 $router->get('/admin/dashboard/report', [DashboardController::class, 'report'], $companyAccess('dashboard.view'));

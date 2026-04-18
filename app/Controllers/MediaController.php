@@ -103,7 +103,9 @@ final class MediaController extends Controller
         if ($rawData === '') {
             return Response::make('Dados do QR nao informados.', 400, ['Content-Type' => 'text/plain; charset=UTF-8']);
         }
-        if (!str_starts_with($rawData, 'comanda360:')) {
+        $isLegacyPayload = str_starts_with($rawData, 'comanda360:');
+        $isUrlPayload = preg_match('#^https?://#i', $rawData) === 1;
+        if (!$isLegacyPayload && !$isUrlPayload) {
             return Response::make('Formato de payload QR invalido.', 400, ['Content-Type' => 'text/plain; charset=UTF-8']);
         }
         if (strlen($rawData) > 600) {

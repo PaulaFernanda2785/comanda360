@@ -142,9 +142,9 @@ final class TableService
             throw new ValidationException('Token QR da mesa nao encontrado.');
         }
 
-        $qrPayload = 'comanda360:empresa=' . $companySlug .
-            ';mesa=' . $tableNumber .
-            ';token=' . $token;
+        $qrPayload = app_url('/menu-digital?empresa=' . rawurlencode($companySlug) .
+            '&mesa=' . $tableNumber .
+            '&token=' . rawurlencode($token));
 
         return [
             'table' => $table,

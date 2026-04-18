@@ -107,6 +107,38 @@ final class TableRepository extends BaseRepository
         return $row ?: null;
     }
 
+    public function findByNumberAndTokenForPublic(int $companyId, int $number, string $token): ?array
+    {
+        $normalizedToken = trim($token);
+        if ($companyId <= 0 || $number <= 0 || $normalizedToken === '') {
+            return null;
+        }
+
+        $stmt = $this->db()->prepare("
+            SELECT
+                id,
+                company_id,
+                name,
+                number,
+                capacity,
+                qr_code_token,
+                status
+            FROM tables
+            WHERE company_id = :company_id
+              AND number = :number
+              AND qr_code_token = :qr_code_token
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'number' => $number,
+            'qr_code_token' => $normalizedToken,
+        ]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     public function updateStatus(int $tableId, string $status): void
     {
         $stmt = $this->db()->prepare("
