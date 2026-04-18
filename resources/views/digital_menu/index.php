@@ -8,21 +8,26 @@ $products = is_array($products ?? null) ? $products : [];
 $currentCommand = is_array($currentCommand ?? null) ? $currentCommand : null;
 $currentCommandPanel = is_array($currentCommandPanel ?? null) ? $currentCommandPanel : ['summary' => [], 'orders' => []];
 $currentSummary = is_array($currentCommandPanel['summary'] ?? null) ? $currentCommandPanel['summary'] : [];
-$currentOrders = is_array($currentCommandPanel['orders'] ?? null) ? $currentCommandPanel['orders'] : [];
 $tableCommands = is_array($tableCommands ?? null) ? $tableCommands : [];
 $tableSummary = is_array($tableSummary ?? null) ? $tableSummary : [];
 $openCommandsCount = (int) ($openCommandsCount ?? 0);
-$refreshIntervalSeconds = max(20, (int) ($refreshIntervalSeconds ?? 20));
+$refreshIntervalSeconds = max(1200, (int) ($refreshIntervalSeconds ?? 1200));
+$refreshIntervalLabel = $refreshIntervalSeconds % 60 === 0
+    ? ((int) ($refreshIntervalSeconds / 60)) . ' min'
+    : $refreshIntervalSeconds . ' s';
 $fatalError = trim((string) ($fatalError ?? ''));
 $companySlug = trim((string) ($company['slug'] ?? ''));
 $tableNumber = (int) ($table['number'] ?? 0);
 $token = trim((string) ($access['token'] ?? ''));
+$currentCommandId = (int) ($currentCommand['id'] ?? 0);
 $menuBaseUrl = $companySlug !== '' && $tableNumber > 0 && $token !== ''
     ? base_url('/menu-digital?empresa=' . rawurlencode($companySlug) . '&mesa=' . $tableNumber . '&token=' . rawurlencode($token))
     : base_url('/menu-digital');
 $openCommandAction = $menuBaseUrl !== '' ? str_replace('/menu-digital?', '/menu-digital/command/open?', $menuBaseUrl) : base_url('/menu-digital/command/open');
-$storeOrderAction = $menuBaseUrl !== '' ? str_replace('/menu-digital?', '/menu-digital/order/store?', $menuBaseUrl) : base_url('/menu-digital/order/store');
+$cartUrl = base_url('/menu-digital/cart?empresa=' . rawurlencode($companySlug) . '&mesa=' . $tableNumber . '&token=' . rawurlencode($token));
 $tableTicketUrl = base_url('/menu-digital/ticket?empresa=' . rawurlencode($companySlug) . '&mesa=' . $tableNumber . '&token=' . rawurlencode($token) . '&scope=table');
+$cartStorageKey = 'digital-menu-cart:' . $companySlug . ':' . $tableNumber . ':' . $token . ':' . $currentCommandId;
+$lastOrderId = isset($_GET['last_order_id']) ? (int) $_GET['last_order_id'] : 0;
 $formatMoney = static fn (float $value): string => 'R$ ' . number_format($value, 2, ',', '.');
 $formatDate = static function (?string $value): string {
     $raw = trim((string) ($value ?? ''));
@@ -34,7 +39,7 @@ $formatDate = static function (?string $value): string {
     return $timestamp !== false ? date('d/m/Y H:i', $timestamp) : $raw;
 };
 $statusLabels = [
-    'pending' => 'Aguardando produção',
+    'pending' => 'Aguardando producao',
     'received' => 'Recebido na cozinha',
     'preparing' => 'Em preparo',
     'ready' => 'Pronto para entrega',
@@ -49,34 +54,36 @@ if (!is_string($productsJson)) {
 ?>
 
 <style>
-    .dm-dashboard{display:grid;gap:18px}
+    .dm-dashboard{display:grid;gap:18px;padding-bottom:132px}
+    .dm-dashboard,.dm-dashboard > *,.dm-main-grid,.dm-main-grid > *,.dm-stack,.dm-side-stack,.dm-section-head,.dm-section-head > *,.dm-category-nav,.dm-category-nav > *,.dm-product-card,.dm-product-card > *,.dm-command-entry,.dm-command-entry > *,.dm-order-card,.dm-order-card > *,.dm-modal-head,.dm-modal-head > *{min-width:0}
     .dm-signal-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
     .dm-signal{padding:16px;border-radius:20px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(12px)}
     .dm-signal strong{display:block;font-size:30px;line-height:1}
     .dm-signal span{display:block;margin-top:7px;font-size:12px;color:rgba(255,255,255,.82)}
-    .dm-main-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(340px,.92fr);gap:18px;align-items:start}
-    .dm-stack{display:grid;gap:18px}
+    .dm-main-grid{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(280px,.75fr);gap:18px;align-items:start}
+    .dm-stack,.dm-side-stack{display:grid;gap:18px}
+    .dm-side-stack{position:sticky;top:calc(var(--dm-topbar-offset, 76px) + 12px)}
     .dm-glass-card{
-        background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(255,255,255,.88));
-        border:1px solid rgba(219,228,240,.95);
+        background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(255,255,255,.9));
+        border:1px solid rgba(219,228,240,.96);
         border-radius:26px;
         box-shadow:var(--dm-shadow);
         padding:18px;
     }
     .dm-section-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px}
     .dm-section-head h2{margin:0;font-size:24px;letter-spacing:-.02em}
-    .dm-section-head p{margin:6px 0 0;color:var(--dm-muted);font-size:14px;max-width:720px;line-height:1.5}
+    .dm-section-head p{margin:6px 0 0;color:var(--dm-muted);font-size:14px;max-width:760px;line-height:1.5}
     .dm-chip-row{display:flex;gap:8px;flex-wrap:wrap}
     .dm-chip{
         display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;
         border:1px solid var(--dm-border);background:#fff;color:var(--dm-secondary);font-size:12px;font-weight:700
     }
-    .dm-chip.is-current{background:color-mix(in srgb, var(--dm-primary) 10%, white 90%);border-color:color-mix(in srgb, var(--dm-primary) 30%, white 70%)}
-    .dm-quick-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+    .dm-chip.is-current{background:color-mix(in srgb, var(--dm-primary) 10%, white 90%);border-color:color-mix(in srgb, var(--dm-primary) 28%, white 72%)}
+    .dm-quick-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
     .dm-quick-card{padding:14px;border-radius:20px;background:var(--dm-surface-soft);border:1px solid var(--dm-border)}
     .dm-quick-card strong{display:block;font-size:24px;line-height:1}
     .dm-quick-card span{display:block;margin-top:6px;font-size:12px;color:var(--dm-muted)}
-    .dm-open-form,.dm-composer-form{display:grid;gap:12px}
+    .dm-open-form{display:grid;gap:12px}
     .dm-grid-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
     .dm-note{font-size:13px;color:var(--dm-muted);line-height:1.55}
     .dm-command-board{display:grid;gap:14px}
@@ -84,8 +91,8 @@ if (!is_string($productsJson)) {
     .dm-command-entry.is-current{border-color:color-mix(in srgb, var(--dm-primary) 36%, white 64%);box-shadow:0 14px 32px rgba(29,78,216,.08)}
     .dm-command-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
     .dm-command-title{display:grid;gap:4px}
-    .dm-command-title strong{font-size:19px;line-height:1.1}
-    .dm-command-title small{font-size:12px;color:var(--dm-muted);line-height:1.4}
+    .dm-command-title strong{font-size:19px;line-height:1.1;overflow-wrap:anywhere}
+    .dm-command-title small{font-size:12px;color:var(--dm-muted);line-height:1.4;overflow-wrap:anywhere}
     .dm-command-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
     .dm-command-metric{padding:12px;border-radius:16px;background:var(--dm-surface-soft);border:1px solid var(--dm-border)}
     .dm-command-metric strong{display:block;font-size:18px;line-height:1}
@@ -93,53 +100,78 @@ if (!is_string($productsJson)) {
     .dm-order-list{display:grid;gap:10px;margin-top:12px}
     .dm-order-card{padding:14px;border-radius:18px;background:var(--dm-surface-soft);border:1px solid var(--dm-border)}
     .dm-order-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
-    .dm-order-head strong{font-size:14px}
-    .dm-order-head small{display:block;margin-top:4px;color:var(--dm-muted);font-size:12px}
+    .dm-order-head strong{font-size:14px;overflow-wrap:anywhere}
+    .dm-order-head small{display:block;margin-top:4px;color:var(--dm-muted);font-size:12px;overflow-wrap:anywhere}
     .dm-order-items{display:grid;gap:8px;margin-top:10px}
     .dm-order-item{padding:10px 12px;border-radius:14px;background:#fff;border:1px solid var(--dm-border)}
-    .dm-order-item strong{display:block;font-size:13px}
-    .dm-order-item span,.dm-order-item small{display:block;margin-top:5px;color:var(--dm-muted);font-size:12px;line-height:1.45}
+    .dm-order-item strong{display:block;font-size:13px;overflow-wrap:anywhere}
+    .dm-order-item span,.dm-order-item small{display:block;margin-top:5px;color:var(--dm-muted);font-size:12px;line-height:1.45;overflow-wrap:anywhere}
     .dm-action-bar{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-    .dm-action-bar .btn,.dm-action-bar .btn-secondary,.dm-action-bar .btn-soft{margin-top:4px}
-    .dm-category-tabs{display:flex;gap:8px;overflow:auto;padding-bottom:4px;margin-bottom:16px}
+    .dm-menu-shell{display:grid;gap:16px;position:relative}
+    .dm-menu-wrap{display:grid;gap:16px}
+    .dm-category-nav-anchor{height:0}
+    .dm-category-nav{
+        position:relative;z-index:15;display:flex;gap:10px;overflow-x:auto;overflow-y:hidden;padding:6px;align-self:start;
+        margin:0;border-radius:22px;background:rgba(248,250,252,.92);backdrop-filter:blur(16px);border:1px solid rgba(219,228,240,.9);
+        transition:box-shadow .18s ease,border-color .18s ease,background .18s ease
+    }
+    .dm-menu-shell.is-floating .dm-category-nav{
+        position:fixed;top:calc(var(--dm-topbar-offset, 76px) + 4px);left:var(--dm-menu-nav-left, 0px);width:var(--dm-menu-nav-width, auto);
+        max-width:var(--dm-menu-nav-width, auto);z-index:19;box-shadow:0 14px 30px rgba(15,23,42,.12);border-color:rgba(203,213,225,.96)
+    }
+    .dm-menu-shell.is-bottom .dm-category-nav{
+        position:absolute;left:0;top:var(--dm-menu-nav-stop, 0px);width:100%;box-shadow:0 14px 30px rgba(15,23,42,.12);border-color:rgba(203,213,225,.96)
+    }
+    .dm-menu-shell.is-floating .dm-category-nav-anchor,
+    .dm-menu-shell.is-bottom .dm-category-nav-anchor{height:var(--dm-menu-nav-height, 0px)}
+    .dm-category-nav::-webkit-scrollbar{display:none}
     .dm-category-tab{
-        border:1px solid var(--dm-border);background:#fff;border-radius:999px;padding:10px 14px;cursor:pointer;white-space:nowrap;
-        font:inherit;font-weight:700;color:var(--dm-secondary)
+        flex:0 0 auto;border:1px solid var(--dm-border);background:#fff;border-radius:999px;padding:10px 14px;cursor:pointer;
+        font:inherit;font-weight:700;color:var(--dm-secondary);white-space:nowrap;transition:background .15s ease,border-color .15s ease,color .15s ease
     }
     .dm-category-tab.active{background:var(--dm-primary);border-color:var(--dm-primary);color:#fff}
-    .dm-category-panel{display:none}
-    .dm-category-panel.active{display:grid;gap:14px}
+    .dm-category-list{display:grid;gap:18px}
+    .dm-category-section{display:grid;gap:12px;scroll-margin-top:calc(var(--dm-topbar-offset, 76px) + 84px)}
     .dm-category-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
     .dm-category-head h3{margin:0;font-size:22px}
-    .dm-product-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .dm-category-copy{max-width:780px}
+    .dm-category-copy p{margin:6px 0 0;color:var(--dm-muted);font-size:13px;line-height:1.5}
+    .dm-refresh-status{font-size:12px;color:var(--dm-muted)}
+    .dm-product-list{display:grid;gap:12px}
     .dm-product-card{
-        position:relative;display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;padding:14px;border:1px solid var(--dm-border);
-        border-radius:22px;background:linear-gradient(180deg,#fff,#f9fbfd)
+        position:relative;display:grid;grid-template-columns:108px minmax(0,1fr);gap:14px;padding:14px;border:1px solid var(--dm-border);
+        border-radius:24px;background:linear-gradient(180deg,#fff,#f9fbfd)
     }
     .dm-product-image{
-        width:96px;height:96px;border-radius:18px;overflow:hidden;background:linear-gradient(135deg,#e0ecff,#eef4fb);
+        width:108px;height:108px;border-radius:18px;overflow:hidden;background:linear-gradient(135deg,#e0ecff,#eef4fb);
         display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--dm-muted)
     }
     .dm-product-image img{width:100%;height:100%;object-fit:cover}
     .dm-product-body{display:grid;gap:8px;min-width:0}
-    .dm-product-body strong{font-size:16px;line-height:1.15}
-    .dm-product-body p{margin:0;color:var(--dm-muted);font-size:13px;line-height:1.5}
+    .dm-product-body strong{font-size:17px;line-height:1.15;overflow-wrap:anywhere}
+    .dm-product-body p{margin:0;color:var(--dm-muted);font-size:13px;line-height:1.5;overflow-wrap:anywhere}
     .dm-tag-row{display:flex;gap:6px;flex-wrap:wrap}
     .dm-tag{display:inline-flex;padding:6px 9px;border-radius:999px;background:var(--dm-surface-soft);border:1px solid var(--dm-border);font-size:11px;font-weight:700;color:var(--dm-muted)}
     .dm-product-meta{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
-    .dm-price{font-size:18px;font-weight:800;color:var(--dm-secondary)}
-    .dm-side-stack{display:grid;gap:18px;position:sticky;top:88px}
-    .dm-cart-list{display:grid;gap:10px}
-    .dm-cart-item{padding:12px;border-radius:18px;border:1px solid var(--dm-border);background:var(--dm-surface-soft)}
-    .dm-cart-item-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
-    .dm-cart-item strong{font-size:14px}
-    .dm-cart-item small,.dm-cart-item p{display:block;margin-top:5px;color:var(--dm-muted);font-size:12px;line-height:1.45}
-    .dm-cart-footer{display:grid;gap:12px}
-    .dm-total-line{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:14px;border-radius:18px;background:color-mix(in srgb, var(--dm-accent) 12%, white 88%);border:1px solid color-mix(in srgb, var(--dm-accent) 22%, white 78%)}
-    .dm-total-line strong{font-size:20px}
-    .dm-cart-hidden{display:none}
-    .dm-refresh-status{font-size:12px;color:var(--dm-muted)}
+    .dm-price{font-size:20px;font-weight:800;color:var(--dm-secondary)}
     .dm-empty{padding:18px;border-radius:20px;border:1px dashed var(--dm-border);background:var(--dm-surface-soft);color:var(--dm-muted)}
+    .dm-cart-dock{
+        position:fixed;left:0;right:0;bottom:0;z-index:40;padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px));
+        pointer-events:none
+    }
+    .dm-cart-dock-inner{
+        width:min(1180px,calc(100vw - 16px));max-width:calc(100vw - 16px);margin:0 auto;pointer-events:auto;
+        display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 16px;border-radius:24px;
+        border:1px solid rgba(255,255,255,.22);
+        background:linear-gradient(135deg,color-mix(in srgb, var(--dm-main-card) 92%, black 8%),color-mix(in srgb, var(--dm-primary) 78%, var(--dm-main-card) 22%) 100%);
+        color:#fff;box-shadow:0 -12px 34px rgba(15,23,42,.22)
+    }
+    .dm-cart-dock-summary{display:grid;gap:4px;min-width:0}
+    .dm-cart-dock-summary strong{font-size:15px;overflow-wrap:anywhere}
+    .dm-cart-dock-summary span{font-size:12px;color:rgba(255,255,255,.78)}
+    .dm-cart-dock-total{font-size:20px;font-weight:800}
+    .dm-cart-dock .btn{background:#fff;color:var(--dm-secondary);min-width:170px}
+    .dm-cart-dock[hidden]{display:none !important}
     .dm-modal[hidden]{display:none !important}
     .dm-modal{position:fixed;inset:0;z-index:60;background:rgba(15,23,42,.58);display:grid;place-items:end center;padding:14px}
     .dm-modal-sheet{width:min(720px,100%);max-height:min(86vh,920px);overflow:auto;background:#fff;border-radius:24px 24px 18px 18px;padding:18px;display:grid;gap:14px;box-shadow:0 30px 70px rgba(15,23,42,.24)}
@@ -161,13 +193,17 @@ if (!is_string($productsJson)) {
         .dm-side-stack{position:static}
     }
     @media (max-width:900px){
-        .dm-signal-grid,.dm-quick-grid,.dm-command-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
-        .dm-grid-two,.dm-additionals-grid,.dm-product-grid{grid-template-columns:1fr}
+        .dm-signal-grid,.dm-command-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+        .dm-grid-two,.dm-additionals-grid,.dm-quick-grid{grid-template-columns:1fr}
+        .dm-action-bar .btn,.dm-action-bar .btn-secondary,.dm-action-bar .btn-soft{width:100%}
     }
-    @media (max-width:560px){
-        .dm-signal-grid,.dm-quick-grid,.dm-command-metrics{grid-template-columns:1fr}
-        .dm-product-card{grid-template-columns:78px minmax(0,1fr)}
-        .dm-product-image{width:78px;height:78px}
+    @media (max-width:640px){
+        .dm-dashboard{padding-bottom:144px}
+        .dm-product-card{grid-template-columns:86px minmax(0,1fr)}
+        .dm-product-image{width:86px;height:86px}
+        .dm-command-header,.dm-order-head,.dm-product-meta,.dm-modal-head,.dm-cart-dock-inner{flex-direction:column;align-items:stretch}
+        .dm-cart-dock .btn{width:100%;min-width:0}
+        .dm-action-bar,.dm-modal-actions{flex-direction:column}
         .dm-modal{padding:8px}
         .dm-modal-sheet{padding:14px}
     }
@@ -178,7 +214,7 @@ if (!is_string($productsJson)) {
         <div class="dm-hero-grid">
             <div class="dm-hero-copy">
                 <span class="dm-eyebrow">Acesso da mesa</span>
-                <h1>Menu digital indisponível</h1>
+                <h1>Menu digital indisponivel</h1>
                 <p><?= htmlspecialchars($fatalError) ?></p>
             </div>
             <div class="dm-empty" style="color:#fff;border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.08)">
@@ -193,7 +229,7 @@ if (!is_string($productsJson)) {
                 <div class="dm-hero-copy">
                     <span class="dm-eyebrow">Mesa vinculada ao QR Code</span>
                     <h1><?= htmlspecialchars(trim((string) ($table['name'] ?? 'Mesa ' . $tableNumber))) ?></h1>
-                    <p><?= htmlspecialchars(trim((string) ($menuTheme['description'] ?? '')) !== '' ? (string) $menuTheme['description'] : 'Abra sua comanda, acompanhe as comandas abertas da mesa e peça com rapidez direto do celular.') ?></p>
+                    <p><?= htmlspecialchars(trim((string) ($menuTheme['description'] ?? '')) !== '' ? (string) $menuTheme['description'] : 'Abra sua comanda, acompanhe os pedidos da mesa e faca seus pedidos com rapidez direto do celular.') ?></p>
                     <div class="dm-chip-row">
                         <span class="dm-pill">Mesa <?= $tableNumber ?></span>
                         <span class="dm-pill"><?= htmlspecialchars((string) ($company['name'] ?? 'Estabelecimento')) ?></span>
@@ -207,14 +243,14 @@ if (!is_string($productsJson)) {
                     </div>
                     <div class="dm-signal">
                         <strong><?= (int) ($tableSummary['orders_count'] ?? 0) ?></strong>
-                        <span>Pedidos lançados na mesa</span>
+                        <span>Pedidos lancados na mesa</span>
                     </div>
                     <div class="dm-signal">
                         <strong><?= $formatMoney((float) ($tableSummary['total_amount'] ?? 0)) ?></strong>
                         <span>Valor acumulado da mesa</span>
                     </div>
                     <div class="dm-signal">
-                        <strong><?= $currentCommand !== null ? '#' . (int) ($currentCommand['id'] ?? 0) : '---' ?></strong>
+                        <strong><?= $currentCommand !== null ? '#' . $currentCommandId : '---' ?></strong>
                         <span><?= $currentCommand !== null ? 'Sua comanda atual' : 'Abra sua comanda para pedir' ?></span>
                     </div>
                 </div>
@@ -228,17 +264,17 @@ if (!is_string($productsJson)) {
                         <div class="dm-section-head">
                             <div>
                                 <h2>Sua comanda ativa</h2>
-                                <p>Você enxerga todas as comandas abertas desta mesa, mas só consegue lançar pedidos na sua própria comanda atual.</p>
+                                <p>Voce enxerga todas as comandas abertas desta mesa, mas so consegue lancar pedidos na sua propria comanda neste aparelho.</p>
                             </div>
                             <div class="dm-chip-row">
-                                <span class="dm-chip is-current">Comanda #<?= (int) ($currentCommand['id'] ?? 0) ?></span>
+                                <span class="dm-chip is-current">Comanda #<?= $currentCommandId ?></span>
                                 <span class="dm-chip"><?= htmlspecialchars((string) ($currentCommand['customer_name'] ?? 'Cliente')) ?></span>
                             </div>
                         </div>
 
                         <div class="dm-quick-grid">
                             <div class="dm-quick-card"><strong><?= (int) ($currentSummary['total_orders'] ?? 0) ?></strong><span>Pedidos da sua comanda</span></div>
-                            <div class="dm-quick-card"><strong><?= (int) ($currentSummary['preparing'] ?? 0) + (int) ($currentSummary['received'] ?? 0) ?></strong><span>Em produção</span></div>
+                            <div class="dm-quick-card"><strong><?= (int) ($currentSummary['preparing'] ?? 0) + (int) ($currentSummary['received'] ?? 0) ?></strong><span>Em producao</span></div>
                             <div class="dm-quick-card"><strong><?= (int) ($currentSummary['ready'] ?? 0) ?></strong><span>Prontos</span></div>
                             <div class="dm-quick-card"><strong><?= $formatMoney((float) ($currentSummary['total_amount'] ?? 0)) ?></strong><span>Total da sua comanda</span></div>
                         </div>
@@ -248,7 +284,7 @@ if (!is_string($productsJson)) {
                         <div class="dm-section-head">
                             <div>
                                 <h2>Abrir sua comanda</h2>
-                                <p>Cada pessoa da mesa pode abrir uma comanda própria pelo mesmo QR Code. A partir daí, os pedidos ficam vinculados apenas à sua comanda neste dispositivo.</p>
+                                <p>Cada pessoa da mesa pode abrir uma comanda propria pelo mesmo QR Code. Depois disso, os pedidos ficam vinculados somente a sua comanda neste dispositivo.</p>
                             </div>
                         </div>
                         <form class="dm-open-form" method="POST" action="<?= htmlspecialchars($openCommandAction) ?>">
@@ -256,14 +292,14 @@ if (!is_string($productsJson)) {
                             <div class="dm-grid-two">
                                 <div class="field">
                                     <label for="customer_name">Nome na comanda</label>
-                                    <input id="customer_name" name="customer_name" type="text" maxlength="120" placeholder="Ex.: Ana, João, Mesa da empresa">
+                                    <input id="customer_name" name="customer_name" type="text" maxlength="120" placeholder="Ex.: Ana, Joao, Mesa da empresa">
                                 </div>
                                 <div class="field">
-                                    <label for="command_notes">Observação da comanda</label>
+                                    <label for="command_notes">Observacao da comanda</label>
                                     <input id="command_notes" name="notes" type="text" maxlength="255" placeholder="Opcional">
                                 </div>
                             </div>
-                            <div class="dm-note">A mesa pode ter várias comandas abertas ao mesmo tempo, mas este aparelho ficará vinculado apenas à comanda que você abrir aqui.</div>
+                            <div class="dm-note">A mesa pode ter varias comandas abertas ao mesmo tempo, mas este aparelho ficara vinculado somente a comanda que voce abrir aqui.</div>
                             <div class="dm-action-bar">
                                 <button class="btn" type="submit">Abrir minha comanda</button>
                             </div>
@@ -272,16 +308,110 @@ if (!is_string($productsJson)) {
                 <?php endif; ?>
 
                 <section class="dm-glass-card">
+                        <div class="dm-section-head">
+                            <div>
+                                <h2>Cardapio por categoria</h2>
+                            </div>
+                        </div>
+
+                    <?php if ($categories === []): ?>
+                        <div class="dm-empty">Nenhum produto ativo foi encontrado no cardapio desta empresa.</div>
+                    <?php else: ?>
+                        <div class="dm-menu-shell" id="digitalMenuShell">
+                            <div class="dm-category-nav-anchor" id="digitalCategoryNavAnchor" aria-hidden="true"></div>
+                            <nav class="dm-category-nav" id="categoryTabs" aria-label="Categorias do cardapio">
+                                <?php foreach ($categories as $index => $category): ?>
+                                    <?php $categoryKey = (string) ($category['key'] ?? 'category-' . $index); ?>
+                                    <button
+                                        class="dm-category-tab<?= $index === 0 ? ' active' : '' ?>"
+                                        type="button"
+                                        data-category-tab="<?= htmlspecialchars($categoryKey) ?>"
+                                    >
+                                        <?= htmlspecialchars((string) ($category['name'] ?? 'Categoria')) ?>
+                                    </button>
+                                <?php endforeach; ?>
+                            </nav>
+
+                            <div class="dm-menu-wrap">
+                            <div class="dm-category-list">
+                                <?php foreach ($categories as $index => $category): ?>
+                                    <?php
+                                    $categoryKey = (string) ($category['key'] ?? 'category-' . $index);
+                                    $categoryProducts = is_array($category['products'] ?? null) ? $category['products'] : [];
+                                    ?>
+                                    <section class="dm-category-section" id="category-<?= htmlspecialchars($categoryKey) ?>" data-category-section="<?= htmlspecialchars($categoryKey) ?>">
+                                        <div class="dm-category-head">
+                                            <div class="dm-category-copy">
+                                                <h3><?= htmlspecialchars((string) ($category['name'] ?? 'Categoria')) ?></h3>
+                                                <p><?= count($categoryProducts) ?> produto(s) disponivel(is) nesta categoria.</p>
+                                            </div>
+                                            <span class="dm-refresh-status"><?= count($categoryProducts) ?> produto(s)</span>
+                                        </div>
+
+                                        <div class="dm-product-list">
+                                            <?php foreach ($categoryProducts as $product): ?>
+                                                <?php
+                                                $price = $product['promotional_price'] !== null
+                                                    ? (float) $product['promotional_price']
+                                                    : (float) ($product['price'] ?? 0);
+                                                $imageUrl = product_image_url((string) ($product['image_path'] ?? ''));
+                                                $additionals = is_array($product['additionals'] ?? null) ? $product['additionals'] : [];
+                                                ?>
+                                                <article class="dm-product-card">
+                                                    <div class="dm-product-image">
+                                                        <?php if ($imageUrl !== ''): ?>
+                                                            <img src="<?= htmlspecialchars($imageUrl) ?>" alt="<?= htmlspecialchars((string) ($product['name'] ?? 'Produto')) ?>">
+                                                        <?php else: ?>
+                                                            <?= htmlspecialchars(substr((string) ($product['name'] ?? 'PD'), 0, 2)) ?>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                    <div class="dm-product-body">
+                                                        <strong><?= htmlspecialchars((string) ($product['name'] ?? 'Produto')) ?></strong>
+                                                        <p><?= htmlspecialchars((string) ($product['description'] ?? 'Sem descricao informada.')) ?></p>
+                                                        <div class="dm-tag-row">
+                                                            <?php if ($additionals !== []): ?>
+                                                                <span class="dm-tag"><?= count($additionals) ?> adicional(is)</span>
+                                                            <?php endif; ?>
+                                                            <?php if ((int) ($product['allows_notes'] ?? 0) === 1): ?>
+                                                                <span class="dm-tag">Aceita observacao</span>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <div class="dm-product-meta">
+                                                            <span class="dm-price"><?= $formatMoney($price) ?></span>
+                                                            <button
+                                                                class="btn"
+                                                                type="button"
+                                                                data-product-open
+                                                                data-product-id="<?= (int) ($product['id'] ?? 0) ?>"
+                                                                <?= $currentCommand !== null ? '' : 'disabled title="Abra sua comanda primeiro"' ?>
+                                                            >
+                                                                Adicionar
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </article>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </section>
+                                <?php endforeach; ?>
+                            </div>
+                            </div>
+                            <div id="digitalMenuEnd" aria-hidden="true"></div>
+                        </div>
+                    <?php endif; ?>
+                </section>
+
+                <section class="dm-glass-card">
                     <div class="dm-section-head">
                         <div>
                             <h2>Comandas abertas da mesa</h2>
-                            <p>Visão compartilhada da mesa: comandas abertas, pedidos, totais e tickets. Nenhuma comanda consegue ver pedidos de outras mesas.</p>
+                            <p>Visao compartilhada da mesa: comandas abertas, pedidos, totais e tickets. Nenhuma comanda consegue ver pedidos de outras mesas.</p>
                         </div>
                         <div class="dm-action-bar" style="margin-top:0">
                             <?php if ((int) ($tableSummary['orders_count'] ?? 0) > 0): ?>
                                 <a class="btn-soft" href="<?= htmlspecialchars($tableTicketUrl) ?>">Ticket geral da mesa</a>
                             <?php endif; ?>
-                            <span class="dm-refresh-status">Atualização automática a cada <?= $refreshIntervalSeconds ?>s</span>
+                            <span class="dm-refresh-status">Atualizacao automatica a cada <?= htmlspecialchars($refreshIntervalLabel) ?></span>
                         </div>
                     </div>
 
@@ -303,9 +433,9 @@ if (!is_string($productsJson)) {
                                             <strong>Comanda #<?= $commandId ?></strong>
                                             <small>
                                                 Cliente: <?= htmlspecialchars((string) ($command['customer_name'] ?? 'Sem nome')) ?>
-                                                • Aberta em <?= htmlspecialchars($formatDate((string) ($command['opened_at'] ?? ''))) ?>
+                                                - Aberta em <?= htmlspecialchars($formatDate((string) ($command['opened_at'] ?? ''))) ?>
                                                 <?php if (!empty($command['notes'])): ?>
-                                                    • <?= htmlspecialchars((string) $command['notes']) ?>
+                                                    - <?= htmlspecialchars((string) $command['notes']) ?>
                                                 <?php endif; ?>
                                             </small>
                                         </div>
@@ -320,12 +450,12 @@ if (!is_string($productsJson)) {
                                     <div class="dm-command-metrics">
                                         <div class="dm-command-metric"><strong><?= (int) ($summary['active_orders'] ?? 0) ?></strong><span>Pedidos ativos</span></div>
                                         <div class="dm-command-metric"><strong><?= (int) ($summary['ready'] ?? 0) ?></strong><span>Prontos</span></div>
-                                        <div class="dm-command-metric"><strong><?= (int) ($summary['preparing'] ?? 0) + (int) ($summary['received'] ?? 0) ?></strong><span>Em produção</span></div>
+                                        <div class="dm-command-metric"><strong><?= (int) ($summary['preparing'] ?? 0) + (int) ($summary['received'] ?? 0) ?></strong><span>Em producao</span></div>
                                         <div class="dm-command-metric"><strong><?= $formatMoney((float) ($summary['total_amount'] ?? 0)) ?></strong><span>Total da comanda</span></div>
                                     </div>
 
                                     <?php if ($orders === []): ?>
-                                        <div class="dm-empty" style="margin-top:12px">Esta comanda ainda não possui pedidos.</div>
+                                        <div class="dm-empty" style="margin-top:12px">Esta comanda ainda nao possui pedidos.</div>
                                     <?php else: ?>
                                         <div class="dm-order-list">
                                             <?php foreach ($orders as $order): ?>
@@ -339,7 +469,7 @@ if (!is_string($productsJson)) {
                                                     <div class="dm-order-head">
                                                         <div>
                                                             <strong><?= htmlspecialchars((string) ($order['order_number'] ?? 'Pedido')) ?></strong>
-                                                            <small><?= htmlspecialchars($statusLabel) ?> • <?= htmlspecialchars($formatDate((string) ($order['created_at'] ?? ''))) ?></small>
+                                                            <small><?= htmlspecialchars($statusLabel) ?> - <?= htmlspecialchars($formatDate((string) ($order['created_at'] ?? ''))) ?></small>
                                                         </div>
                                                         <strong><?= $formatMoney((float) ($order['total_amount'] ?? 0)) ?></strong>
                                                     </div>
@@ -358,12 +488,12 @@ if (!is_string($productsJson)) {
                                                                         foreach ((array) $item['additionals'] as $additional) {
                                                                             $parts[] = (int) ($additional['quantity'] ?? 0) . 'x ' . (string) ($additional['name'] ?? 'Adicional');
                                                                         }
-                                                                        echo htmlspecialchars(implode(' • ', $parts));
+                                                                        echo htmlspecialchars(implode(' - ', $parts));
                                                                         ?>
                                                                     </small>
                                                                 <?php endif; ?>
                                                                 <?php if (!empty($item['notes'])): ?>
-                                                                    <small>Observação: <?= htmlspecialchars((string) $item['notes']) ?></small>
+                                                                    <small>Observacao: <?= htmlspecialchars((string) $item['notes']) ?></small>
                                                                 <?php endif; ?>
                                                             </div>
                                                         <?php endforeach; ?>
@@ -386,158 +516,63 @@ if (!is_string($productsJson)) {
                         </div>
                     <?php endif; ?>
                 </section>
-
-                <section class="dm-glass-card">
-                    <div class="dm-section-head">
-                        <div>
-                            <h2>Cardápio por categoria</h2>
-                            <p>As categorias ficam organizadas em menus rápidos, no mesmo racional do painel de produtos do sistema.</p>
-                        </div>
-                        <span class="dm-chip"><?= count($products) ?> item(ns) ativos</span>
-                    </div>
-
-                    <?php if ($categories === []): ?>
-                        <div class="dm-empty">Nenhum produto ativo foi encontrado no cardápio desta empresa.</div>
-                    <?php else: ?>
-                        <div class="dm-category-tabs" id="categoryTabs">
-                            <?php foreach ($categories as $index => $category): ?>
-                                <button
-                                    class="dm-category-tab<?= $index === 0 ? ' active' : '' ?>"
-                                    type="button"
-                                    data-category-tab="<?= htmlspecialchars((string) ($category['key'] ?? 'category-' . $index)) ?>"
-                                >
-                                    <?= htmlspecialchars((string) ($category['name'] ?? 'Categoria')) ?>
-                                    (<?= (int) ($category['products_count'] ?? count(is_array($category['products'] ?? null) ? $category['products'] : [])) ?>)
-                                </button>
-                            <?php endforeach; ?>
-                        </div>
-
-                        <?php foreach ($categories as $index => $category): ?>
-                            <?php
-                            $categoryKey = (string) ($category['key'] ?? 'category-' . $index);
-                            $categoryProducts = is_array($category['products'] ?? null) ? $category['products'] : [];
-                            ?>
-                            <section class="dm-category-panel<?= $index === 0 ? ' active' : '' ?>" data-category-panel="<?= htmlspecialchars($categoryKey) ?>">
-                                <div class="dm-category-head">
-                                    <h3><?= htmlspecialchars((string) ($category['name'] ?? 'Categoria')) ?></h3>
-                                    <span class="dm-refresh-status"><?= count($categoryProducts) ?> produto(s)</span>
-                                </div>
-                                <div class="dm-product-grid">
-                                    <?php foreach ($categoryProducts as $product): ?>
-                                        <?php
-                                        $price = $product['promotional_price'] !== null
-                                            ? (float) $product['promotional_price']
-                                            : (float) ($product['price'] ?? 0);
-                                        $imageUrl = product_image_url((string) ($product['image_path'] ?? ''));
-                                        $additionals = is_array($product['additionals'] ?? null) ? $product['additionals'] : [];
-                                        ?>
-                                        <article class="dm-product-card">
-                                            <div class="dm-product-image">
-                                                <?php if ($imageUrl !== ''): ?>
-                                                    <img src="<?= htmlspecialchars($imageUrl) ?>" alt="<?= htmlspecialchars((string) ($product['name'] ?? 'Produto')) ?>">
-                                                <?php else: ?>
-                                                    <?= htmlspecialchars(substr((string) ($product['name'] ?? 'PD'), 0, 2)) ?>
-                                                <?php endif; ?>
-                                            </div>
-                                            <div class="dm-product-body">
-                                                <strong><?= htmlspecialchars((string) ($product['name'] ?? 'Produto')) ?></strong>
-                                                <p><?= htmlspecialchars((string) ($product['description'] ?? 'Sem descrição informada.')) ?></p>
-                                                <div class="dm-tag-row">
-                                                    <?php if ($additionals !== []): ?>
-                                                        <span class="dm-tag"><?= count($additionals) ?> adicional(is)</span>
-                                                    <?php endif; ?>
-                                                    <?php if ((int) ($product['allows_notes'] ?? 0) === 1): ?>
-                                                        <span class="dm-tag">Aceita observação</span>
-                                                    <?php endif; ?>
-                                                </div>
-                                                <div class="dm-product-meta">
-                                                    <span class="dm-price"><?= $formatMoney($price) ?></span>
-                                                    <button
-                                                        class="btn"
-                                                        type="button"
-                                                        data-product-open
-                                                        data-product-id="<?= (int) ($product['id'] ?? 0) ?>"
-                                                        <?= $currentCommand !== null ? '' : 'disabled title="Abra sua comanda primeiro"' ?>
-                                                    >
-                                                        Adicionar
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </article>
-                                    <?php endforeach; ?>
-                                </div>
-                            </section>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </section>
             </main>
 
             <aside class="dm-side-stack">
                 <section class="dm-glass-card">
                     <div class="dm-section-head">
                         <div>
-                            <h2>Pedido rápido</h2>
-                            <p>O carrinho lança pedidos somente na sua comanda atual.</p>
+                            <h2>Leitura operacional</h2>
+                            <p>Resumo rapido da mesa para consulta do cliente.</p>
                         </div>
                     </div>
-
-                    <?php if ($currentCommand === null): ?>
-                        <div class="dm-empty">Abra sua comanda para habilitar o carrinho e registrar seus pedidos.</div>
-                    <?php else: ?>
-                        <form method="POST" action="<?= htmlspecialchars($storeOrderAction) ?>" id="digitalMenuOrderForm" class="dm-composer-form">
-                            <?= form_security_fields('digital_menu.order.store') ?>
-                            <div class="dm-cart-list" id="digitalCartList">
-                                <div class="dm-empty">Nenhum item no carrinho ainda.</div>
-                            </div>
-
-                            <div class="dm-cart-footer">
-                                <div class="field">
-                                    <label for="digital_order_notes">Observações gerais do pedido</label>
-                                    <textarea id="digital_order_notes" name="notes" rows="3" placeholder="Opcional"></textarea>
-                                </div>
-
-                                <div class="dm-total-line">
-                                    <span>Total previsto</span>
-                                    <strong id="digitalCartTotal">R$ 0,00</strong>
-                                </div>
-
-                                <div id="digitalCartHiddenFields" class="dm-cart-hidden"></div>
-
-                                <button class="btn" id="digitalCartSubmit" type="submit" disabled>Enviar para minha comanda</button>
-                            </div>
-                        </form>
-                    <?php endif; ?>
+                    <div class="dm-quick-grid">
+                        <div class="dm-quick-card"><strong><?= (int) ($tableSummary['pending'] ?? 0) ?></strong><span>Aguardando producao</span></div>
+                        <div class="dm-quick-card"><strong><?= (int) ($tableSummary['preparing'] ?? 0) + (int) ($tableSummary['received'] ?? 0) ?></strong><span>Em preparo</span></div>
+                        <div class="dm-quick-card"><strong><?= (int) ($tableSummary['ready'] ?? 0) ?></strong><span>Prontos</span></div>
+                        <div class="dm-quick-card"><strong><?= (int) ($tableSummary['delivered'] ?? 0) ?></strong><span>Entregues</span></div>
+                    </div>
                 </section>
 
                 <section class="dm-glass-card">
                     <div class="dm-section-head">
                         <div>
-                            <h2>Leitura operacional</h2>
-                            <p>Resumo rápido da mesa para consulta do cliente.</p>
+                            <h2>Tickets e consulta</h2>
+                            <p>Acompanhe os pedidos da mesa e consulte os tickets ja emitidos.</p>
                         </div>
                     </div>
-                    <div class="dm-quick-grid">
-                        <div class="dm-quick-card"><strong><?= (int) ($tableSummary['pending'] ?? 0) ?></strong><span>Aguardando produção</span></div>
-                        <div class="dm-quick-card"><strong><?= (int) ($tableSummary['preparing'] ?? 0) + (int) ($tableSummary['received'] ?? 0) ?></strong><span>Em preparo</span></div>
-                        <div class="dm-quick-card"><strong><?= (int) ($tableSummary['ready'] ?? 0) ?></strong><span>Prontos</span></div>
-                        <div class="dm-quick-card"><strong><?= (int) ($tableSummary['delivered'] ?? 0) ?></strong><span>Entregues</span></div>
-                    </div>
-                    <div class="dm-action-bar">
+                    <div class="dm-action-bar" style="margin-top:0">
                         <?php if ((int) ($tableSummary['orders_count'] ?? 0) > 0): ?>
                             <a class="btn-secondary" href="<?= htmlspecialchars($tableTicketUrl) ?>">Imprimir ticket geral da mesa</a>
                         <?php endif; ?>
+                        <a class="btn-soft" href="#categoryTabs">Ir para o cardapio</a>
                     </div>
                 </section>
             </aside>
         </div>
     </div>
 
+    <?php if ($currentCommand !== null): ?>
+        <div class="dm-cart-dock" id="digitalCartDock">
+            <div class="dm-cart-dock-inner">
+                <div class="dm-cart-dock-summary">
+                    <strong id="digitalCartDockTitle">Seu carrinho</strong>
+                    <span id="digitalCartDockMeta">Nenhum item adicionado ainda.</span>
+                </div>
+                <div class="dm-chip-row" style="justify-content:flex-end;align-items:center">
+                    <span class="dm-cart-dock-total" id="digitalCartDockTotal">R$ 0,00</span>
+                    <button class="btn" type="button" id="digitalCartDockButton" disabled>Ver carrinho</button>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <div class="dm-modal" id="productModal" hidden>
         <div class="dm-modal-sheet">
             <div class="dm-modal-head">
                 <div>
                     <h3 id="productModalTitle">Produto</h3>
-                    <p id="productModalDescription">Configure quantidade, adicionais e observações.</p>
+                    <p id="productModalDescription">Configure quantidade, adicionais e observacoes.</p>
                 </div>
                 <button class="btn-secondary" type="button" id="closeProductModal">Fechar</button>
             </div>
@@ -546,20 +581,20 @@ if (!is_string($productsJson)) {
                 <div class="field">
                     <label>Quantidade</label>
                     <div class="dm-qty-stepper">
-                        <button class="dm-step-btn" type="button" id="decreaseProductQty">−</button>
+                        <button class="dm-step-btn" type="button" id="decreaseProductQty">-</button>
                         <span class="dm-step-value" id="productQtyValue">1</span>
                         <button class="dm-step-btn" type="button" id="increaseProductQty">+</button>
                     </div>
                 </div>
                 <div class="field">
-                    <label for="productItemNotes">Observação do item</label>
+                    <label for="productItemNotes">Observacao do item</label>
                     <textarea id="productItemNotes" rows="4" placeholder="Ex.: sem cebola, ponto da carne, enviar junto."></textarea>
                 </div>
             </div>
 
             <div class="field">
                 <label>Adicionais</label>
-                <div id="productAdditionalsMeta" class="dm-note">Este item não possui adicionais ativos.</div>
+                <div id="productAdditionalsMeta" class="dm-note">Este item nao possui adicionais ativos.</div>
                 <div class="dm-additionals-grid" id="productAdditionalsGrid"></div>
             </div>
 
@@ -574,32 +609,133 @@ if (!is_string($productsJson)) {
     (() => {
         const currentCommandEnabled = <?= $currentCommand !== null ? 'true' : 'false' ?>;
         const refreshIntervalMs = <?= $refreshIntervalSeconds * 1000 ?>;
+        const checkoutUrl = <?= json_encode($cartUrl, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+        const cartStorageKey = <?= json_encode($cartStorageKey, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+        const lastOrderId = <?= $lastOrderId ?>;
         const products = <?= $productsJson ?>;
         const productsById = {};
-        const cart = [];
+        let cart = [];
         let activeProduct = null;
         let activeQuantity = 1;
 
         const modal = document.getElementById('productModal');
+        const menuShell = document.getElementById('digitalMenuShell');
+        const categoryNav = document.getElementById('categoryTabs');
+        const categoryNavAnchor = document.getElementById('digitalCategoryNavAnchor');
+        const menuEnd = document.getElementById('digitalMenuEnd');
         const modalTitle = document.getElementById('productModalTitle');
         const modalDescription = document.getElementById('productModalDescription');
         const additionalsMeta = document.getElementById('productAdditionalsMeta');
         const additionalsGrid = document.getElementById('productAdditionalsGrid');
         const itemNotes = document.getElementById('productItemNotes');
         const qtyValue = document.getElementById('productQtyValue');
-        const cartList = document.getElementById('digitalCartList');
-        const cartTotal = document.getElementById('digitalCartTotal');
-        const cartHiddenFields = document.getElementById('digitalCartHiddenFields');
-        const cartSubmit = document.getElementById('digitalCartSubmit');
+        const cartDock = document.getElementById('digitalCartDock');
+        const cartDockMeta = document.getElementById('digitalCartDockMeta');
+        const cartDockTotal = document.getElementById('digitalCartDockTotal');
+        const cartDockButton = document.getElementById('digitalCartDockButton');
 
         const money = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
-        const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        }[char] || char));
+        const storageAvailable = (() => {
+            try {
+                const key = '__digital_menu_test__';
+                window.localStorage.setItem(key, '1');
+                window.localStorage.removeItem(key);
+                return true;
+            } catch (error) {
+                return false;
+            }
+        })();
+
+        const loadCart = () => {
+            if (!storageAvailable) {
+                return [];
+            }
+
+            try {
+                const raw = window.localStorage.getItem(cartStorageKey);
+                if (!raw) {
+                    return [];
+                }
+
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (error) {
+                return [];
+            }
+        };
+
+        const normalizeCartItems = (items) => {
+            if (!Array.isArray(items)) {
+                return [];
+            }
+
+            return items
+                .slice(0, 60)
+                .map((item) => {
+                    const productId = Number(item?.productId || 0);
+                    const product = productsById[String(productId)] || null;
+                    return {
+                        productId,
+                        name: product ? String(product.name || 'Produto') : String(item?.name || 'Produto'),
+                        quantity: Math.max(0, Number(item?.quantity || 0)),
+                        notes: String(item?.notes || '').slice(0, 500),
+                        additionals: Array.isArray(item?.additionals)
+                            ? item.additionals.slice(0, 20).map((additional) => ({
+                                id: Number(additional?.id || 0),
+                                name: String(additional?.name || 'Adicional'),
+                                price: Number(additional?.price || 0),
+                            }))
+                            : [],
+                        additionalIds: Array.isArray(item?.additionalIds)
+                            ? item.additionalIds.slice(0, 20).map((value) => Number(value || 0)).filter((value) => value > 0)
+                            : [],
+                        lineTotal: Number(item?.lineTotal || 0),
+                    };
+                })
+                .filter((item) => item.productId > 0 && item.quantity > 0 && Number.isFinite(item.lineTotal) && item.lineTotal >= 0 && productsById[String(item.productId)]);
+        };
+
+        const saveCart = () => {
+            if (!storageAvailable) {
+                return;
+            }
+
+            try {
+                window.localStorage.setItem(cartStorageKey, JSON.stringify(cart));
+            } catch (error) {
+            }
+        };
+
+        const clearCart = () => {
+            cart = [];
+            if (!storageAvailable) {
+                return;
+            }
+
+            try {
+                window.localStorage.removeItem(cartStorageKey);
+            } catch (error) {
+            }
+        };
+
+        const syncCartDock = () => {
+            if (!cartDock || !cartDockMeta || !cartDockTotal || !cartDockButton) {
+                return;
+            }
+
+            if (cart.length === 0) {
+                cartDockMeta.textContent = 'Nenhum item adicionado ainda.';
+                cartDockTotal.textContent = money(0);
+                cartDockButton.disabled = true;
+                return;
+            }
+
+            const total = cart.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
+            const quantity = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+            cartDockMeta.textContent = `${quantity} item(ns) prontos para revisar na etapa final do pedido.`;
+            cartDockTotal.textContent = money(total);
+            cartDockButton.disabled = false;
+        };
 
         products.forEach((product) => {
             if (product && typeof product.id !== 'undefined') {
@@ -607,15 +743,161 @@ if (!is_string($productsJson)) {
             }
         });
 
-        document.querySelectorAll('[data-category-tab]').forEach((button) => {
+        if (lastOrderId > 0) {
+            clearCart();
+        } else {
+            cart = normalizeCartItems(loadCart());
+            saveCart();
+        }
+        syncCartDock();
+
+        const categoryTabs = Array.from(document.querySelectorAll('[data-category-tab]'));
+        const categorySections = Array.from(document.querySelectorAll('[data-category-section]'));
+        let activeCategoryKey = '';
+        let categoryClickLockUntil = 0;
+
+        const revealActiveCategoryTab = (tab, behavior = 'auto') => {
+            if (!(tab instanceof HTMLElement) || !(categoryNav instanceof HTMLElement)) {
+                return;
+            }
+
+            const navRect = categoryNav.getBoundingClientRect();
+            const tabRect = tab.getBoundingClientRect();
+            const leftOverflow = tabRect.left - navRect.left;
+            const rightOverflow = tabRect.right - navRect.right;
+
+            if (leftOverflow >= 12 && rightOverflow <= -12) {
+                return;
+            }
+
+            const targetLeft = tab.offsetLeft - Math.max(12, (categoryNav.clientWidth - tab.offsetWidth) / 2);
+            categoryNav.scrollTo({
+                left: Math.max(0, targetLeft),
+                behavior,
+            });
+        };
+
+        const activateCategory = (key, options = {}) => {
+            const shouldReveal = options.reveal !== false;
+            const revealBehavior = options.revealBehavior === 'smooth' ? 'smooth' : 'auto';
+            if (key === activeCategoryKey && shouldReveal === false) {
+                return;
+            }
+
+            activeCategoryKey = key;
+            categoryTabs.forEach((item) => {
+                const isActive = item.getAttribute('data-category-tab') === key;
+                item.classList.toggle('active', isActive);
+                if (isActive && shouldReveal) {
+                    revealActiveCategoryTab(item, revealBehavior);
+                }
+            });
+        };
+
+        categoryTabs.forEach((button) => {
             button.addEventListener('click', () => {
                 const key = button.getAttribute('data-category-tab');
-                document.querySelectorAll('[data-category-tab]').forEach((item) => item.classList.toggle('active', item === button));
-                document.querySelectorAll('[data-category-panel]').forEach((panel) => {
-                    panel.classList.toggle('active', panel.getAttribute('data-category-panel') === key);
-                });
+                const target = key ? document.querySelector(`[data-category-section="${key}"]`) : null;
+                categoryClickLockUntil = Date.now() + 700;
+                activateCategory(key || '', { revealBehavior: 'smooth' });
+                if (target instanceof HTMLElement) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
             });
         });
+
+        let menuFrame = 0;
+        const syncCategoryFromScroll = () => {
+            if (categorySections.length === 0 || Date.now() < categoryClickLockUntil) {
+                return;
+            }
+
+            const topbarOffsetRaw = getComputedStyle(document.documentElement).getPropertyValue('--dm-topbar-offset');
+            const topbarOffset = Number.parseFloat(topbarOffsetRaw) || 76;
+            const navHeight = categoryNav instanceof HTMLElement ? (categoryNav.offsetHeight || 0) : 0;
+            const guideLine = topbarOffset + navHeight + 26;
+            let nextKey = categorySections[0].getAttribute('data-category-section') || '';
+            let bestDistance = Number.POSITIVE_INFINITY;
+
+            categorySections.forEach((section) => {
+                if (!(section instanceof HTMLElement)) {
+                    return;
+                }
+
+                const rect = section.getBoundingClientRect();
+                const topDistance = Math.abs(rect.top - guideLine);
+                const isPassedGuide = rect.top <= guideLine;
+
+                if (isPassedGuide && topDistance <= bestDistance) {
+                    bestDistance = topDistance;
+                    nextKey = section.getAttribute('data-category-section') || nextKey;
+                    return;
+                }
+
+                if (bestDistance === Number.POSITIVE_INFINITY && rect.top > guideLine && topDistance < bestDistance) {
+                    bestDistance = topDistance;
+                    nextKey = section.getAttribute('data-category-section') || nextKey;
+                }
+            });
+
+            if (nextKey !== '') {
+                activateCategory(nextKey, { revealBehavior: 'auto' });
+            }
+        };
+
+        const syncFloatingCategoryMenu = () => {
+            if (!(menuShell instanceof HTMLElement) || !(categoryNav instanceof HTMLElement) || !(categoryNavAnchor instanceof HTMLElement) || !(menuEnd instanceof HTMLElement)) {
+                return;
+            }
+
+            const topbarOffsetRaw = getComputedStyle(document.documentElement).getPropertyValue('--dm-topbar-offset');
+            const topbarOffset = Number.parseFloat(topbarOffsetRaw) || 76;
+            const stickyTop = topbarOffset + 4;
+            const anchorRect = categoryNavAnchor.getBoundingClientRect();
+            const endRect = menuEnd.getBoundingClientRect();
+            const navHeight = categoryNav.offsetHeight || 0;
+            const anchorTop = anchorRect.top + window.scrollY;
+            const endTop = endRect.top + window.scrollY;
+            const currentTop = window.scrollY + stickyTop;
+            const stopTop = Math.max(0, endTop - anchorTop - navHeight);
+
+            menuShell.style.setProperty('--dm-menu-nav-height', `${navHeight}px`);
+            menuShell.style.setProperty('--dm-menu-nav-left', `${Math.round(anchorRect.left)}px`);
+            menuShell.style.setProperty('--dm-menu-nav-width', `${Math.round(anchorRect.width)}px`);
+            menuShell.style.setProperty('--dm-menu-nav-stop', `${Math.round(stopTop)}px`);
+
+            if (currentTop <= anchorTop) {
+                menuShell.classList.remove('is-floating', 'is-bottom');
+                return;
+            }
+
+            if (currentTop + navHeight >= endTop) {
+                menuShell.classList.remove('is-floating');
+                menuShell.classList.add('is-bottom');
+                return;
+            }
+
+            menuShell.classList.remove('is-bottom');
+            menuShell.classList.add('is-floating');
+        };
+
+        const scheduleFloatingCategoryMenu = () => {
+            if (menuFrame !== 0) {
+                return;
+            }
+
+            menuFrame = window.requestAnimationFrame(() => {
+                menuFrame = 0;
+                syncFloatingCategoryMenu();
+                syncCategoryFromScroll();
+            });
+        };
+
+        syncFloatingCategoryMenu();
+        syncCategoryFromScroll();
+        window.addEventListener('scroll', scheduleFloatingCategoryMenu, { passive: true });
+        window.addEventListener('resize', scheduleFloatingCategoryMenu);
+        window.addEventListener('load', scheduleFloatingCategoryMenu);
 
         const closeModal = () => {
             activeProduct = null;
@@ -623,58 +905,9 @@ if (!is_string($productsJson)) {
             qtyValue.textContent = '1';
             itemNotes.value = '';
             additionalsGrid.innerHTML = '';
-            additionalsMeta.textContent = 'Este item não possui adicionais ativos.';
+            additionalsMeta.textContent = 'Este item nao possui adicionais ativos.';
             modal.hidden = true;
             document.body.style.overflow = '';
-        };
-
-        const renderCart = () => {
-            if (!cartList || !cartTotal || !cartHiddenFields || !cartSubmit) {
-                return;
-            }
-
-            if (cart.length === 0) {
-                cartList.innerHTML = '<div class="dm-empty">Nenhum item no carrinho ainda.</div>';
-                cartTotal.textContent = money(0);
-                cartHiddenFields.innerHTML = '';
-                cartSubmit.disabled = true;
-                return;
-            }
-
-            let html = '';
-            let hiddenFields = '';
-            let total = 0;
-
-            cart.forEach((item, index) => {
-                total += Number(item.lineTotal || 0);
-                const additionalsLabel = item.additionals.length > 0
-                    ? item.additionals.map((additional) => additional.name).join(' • ')
-                    : '';
-
-                html += `
-                    <article class="dm-cart-item">
-                        <div class="dm-cart-item-top">
-                            <div>
-                                <strong>${item.quantity}x ${escapeHtml(item.name)}</strong>
-                                <small>${additionalsLabel !== '' ? escapeHtml(additionalsLabel) : 'Sem adicionais'}</small>
-                            </div>
-                            <button class="btn-secondary" type="button" data-cart-remove="${index}">Remover</button>
-                        </div>
-                        ${item.notes !== '' ? `<p>Observação: ${escapeHtml(item.notes)}</p>` : ''}
-                        <p>Total da linha: ${money(item.lineTotal)}</p>
-                    </article>
-                `;
-
-                hiddenFields += `<input type="hidden" name="product_id[]" value="${item.productId}">`;
-                hiddenFields += `<input type="hidden" name="quantity[]" value="${item.quantity}">`;
-                hiddenFields += `<input type="hidden" name="item_notes[]" value="${escapeHtml(item.notes)}">`;
-                hiddenFields += `<input type="hidden" name="additional_item_ids[]" value="${item.additionalIds.join(',')}">`;
-            });
-
-            cartList.innerHTML = html;
-            cartHiddenFields.innerHTML = hiddenFields;
-            cartTotal.textContent = money(total);
-            cartSubmit.disabled = false;
         };
 
         const renderAdditionals = (product) => {
@@ -685,25 +918,31 @@ if (!is_string($productsJson)) {
 
             if (additionals.length === 0) {
                 additionalsGrid.innerHTML = '';
-                additionalsMeta.textContent = 'Este item não possui adicionais ativos.';
+                additionalsMeta.textContent = 'Este item nao possui adicionais ativos.';
                 return;
             }
 
             const rules = [];
             if (required || minSelection > 0) {
-                rules.push(`mínimo ${Math.max(required ? 1 : 0, minSelection)}`);
+                rules.push(`minimo ${Math.max(required ? 1 : 0, minSelection)}`);
             }
             if (maxSelection !== null) {
-                rules.push(`máximo ${maxSelection}`);
+                rules.push(`maximo ${maxSelection}`);
             }
             additionalsMeta.textContent = rules.length > 0
-                ? `Seleção de adicionais: ${rules.join(' • ')}`
-                : 'Seleção opcional de adicionais.';
+                ? `Selecao de adicionais: ${rules.join(' - ')}`
+                : 'Selecao opcional de adicionais.';
 
             additionalsGrid.innerHTML = additionals.map((additional) => `
                 <label class="dm-additional-card" data-additional-card>
                     <input type="checkbox" value="${additional.id}">
-                    <strong>${escapeHtml(additional.name)}</strong>
+                    <strong>${String(additional.name || 'Adicional').replace(/[&<>"']/g, (char) => ({
+                        '&': '&amp;',
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        '"': '&quot;',
+                        "'": '&#039;'
+                    }[char] || char))}</strong>
                     <span>${money(additional.price)}</span>
                 </label>
             `).join('');
@@ -733,7 +972,7 @@ if (!is_string($productsJson)) {
             qtyValue.textContent = '1';
             itemNotes.value = '';
             modalTitle.textContent = product.name || 'Produto';
-            modalDescription.textContent = product.description || 'Configure quantidade, adicionais e observações.';
+            modalDescription.textContent = product.description || 'Configure quantidade, adicionais e observacoes.';
             renderAdditionals(product);
             modal.hidden = false;
             document.body.style.overflow = 'hidden';
@@ -776,6 +1015,7 @@ if (!is_string($productsJson)) {
                 if (!additional) {
                     return;
                 }
+
                 additionalIds.push(Number(additional.id));
                 additionals.push({
                     id: Number(additional.id),
@@ -789,7 +1029,7 @@ if (!is_string($productsJson)) {
             const requiredMin = Math.max(Boolean(activeProduct.additionals_is_required) ? 1 : 0, minSelection);
 
             if (maxSelection !== null && additionals.length > maxSelection) {
-                alert(`Este item aceita no máximo ${maxSelection} adicional(is).`);
+                alert(`Este item aceita no maximo ${maxSelection} adicional(is).`);
                 return;
             }
 
@@ -801,38 +1041,30 @@ if (!is_string($productsJson)) {
             const unitPrice = activeProduct.promotional_price !== null && activeProduct.promotional_price !== undefined
                 ? Number(activeProduct.promotional_price)
                 : Number(activeProduct.price || 0);
-            const additionalsTotal = additionals.reduce((sum, additional) => sum + Number(additional.price || 0), 0) * activeQuantity;
-            const baseTotal = unitPrice * activeQuantity;
+            const additionalsTotal = additionals.reduce((sum, additional) => sum + Number(additional.price || 0), 0);
+            const quantity = activeQuantity;
 
             cart.push({
                 productId: Number(activeProduct.id),
                 name: String(activeProduct.name || 'Produto'),
-                quantity: activeQuantity,
+                quantity,
                 notes: String(itemNotes.value || '').trim(),
                 additionals,
                 additionalIds,
-                lineTotal: baseTotal + additionalsTotal,
+                lineTotal: (unitPrice + additionalsTotal) * quantity,
             });
 
+            saveCart();
+            syncCartDock();
             closeModal();
-            renderCart();
         });
 
-        cartList?.addEventListener('click', (event) => {
-            const target = event.target;
-            if (!(target instanceof HTMLElement)) {
+        cartDockButton?.addEventListener('click', () => {
+            if (cart.length === 0) {
                 return;
             }
-            const index = target.getAttribute('data-cart-remove');
-            if (index === null) {
-                return;
-            }
-            const numericIndex = Number(index);
-            if (Number.isNaN(numericIndex) || numericIndex < 0 || numericIndex >= cart.length) {
-                return;
-            }
-            cart.splice(numericIndex, 1);
-            renderCart();
+
+            window.location.href = checkoutUrl;
         });
 
         const scheduleRefresh = () => {
@@ -850,7 +1082,6 @@ if (!is_string($productsJson)) {
             }, refreshIntervalMs);
         };
 
-        renderCart();
         scheduleRefresh();
     })();
     </script>

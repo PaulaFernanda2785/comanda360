@@ -42,7 +42,7 @@ final class DigitalMenuController extends Controller
                 'tableCommands' => [],
                 'tableSummary' => [],
                 'openCommandsCount' => 0,
-                'refreshIntervalSeconds' => 20,
+                'refreshIntervalSeconds' => 1200,
             ], 'layouts/digital_menu');
         }
     }
@@ -60,6 +60,38 @@ final class DigitalMenuController extends Controller
             return $this->backWithSuccess('Comanda aberta com sucesso. Agora você já pode montar seus pedidos.', $redirectTo);
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), $redirectTo);
+        }
+    }
+
+    public function cart(Request $request): Response
+    {
+        try {
+            $payload = $this->service->entry($request->all());
+
+            return $this->view('digital_menu/checkout', [
+                'title' => 'Carrinho da mesa',
+            ] + $payload, 'layouts/digital_menu');
+        } catch (ValidationException $e) {
+            return $this->view('digital_menu/checkout', [
+                'title' => 'Carrinho da mesa',
+                'menuTheme' => $this->service->defaultTheme(),
+                'fatalError' => $e->getMessage(),
+                'access' => [],
+                'categories' => [],
+                'products' => [],
+                'currentCommand' => null,
+                'currentCommandPanel' => [
+                    'command' => null,
+                    'summary' => [],
+                    'orders' => [],
+                    'is_current' => false,
+                    'has_orders' => false,
+                ],
+                'tableCommands' => [],
+                'tableSummary' => [],
+                'openCommandsCount' => 0,
+                'refreshIntervalSeconds' => 1200,
+            ], 'layouts/digital_menu');
         }
     }
 

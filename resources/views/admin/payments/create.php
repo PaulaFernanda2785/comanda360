@@ -34,6 +34,12 @@ foreach ($orders as $order) {
     .payment-order-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
     .payment-order-head strong{font-size:14px;color:#0f172a}
     .payment-order-meta{font-size:12px;color:#475569}
+    .payment-status-badge{
+        display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;
+        background:#dcfce7;border:1px solid #86efac;color:#166534;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;
+        width:max-content
+    }
+    .payment-status-badge::before{content:"";width:8px;height:8px;border-radius:999px;background:#16a34a;box-shadow:0 0 0 4px rgba(22,163,74,.16)}
 
     .payment-form-card{display:grid;gap:12px}
     .payment-atm{background:
@@ -140,8 +146,8 @@ foreach ($orders as $order) {
     <?php else: ?>
         <div class="payment-create-layout">
             <section class="card payment-orders-panel">
-                <h3 style="margin:0">Pedidos aguardando pagamento</h3>
-                <p class="payment-form-help">Clique em um pedido para preencher o formulario automaticamente.</p>
+                <h3 style="margin:0">Pedidos entregues aguardando pagamento</h3>
+                <p class="payment-form-help">Clique em um pedido entregue para preencher o formulario automaticamente.</p>
                 <input id="orderQuickSearch" class="payment-orders-search" type="text" placeholder="Buscar pedido, mesa ou cliente...">
                 <div id="orderQuickList" class="payment-orders-list">
                     <?php foreach ($orders as $order): ?>
@@ -158,6 +164,7 @@ foreach ($orders as $order) {
                         $remainingAmount = (float) ($order['remaining_amount'] ?? 0);
                         $totalAmount = (float) ($order['total_amount'] ?? 0);
                         $paidAmount = (float) ($order['paid_amount'] ?? 0);
+                        $statusLabel = trim((string) ($order['status_label'] ?? 'Entregue'));
 
                         $searchBlob = implode(' ', [$orderNumber, $tableLabel, $customerLabel]);
                         ?>
@@ -171,6 +178,7 @@ foreach ($orders as $order) {
                                 <strong><?= htmlspecialchars($orderNumber) ?></strong>
                                 <span class="badge status-pending">Saldo: <?= $formatMoney($remainingAmount) ?></span>
                             </div>
+                            <div class="payment-status-badge"><?= htmlspecialchars($statusLabel) ?></div>
                             <div class="payment-order-meta"><?= htmlspecialchars($tableLabel) ?> | <?= htmlspecialchars($customerLabel) ?></div>
                             <div class="payment-order-meta">Total: <?= $formatMoney($totalAmount) ?> | Pago: <?= $formatMoney($paidAmount) ?></div>
                             <button type="button" class="btn secondary" data-order-select-button="<?= $orderId ?>">Selecionar pedido</button>
@@ -198,6 +206,10 @@ foreach ($orders as $order) {
                             <div class="atm-screen-item">
                                 <span>Cliente</span>
                                 <strong id="summaryCustomer">-</strong>
+                            </div>
+                            <div class="atm-screen-item">
+                                <span>Status</span>
+                                <strong id="summaryStatus">-</strong>
                             </div>
                             <div class="atm-screen-item">
                                 <span>Saldo atual</span>
@@ -232,18 +244,20 @@ foreach ($orders as $order) {
                                 $remainingAmount = (float) ($order['remaining_amount'] ?? 0);
                                 $totalAmount = (float) ($order['total_amount'] ?? 0);
                                 $paidAmount = (float) ($order['paid_amount'] ?? 0);
+                                $statusLabel = trim((string) ($order['status_label'] ?? 'Entregue'));
                                 ?>
                                 <option
                                     value="<?= $orderId ?>"
                                     data-order-number="<?= htmlspecialchars($orderNumber) ?>"
                                     data-table-label="<?= htmlspecialchars($tableLabel) ?>"
                                     data-customer-name="<?= htmlspecialchars($customerLabel) ?>"
+                                    data-status-label="<?= htmlspecialchars($statusLabel) ?>"
                                     data-remaining-amount="<?= htmlspecialchars((string) $remainingAmount) ?>"
                                     data-total-amount="<?= htmlspecialchars((string) $totalAmount) ?>"
                                     data-paid-amount="<?= htmlspecialchars((string) $paidAmount) ?>"
                                     <?= $selectedOrderId === $orderId ? 'selected' : '' ?>
                                 >
-                                    <?= htmlspecialchars($orderNumber) ?> | <?= htmlspecialchars($tableLabel) ?> | Saldo: <?= $formatMoney($remainingAmount) ?>
+                                    <?= htmlspecialchars($orderNumber) ?> | <?= htmlspecialchars($tableLabel) ?> | <?= htmlspecialchars($statusLabel) ?> | Saldo: <?= $formatMoney($remainingAmount) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -306,6 +320,7 @@ foreach ($orders as $order) {
     const summaryOrderNumber = document.getElementById('summaryOrderNumber');
     const summaryTable = document.getElementById('summaryTable');
     const summaryCustomer = document.getElementById('summaryCustomer');
+    const summaryStatus = document.getElementById('summaryStatus');
     const summaryRemaining = document.getElementById('summaryRemaining');
     const summaryRemainingAfterDiscount = document.getElementById('summaryRemainingAfterDiscount');
 
@@ -329,6 +344,7 @@ foreach ($orders as $order) {
             if (summaryOrderNumber) summaryOrderNumber.textContent = '-';
             if (summaryTable) summaryTable.textContent = '-';
             if (summaryCustomer) summaryCustomer.textContent = '-';
+            if (summaryStatus) summaryStatus.textContent = '-';
             if (summaryRemaining) summaryRemaining.textContent = '-';
             if (summaryRemainingAfterDiscount) summaryRemainingAfterDiscount.textContent = '-';
             return;
@@ -337,6 +353,7 @@ foreach ($orders as $order) {
         const orderNumber = selected.dataset.orderNumber || '-';
         const tableLabel = selected.dataset.tableLabel || '-';
         const customerName = selected.dataset.customerName || '-';
+        const statusLabel = selected.dataset.statusLabel || 'Entregue';
         const remainingAmount = Number(selected.dataset.remainingAmount || '0');
         const discountAmount = discountInput instanceof HTMLInputElement
             ? Math.max(0, Number(discountInput.value || '0'))
@@ -349,6 +366,7 @@ foreach ($orders as $order) {
         if (summaryOrderNumber) summaryOrderNumber.textContent = orderNumber;
         if (summaryTable) summaryTable.textContent = tableLabel;
         if (summaryCustomer) summaryCustomer.textContent = customerName;
+        if (summaryStatus) summaryStatus.textContent = statusLabel;
         if (summaryRemaining) summaryRemaining.textContent = formatBRL(remainingAmount);
         if (summaryRemainingAfterDiscount) summaryRemainingAfterDiscount.textContent = formatBRL(remainingAfterDiscount);
 

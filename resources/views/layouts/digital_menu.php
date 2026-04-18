@@ -32,6 +32,7 @@ $footerText = trim((string) ($theme['footer_text'] ?? 'Comanda360 - Atendimento 
             --dm-secondary: <?= htmlspecialchars((string) ($theme['secondary_color'] ?? '#0f172a')) ?>;
             --dm-accent: <?= htmlspecialchars((string) ($theme['accent_color'] ?? '#0ea5e9')) ?>;
             --dm-main-card: <?= htmlspecialchars((string) ($theme['main_card_color'] ?? '#0f172a')) ?>;
+            --dm-topbar-offset: 76px;
             --dm-surface:#ffffff;
             --dm-surface-soft:#f8fafc;
             --dm-border:#dbe4f0;
@@ -41,7 +42,8 @@ $footerText = trim((string) ($theme['footer_text'] ?? 'Comanda360 - Atendimento 
             --dm-radius:22px;
         }
         *{box-sizing:border-box}
-        html,body{margin:0;padding:0}
+        html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden}
+        img{max-width:100%;display:block}
         body{
             font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif;
             color:var(--dm-text);
@@ -49,9 +51,10 @@ $footerText = trim((string) ($theme['footer_text'] ?? 'Comanda360 - Atendimento 
                 radial-gradient(circle at top left, color-mix(in srgb, var(--dm-accent) 16%, transparent), transparent 28%),
                 linear-gradient(180deg,#f6f8fc 0%,#eef3f9 100%);
             min-height:100vh;
+            overflow-x:hidden;
         }
         a{color:inherit}
-        .dm-shell{width:min(1180px,calc(100vw - 28px));margin:0 auto;padding:18px 0 28px;display:grid;gap:18px}
+        .dm-shell{width:min(1180px,calc(100vw - 16px));max-width:calc(100vw - 16px);margin:0 auto;padding:18px 0 28px;display:grid;gap:18px}
         .dm-topbar{
             position:sticky;top:0;z-index:20;
             backdrop-filter:blur(18px);
@@ -74,6 +77,7 @@ $footerText = trim((string) ($theme['footer_text'] ?? 'Comanda360 - Atendimento 
             padding:8px 12px;border-radius:999px;background:rgba(15,23,42,.06);color:var(--dm-secondary);
             font-size:12px;font-weight:700;white-space:nowrap
         }
+        .dm-shell,.dm-topbar,.dm-topbar > *,.dm-card,.dm-hero,.dm-hero-grid,.dm-content,.dm-stack,.dm-section-head,.dm-section-head > *{min-width:0}
         .dm-card{
             background:var(--dm-surface);border:1px solid var(--dm-border);border-radius:var(--dm-radius);
             box-shadow:var(--dm-shadow);padding:18px
@@ -92,7 +96,7 @@ $footerText = trim((string) ($theme['footer_text'] ?? 'Comanda360 - Atendimento 
             opacity:<?= $bannerUrl !== '' ? '0.28' : '0' ?>;
             pointer-events:none
         }
-        .dm-hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,.8fr);gap:18px;align-items:end}
+        .dm-hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,.8fr);gap:18px;align-items:end}
         .dm-hero-copy{display:grid;gap:12px}
         .dm-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.14em;font-weight:800;opacity:.8}
         .dm-hero h1{margin:0;font-size:clamp(28px,4vw,44px);line-height:.95}
@@ -101,7 +105,7 @@ $footerText = trim((string) ($theme['footer_text'] ?? 'Comanda360 - Atendimento 
         .dm-pill{padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18);font-size:12px;font-weight:700}
         .dm-flash{padding:14px 16px;border-radius:18px;border:1px solid #dbeafe;background:#eff6ff;color:#1d4ed8;font-weight:600}
         .dm-flash.error{border-color:#fecaca;background:#fef2f2;color:#b91c1c}
-        .dm-content{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.85fr);gap:18px;align-items:start}
+        .dm-content{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,.85fr);gap:18px;align-items:start}
         .dm-stack{display:grid;gap:18px}
         .dm-section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
         .dm-section-head h2{margin:0;font-size:22px}
@@ -127,9 +131,11 @@ $footerText = trim((string) ($theme['footer_text'] ?? 'Comanda360 - Atendimento 
             .dm-hero-grid,.dm-content{grid-template-columns:1fr}
         }
         @media (max-width:640px){
-            .dm-shell{width:min(100vw - 16px,1180px);padding:10px 0 20px}
-            .dm-topbar{padding:10px 12px}
+            .dm-shell{width:min(1180px,calc(100vw - 12px));max-width:calc(100vw - 12px);padding:10px 0 20px}
+            .dm-topbar{padding:10px 12px;flex-direction:column;align-items:stretch}
             .dm-card,.dm-hero{padding:16px}
+            .dm-brand{align-items:flex-start}
+            .dm-topbar-badge{align-self:flex-start;max-width:100%}
             .dm-brand-copy strong,.dm-brand-copy span,.dm-topbar-badge{white-space:normal}
         }
     </style>
@@ -164,5 +170,22 @@ $footerText = trim((string) ($theme['footer_text'] ?? 'Comanda360 - Atendimento 
 
         <footer class="dm-footer"><?= htmlspecialchars($footerText) ?></footer>
     </div>
+    <script>
+    (() => {
+        const topbar = document.querySelector('.dm-topbar');
+        if (!(topbar instanceof HTMLElement)) {
+            return;
+        }
+
+        const syncTopbarOffset = () => {
+            const height = Math.ceil(topbar.getBoundingClientRect().height || 0);
+            document.documentElement.style.setProperty('--dm-topbar-offset', `${Math.max(56, height)}px`);
+        };
+
+        syncTopbarOffset();
+        window.addEventListener('resize', syncTopbarOffset);
+        window.addEventListener('load', syncTopbarOffset);
+    })();
+    </script>
 </body>
 </html>

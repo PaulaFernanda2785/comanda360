@@ -84,7 +84,8 @@ final class ProductRepository extends BaseRepository
                 p.allows_notes,
                 p.has_additionals,
                 p.display_order,
-                c.name AS category_name
+                c.name AS category_name,
+                c.slug AS category_slug
             FROM products p
             INNER JOIN categories c
                 ON c.id = p.category_id

@@ -68,7 +68,12 @@ final class ProductController extends Controller
         $payload['image_file'] = $request->files['image_file'] ?? null;
 
         try {
-            $this->service->create($companyId, $payload);
+            $productId = $this->service->create($companyId, $payload);
+            $nextAction = strtolower(trim((string) ($request->input('next_action', ''))));
+            if ($nextAction === 'additionals') {
+                return $this->backWithSuccess('Produto cadastrado com sucesso. Agora finalize os adicionais.', '/admin/products/additionals?product_id=' . $productId);
+            }
+
             return $this->backWithSuccess('Produto cadastrado com sucesso.', '/admin/products');
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), '/admin/products/create');

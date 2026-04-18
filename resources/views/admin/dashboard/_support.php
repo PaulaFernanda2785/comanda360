@@ -162,17 +162,22 @@ $supportAttachmentUrl = static function (array $attachment): string {
         .st-thread-badge.is-company{background:#dbeafe;color:#1d4ed8}
         .st-thread-badge.is-saas{background:#e2e8f0;color:#334155}
         .st-thread-message{margin:0;color:#1e293b;font-size:13px;line-height:1.55}
-        .st-thread-attachment{display:grid;gap:6px;padding:10px;border-radius:10px;background:rgba(255,255,255,.72);border:1px solid #cbd5e1}
+        .st-thread-attachment{display:grid;gap:8px;padding:10px;border-radius:10px;background:rgba(255,255,255,.82);border:1px solid #cbd5e1;min-width:0}
         .st-thread-attachment a{font-weight:700;color:#1d4ed8;text-decoration:none;overflow-wrap:anywhere}
         .st-thread-attachment a:hover{text-decoration:underline}
         .st-thread-attachment small{color:#64748b;font-size:11px}
         .st-thread-attachments{display:grid;gap:8px}
         .st-thread-attachments.is-image-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
-        .st-thread-attachment.is-image{padding:6px;background:#fff}
-        .st-thread-attachment-preview{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;border:1px solid #dbe2ea;background:#f8fafc}
+        .st-thread-attachment.is-image{padding:8px;background:#fff;align-content:start}
+        .st-thread-attachment-media{display:block;border-radius:10px;overflow:hidden;background:#f8fafc;border:1px solid #dbe2ea}
+        .st-thread-attachment-preview{display:block;width:100%;min-height:150px;aspect-ratio:1/1;object-fit:cover;background:#f8fafc}
+        .st-thread-attachment-copy{display:grid;gap:4px;min-width:0}
+        .st-thread-attachment-copy a{font-size:12px;line-height:1.4}
+        .st-thread-attachment.is-image.is-preview-failed .st-thread-attachment-media{display:none}
+        .st-thread-attachment-fallback{display:none;grid-template-columns:auto 1fr;align-items:center;gap:10px;padding:10px;border-radius:10px;background:#f8fafc;border:1px dashed #cbd5e1}
+        .st-thread-attachment.is-image.is-preview-failed .st-thread-attachment-fallback{display:grid}
         .st-thread-attachment.is-file{grid-template-columns:auto 1fr;align-items:center}
         .st-thread-attachment-icon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:#dcfce7;color:#166534;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
-        .st-thread-attachment-copy{display:grid;gap:4px}
         .st-thread-bubble{display:grid;gap:8px}
         .st-composer{display:grid;gap:10px}
         .st-uploader{display:grid;gap:10px}
@@ -470,22 +475,50 @@ $supportAttachmentUrl = static function (array $attachment): string {
                                                             <?php if ($attachments !== []): ?>
                                                                 <div class="st-thread-attachments<?= count(array_filter($attachments, static fn (array $attachment): bool => (bool) ($attachment['is_image'] ?? false))) === count($attachments) ? ' is-image-grid' : '' ?>">
                                                                     <?php foreach ($attachments as $attachment): ?>
+                                                                        <?php
+                                                                        $attachmentUrl = $supportAttachmentUrl($attachment);
+                                                                        $attachmentName = (string) ($attachment['attachment_original_name'] ?? 'Anexo');
+                                                                        $attachmentMime = (string) ($attachment['attachment_mime_type'] ?? 'arquivo');
+                                                                        $attachmentSize = (int) ($attachment['attachment_size_bytes'] ?? 0);
+                                                                        $attachmentExt = strtoupper(substr((string) pathinfo($attachmentName !== '' ? $attachmentName : 'arquivo', PATHINFO_EXTENSION), 0, 4)) ?: 'DOC';
+                                                                        ?>
                                                                         <?php if ((bool) ($attachment['is_image'] ?? false)): ?>
-                                                                            <a class="st-thread-attachment is-image" href="<?= htmlspecialchars($supportAttachmentUrl($attachment)) ?>" target="_blank" rel="noopener noreferrer">
-                                                                                <img class="st-thread-attachment-preview" src="<?= htmlspecialchars($supportAttachmentUrl($attachment)) ?>" alt="<?= htmlspecialchars((string) ($attachment['attachment_original_name'] ?? 'Imagem')) ?>">
-                                                                                <small><?= htmlspecialchars((string) ($attachment['attachment_original_name'] ?? 'Imagem')) ?></small>
-                                                                            </a>
-                                                                        <?php else: ?>
-                                                                            <div class="st-thread-attachment is-file">
-                                                                                <div class="st-thread-attachment-icon"><?= htmlspecialchars(strtoupper(substr((string) pathinfo((string) ($attachment['attachment_original_name'] ?? 'arquivo'), PATHINFO_EXTENSION), 0, 4)) ?: 'DOC') ?></div>
+                                                                            <div class="st-thread-attachment is-image" data-support-inline-attachment>
+                                                                                <a class="st-thread-attachment-media" href="<?= htmlspecialchars($attachmentUrl) ?>" target="_blank" rel="noopener noreferrer">
+                                                                                    <img class="st-thread-attachment-preview" src="<?= htmlspecialchars($attachmentUrl) ?>" alt="<?= htmlspecialchars($attachmentName !== '' ? $attachmentName : 'Imagem do chamado') ?>" loading="lazy" decoding="async" data-support-inline-image>
+                                                                                </a>
+                                                                                <div class="st-thread-attachment-fallback">
+                                                                                    <div class="st-thread-attachment-icon"><?= htmlspecialchars($attachmentExt) ?></div>
+                                                                                    <div class="st-thread-attachment-copy">
+                                                                                        <a href="<?= htmlspecialchars($attachmentUrl) ?>" target="_blank" rel="noopener noreferrer">
+                                                                                            <?= htmlspecialchars($attachmentName !== '' ? $attachmentName : 'Imagem do chamado') ?>
+                                                                                        </a>
+                                                                                        <small>Preview indisponivel na conversa. Abra a imagem em nova guia.</small>
+                                                                                    </div>
+                                                                                </div>
                                                                                 <div class="st-thread-attachment-copy">
-                                                                                    <a href="<?= htmlspecialchars($supportAttachmentUrl($attachment)) ?>" target="_blank" rel="noopener noreferrer">
-                                                                                        <?= htmlspecialchars((string) ($attachment['attachment_original_name'] ?? 'Anexo')) ?>
+                                                                                    <a href="<?= htmlspecialchars($attachmentUrl) ?>" target="_blank" rel="noopener noreferrer">
+                                                                                        <?= htmlspecialchars($attachmentName !== '' ? $attachmentName : 'Imagem do chamado') ?>
                                                                                     </a>
                                                                                     <small>
-                                                                                        <?= htmlspecialchars((string) ($attachment['attachment_mime_type'] ?? 'arquivo')) ?>
-                                                                                        <?php if ((int) ($attachment['attachment_size_bytes'] ?? 0) > 0): ?>
-                                                                                            - <?= htmlspecialchars($formatSupportAttachmentSize($attachment['attachment_size_bytes'] ?? 0)) ?>
+                                                                                        <?= htmlspecialchars($attachmentMime) ?>
+                                                                                        <?php if ($attachmentSize > 0): ?>
+                                                                                            - <?= htmlspecialchars($formatSupportAttachmentSize($attachmentSize)) ?>
+                                                                                        <?php endif; ?>
+                                                                                    </small>
+                                                                                </div>
+                                                                            </div>
+                                                                        <?php else: ?>
+                                                                            <div class="st-thread-attachment is-file">
+                                                                                <div class="st-thread-attachment-icon"><?= htmlspecialchars($attachmentExt) ?></div>
+                                                                                <div class="st-thread-attachment-copy">
+                                                                                    <a href="<?= htmlspecialchars($attachmentUrl) ?>" target="_blank" rel="noopener noreferrer">
+                                                                                        <?= htmlspecialchars($attachmentName) ?>
+                                                                                    </a>
+                                                                                    <small>
+                                                                                        <?= htmlspecialchars($attachmentMime) ?>
+                                                                                        <?php if ($attachmentSize > 0): ?>
+                                                                                            - <?= htmlspecialchars($formatSupportAttachmentSize($attachmentSize)) ?>
                                                                                         <?php endif; ?>
                                                                                     </small>
                                                                                 </div>
@@ -742,6 +775,15 @@ $supportAttachmentUrl = static function (array $attachment): string {
             syncFiles(next);
             render();
         });
+    });
+
+    document.querySelectorAll('[data-support-inline-image]').forEach((image) => {
+        image.addEventListener('error', () => {
+            const card = image.closest('[data-support-inline-attachment]');
+            if (card) {
+                card.classList.add('is-preview-failed');
+            }
+        }, { once: true });
     });
 })();
 </script>

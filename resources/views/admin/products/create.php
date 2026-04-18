@@ -26,9 +26,9 @@ $productPlanLimitLabel = trim((string) ($productPlanLimit['limit_label'] ?? 'Ili
     .dropzone.dragover{border-color:#1d4ed8;background:#dbeafe}
     .dropzone p{margin:6px 0;color:#475569}
     .dropzone small{color:#64748b}
+    .dropzone-input{display:none}
     .image-preview{margin-top:12px;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;min-height:160px;background:#f8fafc;display:flex;align-items:center;justify-content:center}
     .image-preview img{width:100%;max-height:240px;object-fit:cover;display:block}
-    .upload-actions{margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
     .upload-file-name{font-size:12px;color:#64748b}
     .steps{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
     .step-pill{padding:4px 10px;border-radius:999px;background:#e2e8f0;color:#334155;font-size:12px}
@@ -203,13 +203,8 @@ $productPlanLimitLabel = trim((string) ($productPlanLimit['limit_label'] ?? 'Ili
                 <p><strong>Selecione, arraste ou cole (Ctrl+V) a imagem aqui</strong></p>
                 <small>Formatos: JPG, PNG, WEBP ou GIF. Tamanho maximo: 10MB.</small>
             </div>
-            <div class="field" style="margin-top:10px">
-                <input type="file" id="image_file" name="image_file" accept="image/*">
-            </div>
-            <div class="upload-actions">
-                <button class="btn secondary" type="button" id="chooseImageButton">Selecionar imagem</button>
-                <span class="upload-file-name" id="selectedFileName">Nenhum arquivo selecionado.</span>
-            </div>
+            <input class="dropzone-input" type="file" id="image_file" name="image_file" accept="image/*">
+            <div class="upload-file-name" id="selectedFileName" style="margin-top:10px">Nenhum arquivo selecionado.</div>
             <p class="image-help">Depois de selecionar, clique em "<?= htmlspecialchars($submitLabel) ?>" para aplicar a imagem no produto.</p>
 
             <div class="image-preview" id="imagePreview">
@@ -224,24 +219,34 @@ $productPlanLimitLabel = trim((string) ($productPlanLimit['limit_label'] ?? 'Ili
                 <button class="btn" type="submit" <?= (!$hasCategories || $productPlanReached) ? 'disabled' : '' ?>><?= htmlspecialchars($submitLabel) ?></button>
             </div>
 
-            <?php if ($isEdit): ?>
-                <div class="next-actions">
-                    <strong style="display:block;margin-bottom:6px">Ajustes avancados do produto</strong>
-                    <p style="margin:0;color:#334155">
-                        Defina limite de escolhas e cadastre nome/valor de opcionais na tela dedicada.
-                    </p>
-                    <div class="actions-stack">
+            <div class="next-actions">
+                <strong style="display:block;margin-bottom:6px">Ajustes avancados do produto</strong>
+                <p style="margin:0;color:#334155">
+                    Defina limite de escolhas e cadastre nome/valor de opcionais na tela dedicada.
+                </p>
+                <div class="actions-stack">
+                    <?php if ($isEdit): ?>
                         <a class="btn-modern-link" href="<?= htmlspecialchars(base_url('/admin/products/additionals?product_id=' . (int) ($product['id'] ?? 0))) ?>">
                             Gerenciar adicionais
                         </a>
-                        <?php if ($existingImagePath !== ''): ?>
-                            <button type="submit" form="removeImageForm" class="btn-modern-danger" onclick="return confirm('Remover a imagem deste produto agora?');">
-                                Remover imagem
-                            </button>
-                        <?php endif; ?>
-                    </div>
+                    <?php else: ?>
+                        <button class="btn-modern-link" type="submit" name="next_action" value="additionals" <?= (!$hasCategories || $productPlanReached) ? 'disabled' : '' ?>>
+                            Salvar e gerenciar adicionais
+                        </button>
+                    <?php endif; ?>
+
+                    <?php if ($existingImagePath !== ''): ?>
+                        <button type="submit" form="removeImageForm" class="btn-modern-danger" onclick="return confirm('Remover a imagem deste produto agora?');">
+                            Remover imagem
+                        </button>
+                    <?php endif; ?>
                 </div>
-            <?php endif; ?>
+                <?php if (!$isEdit): ?>
+                    <p style="margin:8px 0 0;color:#64748b;font-size:12px;line-height:1.45">
+                        Ao usar essa acao, o produto sera salvo primeiro e o sistema abrira em seguida a tela de adicionais.
+                    </p>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 </form>
@@ -259,7 +264,6 @@ $productPlanLimitLabel = trim((string) ($productPlanLimit['limit_label'] ?? 'Ili
     const input = document.getElementById('image_file');
     const dropzone = document.getElementById('dropzone');
     const preview = document.getElementById('imagePreview');
-    const chooseImageButton = document.getElementById('chooseImageButton');
     const selectedFileName = document.getElementById('selectedFileName');
     const imageDataBase64 = document.getElementById('image_data_base64');
     const imageDataName = document.getElementById('image_data_name');
@@ -389,10 +393,6 @@ $productPlanLimitLabel = trim((string) ($productPlanLimit['limit_label'] ?? 'Ili
                 assignFile(file);
             }
         });
-    }
-
-    if (chooseImageButton && input) {
-        chooseImageButton.addEventListener('click', () => input.click());
     }
 
     document.addEventListener('paste', (event) => {

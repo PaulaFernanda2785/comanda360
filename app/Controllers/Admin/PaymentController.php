@@ -57,7 +57,7 @@ final class PaymentController extends Controller
 
         try {
             $this->service->create($companyId, $userId, $request->all());
-            return $this->backWithSuccess('Pagamento registrado com sucesso.', '/admin/payments');
+            return $this->backWithSuccess('Pagamento registrado com sucesso.', '/admin/payments/create');
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), '/admin/payments/create');
         }

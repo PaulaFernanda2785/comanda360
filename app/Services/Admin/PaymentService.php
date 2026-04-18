@@ -74,6 +74,11 @@ final class PaymentService
         $result = [];
 
         foreach ($orders as $order) {
+            $status = strtolower(trim((string) ($order['status'] ?? '')));
+            if ($status !== 'delivered') {
+                continue;
+            }
+
             $totalAmount = round((float) ($order['total_amount'] ?? 0), 2);
             $paidAmount = round((float) ($order['paid_amount'] ?? 0), 2);
             $remainingAmount = round($totalAmount - $paidAmount, 2);
@@ -83,6 +88,7 @@ final class PaymentService
             }
 
             $order['remaining_amount'] = $remainingAmount;
+            $order['status_label'] = 'Entregue';
             $result[] = $order;
         }
 
@@ -143,6 +149,10 @@ final class PaymentService
 
             if ((string) ($order['status'] ?? '') === 'canceled') {
                 throw new ValidationException('Nao e permitido registrar pagamento para pedido cancelado.');
+            }
+
+            if (strtolower(trim((string) ($order['status'] ?? ''))) !== 'delivered') {
+                throw new ValidationException('Somente pedidos entregues podem seguir para o recebimento no caixa.');
             }
 
             $paymentMethod = $this->paymentMethods->findActiveById($companyId, $paymentMethodId);

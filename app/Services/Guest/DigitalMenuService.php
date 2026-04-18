@@ -20,7 +20,10 @@ use App\Services\Admin\ProductService;
 final class DigitalMenuService
 {
     private const SESSION_KEY = 'digital_menu_access_sessions';
-    private const REFRESH_INTERVAL_SECONDS = 20;
+    private const REFRESH_INTERVAL_SECONDS = 1200;
+    private const SESSION_COMMAND_TTL_SECONDS = 43200;
+    private const MAX_PUBLIC_CUSTOMER_NAME_LENGTH = 120;
+    private const MAX_PUBLIC_COMMAND_NOTES_LENGTH = 255;
 
     public function __construct(
         private readonly CompanyRepository $companies = new CompanyRepository(),
@@ -91,8 +94,18 @@ final class DigitalMenuService
         $tableId = (int) ($access['table']['id'] ?? 0);
         $commandId = $this->commandService->open($companyId, 0, [
             'table_id' => $tableId,
-            'customer_name' => $input['customer_name'] ?? '',
-            'notes' => $input['notes'] ?? null,
+            'customer_name' => $this->normalizePublicText(
+                $input['customer_name'] ?? '',
+                self::MAX_PUBLIC_CUSTOMER_NAME_LENGTH,
+                true,
+                'Informe o nome do cliente.'
+            ),
+            'notes' => $this->normalizePublicText(
+                $input['notes'] ?? null,
+                self::MAX_PUBLIC_COMMAND_NOTES_LENGTH,
+                false,
+                'Observacao da comanda invalida.'
+            ),
         ]);
 
         $this->storeSessionCommand($access, $commandId);
@@ -259,7 +272,7 @@ final class DigitalMenuService
             }
 
             $categoryName = trim((string) ($product['category_name'] ?? 'Cardápio'));
-            $categoryKey = strtolower($categoryName !== '' ? $categoryName : 'cardapio');
+            $categoryKey = $this->categoryKey($product, $categoryName);
             if (!isset($grouped[$categoryKey])) {
                 $grouped[$categoryKey] = [
                     'key' => $categoryKey,
@@ -287,6 +300,12 @@ final class DigitalMenuService
         $sessionData = is_array($sessions[$scope] ?? null) ? $sessions[$scope] : null;
         $commandId = (int) ($sessionData['command_id'] ?? 0);
         if ($commandId <= 0) {
+            return null;
+        }
+
+        $storedAt = (int) ($sessionData['stored_at'] ?? 0);
+        if ($storedAt <= 0 || (time() - $storedAt) > self::SESSION_COMMAND_TTL_SECONDS) {
+            $this->clearSessionCommand($access);
             return null;
         }
 
@@ -347,6 +366,52 @@ final class DigitalMenuService
             (int) ($access['table']['id'] ?? 0),
             hash('sha256', (string) ($access['token'] ?? '')),
         ]);
+    }
+
+    private function categoryKey(array $product, string $categoryName): string
+    {
+        $rawSlug = strtolower(trim((string) ($product['category_slug'] ?? '')));
+        $slug = preg_replace('/[^a-z0-9]+/', '-', $rawSlug);
+        $slug = trim((string) $slug, '-');
+        if ($slug !== '') {
+            return $slug;
+        }
+
+        $fallbackBase = strtolower(trim($categoryName !== '' ? $categoryName : 'cardapio'));
+        $transliterated = function_exists('iconv')
+            ? (iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $fallbackBase) ?: $fallbackBase)
+            : $fallbackBase;
+        $fallback = preg_replace('/[^a-z0-9]+/', '-', $transliterated);
+        $fallback = trim((string) $fallback, '-');
+
+        return $fallback !== '' ? $fallback : 'cardapio';
+    }
+
+    private function normalizePublicText(mixed $value, int $maxLength, bool $required, string $requiredMessage): ?string
+    {
+        $text = trim((string) ($value ?? ''));
+        if ($text === '') {
+            if ($required) {
+                throw new ValidationException($requiredMessage);
+            }
+
+            return null;
+        }
+
+        $text = function_exists('mb_substr')
+            ? mb_substr($text, 0, $maxLength)
+            : substr($text, 0, $maxLength);
+        $text = trim($text);
+
+        if ($text === '') {
+            if ($required) {
+                throw new ValidationException($requiredMessage);
+            }
+
+            return null;
+        }
+
+        return $text;
     }
 
     private function tableCommandsPanel(int $companyId, int $tableId, int $currentCommandId): array

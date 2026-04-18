@@ -62,6 +62,7 @@ $router->get('/media/support-attachment', [MediaController::class, 'supportAttac
 $router->get('/media/table-qr', [MediaController::class, 'tableQr']);
 $router->post('/webhooks/mercado-pago', [WebhookController::class, 'mercadoPago']);
 $router->get('/menu-digital', [DigitalMenuController::class, 'index']);
+$router->get('/menu-digital/cart', [DigitalMenuController::class, 'cart']);
 $router->post('/menu-digital/command/open', [DigitalMenuController::class, 'openCommand']);
 $router->post('/menu-digital/order/store', [DigitalMenuController::class, 'storeOrder']);
 $router->get('/menu-digital/ticket', [DigitalMenuController::class, 'ticket']);
