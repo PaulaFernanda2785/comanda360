@@ -24,14 +24,39 @@ $canCreateOrder = $totalProducts > 0;
     .kpi-item{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px}
     .kpi-item strong{display:block;font-size:24px;line-height:1.1}
     .kpi-item span{color:#64748b;font-size:12px}
-    .order-form-layout{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(280px,.7fr);gap:16px}
+    .order-form-layout{display:grid;grid-template-columns:minmax(0,2.18fr) minmax(280px,.62fr);gap:16px;align-items:start}
     .order-form-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px}
     .steps{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
     .step-pill{padding:4px 10px;border-radius:999px;background:#e2e8f0;color:#334155;font-size:12px}
     .warning-strip{border:1px solid #fcd34d;background:#fffbeb;border-radius:10px;padding:10px;color:#92400e}
-    .items-header{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
-    .items-table-wrap{border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#f8fafc}
-    .items-table{width:100%;border-collapse:separate;border-spacing:0;margin:0;table-layout:fixed}
+    .section-shell{display:grid;gap:16px}
+    .section-block{border:1px solid #dbe3ee;border-radius:18px;background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%);padding:16px}
+    .section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    .section-head h3{margin:0;color:#0f172a}
+    .section-head p{margin:5px 0 0;color:#64748b;font-size:13px;line-height:1.5;max-width:780px}
+    .section-kpis{display:flex;gap:8px;flex-wrap:wrap}
+    .section-kpi{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;font-size:12px;font-weight:700}
+    .channel-shell{display:grid;gap:12px}
+    .channel-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px}
+    .channel-card{border:1px solid #dbe3ee;border-radius:14px;background:#fff;padding:14px;min-width:0}
+    .channel-card h4{margin:0 0 10px;color:#0f172a;font-size:14px}
+    .channel-card .field:last-child{margin-bottom:0}
+    .channel-card.is-core{grid-column:span 7}
+    .channel-card.is-customer{grid-column:span 5}
+    .channel-inline-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .channel-note{padding:10px 12px;border-radius:12px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;font-size:12px;line-height:1.5}
+    .delivery-fields-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:10px}
+    .delivery-fields-grid .field{grid-column:span 4}
+    .delivery-fields-grid .field.is-wide{grid-column:span 12}
+    .general-notes-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(220px,.65fr) minmax(220px,.65fr);gap:10px}
+    .general-notes-grid .field{margin:0}
+    .items-headline{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+    .items-headline h3{margin:0;color:#0f172a}
+    .items-headline p{margin:5px 0 0;color:#64748b;font-size:13px;line-height:1.5;max-width:760px}
+    .items-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:14px;background:#eff6ff;border:1px solid #bfdbfe}
+    .items-toolbar-copy{font-size:12px;color:#1e3a8a;line-height:1.5}
+    .items-table-wrap{border:1px solid #dbe3ee;border-radius:16px;overflow:auto;background:#f8fafc}
+    .items-table{width:100%;min-width:1140px;border-collapse:separate;border-spacing:0;margin:0;table-layout:auto}
     .items-table th{background:#e2e8f0;color:#334155;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
     .items-table th,.items-table td{border-bottom:1px solid #e2e8f0;padding:10px;vertical-align:top}
     .items-table tbody tr:last-child td{border-bottom:0}
@@ -46,20 +71,27 @@ $canCreateOrder = $totalProducts > 0;
     .product-selected-meta{font-size:11px;color:#1e40af}
     .notes-textarea{width:100%;resize:vertical;min-height:48px;max-height:180px;line-height:1.3}
     .notes-textarea.compact{min-height:44px;max-height:130px}
-    .additionals-container{border:1px solid #cbd5e1;border-radius:10px;padding:8px;background:#fff}
+    .additionals-container{border:1px solid #cbd5e1;border-radius:12px;padding:10px;background:#fff;min-width:280px}
     .additionals-shell{display:grid;gap:8px}
     .additionals-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
     .additionals-rules{display:flex;gap:6px;flex-wrap:wrap}
     .additional-rule-chip{display:inline-block;padding:3px 8px;border-radius:999px;background:#e2e8f0;color:#334155;font-size:11px}
     .additional-rule-chip.required{background:#fef3c7;color:#92400e}
     .additionals-counter{font-size:11px;color:#1e40af;background:#dbeafe;padding:3px 8px;border-radius:999px}
-    .additionals-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;max-height:175px;overflow-y:auto;overflow-x:hidden;padding-right:2px}
-    .additional-card{position:relative;display:grid;gap:4px;padding:8px;border:1px solid #dbeafe;border-radius:10px;background:#f8fafc;cursor:pointer;transition:all .15s ease}
+    .additionals-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;max-height:220px;overflow-y:auto;overflow-x:hidden;padding-right:2px}
+    .additional-card{position:relative;display:grid;gap:6px;padding:10px;border:1px solid #dbeafe;border-radius:12px;background:#f8fafc;cursor:pointer;transition:all .15s ease;align-content:start}
     .additional-card:hover{border-color:#93c5fd;background:#eff6ff}
     .additional-card.is-selected{border-color:#1d4ed8;background:#dbeafe;box-shadow:inset 0 0 0 1px #1d4ed8}
     .additional-card input{position:absolute;opacity:0;pointer-events:none}
     .additional-card-name{font-size:12px;color:#0f172a;font-weight:600;line-height:1.25;word-break:break-word}
     .additional-card-price{font-size:11px;color:#475569}
+    .additional-card-controls{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px}
+    .additional-toggle{border:1px solid #93c5fd;background:#fff;color:#1d4ed8;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer}
+    .additional-card.is-selected .additional-toggle{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+    .additional-qty{display:inline-flex;align-items:center;gap:6px}
+    .additional-qty button{width:24px;height:24px;border-radius:999px;border:1px solid #93c5fd;background:#fff;color:#1d4ed8;font-weight:700;cursor:pointer}
+    .additional-qty button:disabled{opacity:.45;cursor:not-allowed}
+    .additional-qty strong{min-width:18px;text-align:center;font-size:12px;color:#0f172a}
     .additionals-placeholder{display:block;padding:8px 10px;border-radius:8px;background:#f8fafc;color:#64748b;font-size:12px}
     .line-total{display:inline-block;padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1e3a8a;font-size:12px;white-space:nowrap}
     .summary-list{display:grid;gap:8px;margin-top:10px}
@@ -69,19 +101,20 @@ $canCreateOrder = $totalProducts > 0;
     .total-highlight{border-color:#bfdbfe;background:#eff6ff}
     .total-highlight span{font-size:18px;font-weight:700;color:#1d4ed8}
     .actions-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-    .channel-section{border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;padding:10px;display:grid;gap:10px}
-    .channel-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
     .channel-hidden{display:none !important}
-    .delivery-fields-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
     @media (max-width:1080px){
         .kpi-grid{grid-template-columns:repeat(3,minmax(120px,1fr))}
         .order-form-layout{grid-template-columns:1fr}
-        .channel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-        .delivery-fields-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+        .channel-card.is-core,.channel-card.is-customer{grid-column:span 12}
+        .general-notes-grid{grid-template-columns:1fr}
+        .delivery-fields-grid .field{grid-column:span 6}
     }
     @media (max-width:760px){
         .kpi-grid{grid-template-columns:repeat(2,minmax(120px,1fr))}
-        .channel-grid,.delivery-fields-grid{grid-template-columns:1fr}
+        .channel-grid,.channel-inline-grid{grid-template-columns:1fr}
+        .delivery-fields-grid .field{grid-column:span 12}
+        .additionals-container{min-width:0}
+        .items-table{min-width:0}
     }
     @media (max-width:860px){
         .items-table-wrap{border:none;background:transparent}
@@ -159,137 +192,185 @@ $canCreateOrder = $totalProducts > 0;
                     <span class="step-pill">2. Itens e adicionais</span>
                 </div>
 
-                <div class="channel-section">
-                    <div class="channel-grid">
-                        <div class="field">
-                            <label for="channel">Canal do pedido</label>
-                            <select id="channel" name="channel" <?= $canCreateOrder ? '' : 'disabled' ?>>
-                                <option value="table">Mesa</option>
-                                <option value="delivery">Entrega</option>
-                                <option value="pickup">Retirada</option>
-                                <option value="counter">Balcão</option>
-                            </select>
+                <div class="section-shell">
+                    <section class="section-block">
+                        <div class="section-head">
+                            <div>
+                                <h3>Canal e dados gerais</h3>
+                                <p>Defina o canal do atendimento, o vínculo com a comanda e os dados mínimos para abertura operacional do pedido.</p>
+                            </div>
+                            <div class="section-kpis">
+                                <article class="section-kpi">
+                                    <strong><?= count($commands) ?></strong>
+                                    <span>comandas abertas</span>
+                                </article>
+                                <article class="section-kpi">
+                                    <strong><?= count($deliveryZones) ?></strong>
+                                    <span>zonas de entrega</span>
+                                </article>
+                            </div>
                         </div>
-                        <div class="field" id="commandField">
-                            <label for="command_id">Comanda aberta</label>
-                            <select id="command_id" name="command_id" <?= $canCreateOrder ? '' : 'disabled' ?>>
-                                <option value="">Selecione</option>
-                                <?php foreach ($commands as $command): ?>
-                                    <option value="<?= (int) $command['id'] ?>">
-                                        <?= $command['table_number'] !== null ? 'Mesa ' . (int) $command['table_number'] : 'Comanda sem mesa' ?>
-                                        <?= !empty($command['customer_name']) ? '- ' . htmlspecialchars((string) $command['customer_name']) : '' ?>
-                                        <?= !empty($command['opened_at']) ? '- Aberta em ' . htmlspecialchars((string) $command['opened_at']) : '' ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <small id="commandWarning" style="color:#b91c1c;display:none">Sem comanda aberta no momento para canal mesa.</small>
-                        </div>
-                        <div class="field" id="customerNameField">
-                            <label for="customer_name">Cliente</label>
-                            <input id="customer_name" name="customer_name" type="text" placeholder="Nome do cliente" <?= $canCreateOrder ? '' : 'disabled' ?>>
-                        </div>
-                        <div class="field" id="customerPhoneField">
-                            <label for="customer_phone">Telefone</label>
-                            <input id="customer_phone" name="customer_phone" type="text" placeholder="Opcional (delivery)" <?= $canCreateOrder ? '' : 'disabled' ?>>
-                        </div>
-                    </div>
 
-                    <div class="delivery-fields-grid channel-hidden" id="deliveryFields">
-                        <div class="field">
-                            <label for="delivery_zone_id">Zona de entrega</label>
-                            <select id="delivery_zone_id" name="delivery_zone_id" <?= $canCreateOrder ? '' : 'disabled' ?>>
-                                <option value="">Selecione</option>
-                                <?php foreach ($deliveryZones as $zone): ?>
-                                    <option
-                                        value="<?= (int) ($zone['id'] ?? 0) ?>"
-                                        data-fee="<?= htmlspecialchars(number_format((float) ($zone['fee_amount'] ?? 0), 2, '.', '')) ?>"
-                                        data-minimum="<?= $zone['minimum_order_amount'] !== null ? htmlspecialchars(number_format((float) $zone['minimum_order_amount'], 2, '.', '')) : '' ?>"
-                                    >
-                                        <?= htmlspecialchars((string) ($zone['name'] ?? 'Zona')) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <small id="deliveryZoneRule" style="color:#475569"></small>
-                        </div>
-                        <div class="field">
-                            <label for="delivery_label">Rótulo</label>
-                            <input id="delivery_label" name="delivery_label" type="text" placeholder="Casa, Trabalho..." <?= $canCreateOrder ? '' : 'disabled' ?>>
-                        </div>
-                        <div class="field">
-                            <label for="delivery_street">Logradouro</label>
-                            <input id="delivery_street" name="delivery_street" type="text" placeholder="Rua / Avenida" <?= $canCreateOrder ? '' : 'disabled' ?>>
-                        </div>
-                        <div class="field">
-                            <label for="delivery_number">Numero</label>
-                            <input id="delivery_number" name="delivery_number" type="text" placeholder="123" <?= $canCreateOrder ? '' : 'disabled' ?>>
-                        </div>
-                        <div class="field">
-                            <label for="delivery_complement">Complemento</label>
-                            <input id="delivery_complement" name="delivery_complement" type="text" placeholder="Opcional" <?= $canCreateOrder ? '' : 'disabled' ?>>
-                        </div>
-                        <div class="field">
-                            <label for="delivery_neighborhood">Bairro</label>
-                            <input id="delivery_neighborhood" name="delivery_neighborhood" type="text" placeholder="Bairro" <?= $canCreateOrder ? '' : 'disabled' ?>>
-                        </div>
-                        <div class="field">
-                            <label for="delivery_city">Cidade</label>
-                            <input id="delivery_city" name="delivery_city" type="text" placeholder="Cidade" <?= $canCreateOrder ? '' : 'disabled' ?>>
-                        </div>
-                        <div class="field">
-                            <label for="delivery_state">UF</label>
-                            <input id="delivery_state" name="delivery_state" type="text" maxlength="2" placeholder="UF" <?= $canCreateOrder ? '' : 'disabled' ?>>
-                        </div>
-                        <div class="field">
-                            <label for="delivery_zip_code">CEP</label>
-                            <input id="delivery_zip_code" name="delivery_zip_code" type="text" placeholder="Opcional" <?= $canCreateOrder ? '' : 'disabled' ?>>
-                        </div>
-                        <div class="field" style="grid-column:1 / -1">
-                            <label for="delivery_reference">Referência / observação da entrega</label>
-                            <input id="delivery_reference" name="delivery_reference" type="text" placeholder="Opcional" <?= $canCreateOrder ? '' : 'disabled' ?>>
-                        </div>
-                    </div>
+                        <div class="channel-shell">
+                            <div class="channel-grid">
+                                <div class="channel-card is-core">
+                                    <div class="channel-inline-grid">
+                                        <div class="field">
+                                            <label for="channel">Canal do pedido</label>
+                                            <select id="channel" name="channel" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                                <option value="table">Mesa</option>
+                                                <option value="delivery">Entrega</option>
+                                                <option value="pickup">Retirada</option>
+                                                <option value="counter">Balcão</option>
+                                            </select>
+                                        </div>
+                                        <div class="field" id="commandField">
+                                            <label for="command_id">Comanda aberta</label>
+                                            <select id="command_id" name="command_id" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                                <option value="">Selecione</option>
+                                                <?php foreach ($commands as $command): ?>
+                                                    <option value="<?= (int) $command['id'] ?>">
+                                                        <?= $command['table_number'] !== null ? 'Mesa ' . (int) $command['table_number'] : 'Comanda sem mesa' ?>
+                                                        <?= !empty($command['customer_name']) ? '- ' . htmlspecialchars((string) $command['customer_name']) : '' ?>
+                                                        <?= !empty($command['opened_at']) ? '- Aberta em ' . htmlspecialchars((string) $command['opened_at']) : '' ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <small id="commandWarning" style="color:#b91c1c;display:none">Sem comanda aberta no momento para canal mesa.</small>
+                                        </div>
+                                    </div>
+                                    <p class="channel-note">Pedidos por mesa exigem uma comanda aberta. Nos demais canais, o fluxo segue sem amarrar o pedido a uma comanda de salão.</p>
+                                </div>
 
-                    <div class="grid two">
-                        <div class="field">
-                            <label for="notes">Observações gerais</label>
-                            <textarea id="notes" name="notes" class="notes-textarea" rows="2" placeholder="Opcional" <?= $canCreateOrder ? '' : 'disabled' ?>></textarea>
-                        </div>
-                        <div class="field">
-                            <label for="discount_amount">Desconto (R$)</label>
-                            <input id="discount_amount" name="discount_amount" type="number" step="0.01" min="0" value="0.00" <?= $canCreateOrder ? '' : 'disabled' ?>>
-                        </div>
-                    </div>
+                                <div class="channel-card is-customer">
+                                    <div class="channel-inline-grid">
+                                        <div class="field" id="customerNameField">
+                                            <label for="customer_name">Cliente</label>
+                                            <input id="customer_name" name="customer_name" type="text" placeholder="Nome do cliente" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                        </div>
+                                        <div class="field" id="customerPhoneField">
+                                            <label for="customer_phone">Telefone</label>
+                                            <input id="customer_phone" name="customer_phone" type="text" placeholder="Opcional (delivery)" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                        </div>
+                                    </div>
+                                    <p class="channel-note">Use estes dados para identificar retirada e entrega sem poluir o restante do formulário operacional.</p>
+                                </div>
+                            </div>
 
-                    <div class="grid two">
-                        <div class="field">
-                            <label for="delivery_fee">Taxa de entrega (R$)</label>
-                            <input id="delivery_fee" name="delivery_fee" type="number" step="0.01" min="0" value="0.00" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                            <div class="channel-card delivery-fields-grid channel-hidden" id="deliveryFields">
+                                <div class="field">
+                                    <label for="delivery_zone_id">Zona de entrega</label>
+                                    <select id="delivery_zone_id" name="delivery_zone_id" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                        <option value="">Selecione</option>
+                                        <?php foreach ($deliveryZones as $zone): ?>
+                                            <option
+                                                value="<?= (int) ($zone['id'] ?? 0) ?>"
+                                                data-fee="<?= htmlspecialchars(number_format((float) ($zone['fee_amount'] ?? 0), 2, '.', '')) ?>"
+                                                data-minimum="<?= $zone['minimum_order_amount'] !== null ? htmlspecialchars(number_format((float) $zone['minimum_order_amount'], 2, '.', '')) : '' ?>"
+                                            >
+                                                <?= htmlspecialchars((string) ($zone['name'] ?? 'Zona')) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <small id="deliveryZoneRule" style="color:#475569"></small>
+                                </div>
+                                <div class="field">
+                                    <label for="delivery_label">Rótulo</label>
+                                    <input id="delivery_label" name="delivery_label" type="text" placeholder="Casa, Trabalho..." <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                </div>
+                                <div class="field">
+                                    <label for="delivery_street">Logradouro</label>
+                                    <input id="delivery_street" name="delivery_street" type="text" placeholder="Rua / Avenida" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                </div>
+                                <div class="field">
+                                    <label for="delivery_number">Número</label>
+                                    <input id="delivery_number" name="delivery_number" type="text" placeholder="123" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                </div>
+                                <div class="field">
+                                    <label for="delivery_complement">Complemento</label>
+                                    <input id="delivery_complement" name="delivery_complement" type="text" placeholder="Opcional" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                </div>
+                                <div class="field">
+                                    <label for="delivery_neighborhood">Bairro</label>
+                                    <input id="delivery_neighborhood" name="delivery_neighborhood" type="text" placeholder="Bairro" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                </div>
+                                <div class="field">
+                                    <label for="delivery_city">Cidade</label>
+                                    <input id="delivery_city" name="delivery_city" type="text" placeholder="Cidade" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                </div>
+                                <div class="field">
+                                    <label for="delivery_state">UF</label>
+                                    <input id="delivery_state" name="delivery_state" type="text" maxlength="2" placeholder="UF" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                </div>
+                                <div class="field">
+                                    <label for="delivery_zip_code">CEP</label>
+                                    <input id="delivery_zip_code" name="delivery_zip_code" type="text" placeholder="Opcional" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                </div>
+                                <div class="field is-wide">
+                                    <label for="delivery_reference">Referência / observação da entrega</label>
+                                    <input id="delivery_reference" name="delivery_reference" type="text" placeholder="Opcional" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                </div>
+                            </div>
+
+                            <div class="channel-card">
+                                <div class="general-notes-grid">
+                                    <div class="field">
+                                        <label for="notes">Observações gerais</label>
+                                        <textarea id="notes" name="notes" class="notes-textarea" rows="2" placeholder="Opcional" <?= $canCreateOrder ? '' : 'disabled' ?>></textarea>
+                                    </div>
+                                    <div class="field">
+                                        <label for="discount_amount">Desconto (R$)</label>
+                                        <input id="discount_amount" name="discount_amount" type="number" step="0.01" min="0" value="0.00" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                    </div>
+                                    <div class="field">
+                                        <label for="delivery_fee">Taxa de entrega (R$)</label>
+                                        <input id="delivery_fee" name="delivery_fee" type="number" step="0.01" min="0" value="0.00" <?= $canCreateOrder ? '' : 'disabled' ?>>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    </section>
 
-                <div class="items-header">
-                    <div>
-                        <h3 style="margin:0">Itens do pedido</h3>
-                        <small style="color:#64748b">Selecione produto, quantidade, adicionais e observacao por linha.</small>
-                    </div>
-                    <button class="btn secondary" id="addItemBtn" type="button" <?= $canCreateOrder ? '' : 'disabled' ?>>Adicionar item</button>
-                </div>
+                    <section class="section-block">
+                        <div class="items-headline">
+                            <div>
+                                <h3>Itens e adicionais</h3>
+                                <p>Monte o pedido por linha com mais espaço para busca do produto, controle de quantidade, observações e composição dos adicionais.</p>
+                            </div>
+                        </div>
 
-                <div class="items-table-wrap" style="margin-top:10px">
-                    <table class="items-table" id="itemsTable">
-                        <thead>
-                            <tr>
-                                <th>Produto</th>
-                                <th>Qtd</th>
-                                <th>Adicionais</th>
-                                <th>Observacao</th>
-                                <th>Total linha</th>
-                                <th>Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody id="itemsBody"></tbody>
-                    </table>
+                        <div class="items-toolbar">
+                            <div class="items-toolbar-copy">
+                                <strong>Montagem do pedido</strong>
+                                <span>Os adicionais continuam obedecendo as regras de mínimo e máximo definidas no produto, agora com leitura mais clara na operação.</span>
+                            </div>
+                            <button class="btn secondary" id="addItemBtn" type="button" <?= $canCreateOrder ? '' : 'disabled' ?>>Adicionar item</button>
+                        </div>
+
+                        <div class="items-table-wrap">
+                            <table class="items-table" id="itemsTable">
+                                <colgroup>
+                                    <col style="width:27%">
+                                    <col style="width:8%">
+                                    <col style="width:34%">
+                                    <col style="width:17%">
+                                    <col style="width:8%">
+                                    <col style="width:6%">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th>Produto</th>
+                                        <th>Qtd</th>
+                                        <th>Adicionais</th>
+                                        <th>Observação</th>
+                                        <th>Total linha</th>
+                                        <th>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="itemsBody"></tbody>
+                            </table>
+                        </div>
+                    </section>
                 </div>
             </div>
 
@@ -638,30 +719,57 @@ $canCreateOrder = $totalProducts > 0;
         }
     };
 
-    const checkedAdditionalIds = (container) => {
-        const ids = [];
-        container.querySelectorAll('input[type="checkbox"][data-additional-id]').forEach((checkbox) => {
-            if (checkbox.checked) {
-                ids.push(String(Number(checkbox.getAttribute('data-additional-id') || 0)));
+    const readAdditionalSelections = (container) => {
+        const selections = [];
+        container.querySelectorAll('.additional-card[data-additional-id]').forEach((card) => {
+            const additionalId = Number(card.getAttribute('data-additional-id') || 0);
+            const checkbox = card.querySelector('input[type="checkbox"][data-additional-id]');
+            const qtyLabel = card.querySelector('[data-additional-qty]');
+            const qty = Math.max(0, Number(qtyLabel ? qtyLabel.textContent || 0 : 0));
+            if (additionalId > 0 && checkbox && checkbox.checked && qty > 0) {
+                selections.push({ id: additionalId, quantity: qty });
             }
         });
-        return ids.filter((id) => Number(id) > 0);
+
+        return selections;
     };
 
+    const totalAdditionalUnits = (container) => readAdditionalSelections(container)
+        .reduce((sum, selection) => sum + Number(selection.quantity || 0), 0);
+
+    const encodeAdditionalSelections = (container) => readAdditionalSelections(container)
+        .map((selection) => `${selection.id}:${selection.quantity}`)
+        .join(',');
+
     const syncAdditionalSelectionUi = (container) => {
-        const selectedCount = checkedAdditionalIds(container).length;
+        const selections = readAdditionalSelections(container);
+        const selectedCount = selections.length;
+        const totalUnits = selections.reduce((sum, selection) => sum + Number(selection.quantity || 0), 0);
+
         container.querySelectorAll('.additional-card').forEach((card) => {
             const checkbox = card.querySelector('input[type="checkbox"][data-additional-id]');
-            if (checkbox && checkbox.checked) {
-                card.classList.add('is-selected');
-            } else {
-                card.classList.remove('is-selected');
+            const qtyLabel = card.querySelector('[data-additional-qty]');
+            const decreaseButton = card.querySelector('[data-additional-decrease]');
+            const increaseButton = card.querySelector('[data-additional-increase]');
+            const toggleButton = card.querySelector('[data-additional-toggle]');
+            const isSelected = Boolean(checkbox && checkbox.checked);
+            const qty = Math.max(0, Number(qtyLabel ? qtyLabel.textContent || 0 : 0));
+
+            card.classList.toggle('is-selected', isSelected);
+            if (toggleButton) {
+                toggleButton.textContent = isSelected ? 'Remover' : 'Adicionar';
+            }
+            if (decreaseButton) {
+                decreaseButton.disabled = !isSelected || qty <= 1;
+            }
+            if (increaseButton) {
+                increaseButton.disabled = !isSelected;
             }
         });
 
         const counter = container.querySelector('[data-selected-count]');
         if (counter) {
-            counter.textContent = `${selectedCount} selecionado(s)`;
+            counter.textContent = `${selectedCount} adicional(is) · ${totalUnits} unidade(s)`;
         }
     };
 
@@ -671,7 +779,7 @@ $canCreateOrder = $totalProducts > 0;
         if (!hidden || !container) {
             return;
         }
-        hidden.value = checkedAdditionalIds(container).join(',');
+        hidden.value = encodeAdditionalSelections(container);
     };
 
     const lineTotals = (row) => {
@@ -685,8 +793,13 @@ $canCreateOrder = $totalProducts > 0;
         let additionals = 0;
 
         if (product && hidden) {
-            String(hidden.value || '').split(',').map((id) => Number(id || 0)).filter((id) => id > 0).forEach((id) => {
-                additionals += additionalPrice(product, id) * quantity;
+            String(hidden.value || '').split(',').forEach((token) => {
+                const [idPart, qtyPart] = String(token || '').split(':');
+                const additionalId = Number(idPart || 0);
+                const additionalQty = Math.max(0, Number(qtyPart !== undefined && qtyPart !== '' ? qtyPart : 1));
+                if (additionalId > 0 && additionalQty > 0) {
+                    additionals += additionalPrice(product, additionalId) * additionalQty * quantity;
+                }
             });
         }
 
@@ -838,17 +951,29 @@ $canCreateOrder = $totalProducts > 0;
         }
     };
 
-    const enforceMaxSelection = (container, maxSelection) => {
-        const selected = checkedAdditionalIds(container);
-        if (maxSelection !== null && selected.length > maxSelection) {
-            const lastChecked = container.querySelector('input[type="checkbox"][data-last-change="1"]');
-            if (lastChecked) {
-                lastChecked.checked = false;
-                lastChecked.removeAttribute('data-last-change');
-            }
-            alert(`Este produto permite no maximo ${maxSelection} adicional(is) por item.`);
+    const setAdditionalQuantity = (container, card, quantity, maxSelection) => {
+        const checkbox = card.querySelector('input[type="checkbox"][data-additional-id]');
+        const qtyLabel = card.querySelector('[data-additional-qty]');
+        if (!checkbox || !qtyLabel) {
+            return false;
         }
+
+        const currentSelections = readAdditionalSelections(container);
+        const currentCardId = Number(card.getAttribute('data-additional-id') || 0);
+        const currentSelection = currentSelections.find((selection) => selection.id === currentCardId) || { quantity: 0 };
+        const currentTotal = currentSelections.reduce((sum, selection) => sum + Number(selection.quantity || 0), 0);
+        const normalizedQuantity = Math.max(0, Number(quantity || 0));
+        const nextTotal = currentTotal - Number(currentSelection.quantity || 0) + normalizedQuantity;
+
+        if (maxSelection !== null && nextTotal > maxSelection) {
+            alert(`Este produto permite no maximo ${maxSelection} unidade(s) de adicionais por item.`);
+            return false;
+        }
+
+        checkbox.checked = normalizedQuantity > 0;
+        qtyLabel.textContent = String(normalizedQuantity > 0 ? normalizedQuantity : 0);
         syncAdditionalSelectionUi(container);
+        return true;
     };
 
     const renderAdditionals = (row) => {
@@ -887,11 +1012,19 @@ $canCreateOrder = $totalProducts > 0;
             const additionalName = escapeHtml(additional.name || 'Adicional');
             const additionalPriceText = money(Number(additional.price || 0));
             cardsHtml += `
-                <label class="additional-card">
+                <div class="additional-card" data-additional-id="${additionalId}">
                     <input type="checkbox" data-additional-id="${additionalId}">
                     <span class="additional-card-name">${additionalName}</span>
                     <span class="additional-card-price">+ ${additionalPriceText}</span>
-                </label>
+                    <div class="additional-card-controls">
+                        <button class="additional-toggle" type="button" data-additional-toggle>Adicionar</button>
+                        <div class="additional-qty">
+                            <button type="button" data-additional-decrease disabled>-</button>
+                            <strong data-additional-qty>0</strong>
+                            <button type="button" data-additional-increase disabled>+</button>
+                        </div>
+                    </div>
+                </div>
             `;
         });
 
@@ -905,14 +1038,43 @@ $canCreateOrder = $totalProducts > 0;
             </div>
         `;
 
-        additionalsContainer.querySelectorAll('input[type="checkbox"][data-additional-id]').forEach((checkbox) => {
-            checkbox.addEventListener('change', () => {
-                additionalsContainer.querySelectorAll('input[type="checkbox"][data-additional-id]').forEach((item) => item.removeAttribute('data-last-change'));
-                checkbox.setAttribute('data-last-change', '1');
-                enforceMaxSelection(additionalsContainer, maxSelection);
-                syncAdditionalHidden(row);
-                syncAdditionalSelectionUi(additionalsContainer);
-                refreshSummary();
+        additionalsContainer.querySelectorAll('.additional-card[data-additional-id]').forEach((card) => {
+            const toggleButton = card.querySelector('[data-additional-toggle]');
+            const decreaseButton = card.querySelector('[data-additional-decrease]');
+            const increaseButton = card.querySelector('[data-additional-increase]');
+
+            toggleButton?.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const checkbox = card.querySelector('input[type="checkbox"][data-additional-id]');
+                const isSelected = Boolean(checkbox && checkbox.checked);
+                const nextQuantity = isSelected ? 0 : 1;
+                if (setAdditionalQuantity(additionalsContainer, card, nextQuantity, maxSelection)) {
+                    syncAdditionalHidden(row);
+                    refreshSummary();
+                }
+            });
+
+            decreaseButton?.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const qtyLabel = card.querySelector('[data-additional-qty]');
+                const currentQty = Math.max(0, Number(qtyLabel ? qtyLabel.textContent || 0 : 0));
+                if (setAdditionalQuantity(additionalsContainer, card, currentQty - 1, maxSelection)) {
+                    syncAdditionalHidden(row);
+                    refreshSummary();
+                }
+            });
+
+            increaseButton?.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const qtyLabel = card.querySelector('[data-additional-qty]');
+                const currentQty = Math.max(0, Number(qtyLabel ? qtyLabel.textContent || 0 : 0));
+                if (setAdditionalQuantity(additionalsContainer, card, currentQty + 1, maxSelection)) {
+                    syncAdditionalHidden(row);
+                    refreshSummary();
+                }
             });
         });
 
@@ -1063,7 +1225,10 @@ $canCreateOrder = $totalProducts > 0;
                     continue;
                 }
 
-                const selectedCount = String(hidden.value || '').split(',').map((id) => Number(id || 0)).filter((id) => id > 0).length;
+                const selectedCount = String(hidden.value || '').split(',').reduce((sum, token) => {
+                    const [, qtyPart] = String(token || '').split(':');
+                    return sum + Math.max(0, Number(qtyPart !== undefined && qtyPart !== '' ? qtyPart : 1));
+                }, 0);
                 const isRequired = Boolean(product.additionals_is_required);
                 const minSelection = product.additionals_min_selection !== null ? Number(product.additionals_min_selection) : (isRequired ? 1 : 0);
                 if (minSelection > 0 && selectedCount < minSelection) {

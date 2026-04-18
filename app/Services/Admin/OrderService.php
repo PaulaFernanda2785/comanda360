@@ -722,10 +722,10 @@ final class OrderService
             $additionalsSubtotal = 0.0;
             $selectedAdditionals = [];
 
-            $selectedAdditionalItemIds = $this->parseAdditionalItemIds($additionalItemIdsList[$index] ?? '');
+            $selectedAdditionalQuantities = $this->parseAdditionalSelections($additionalItemIdsList[$index] ?? '');
             $additionalConfig = $additionalCatalogByProductId[(int) $product['id']] ?? null;
 
-            if ($selectedAdditionalItemIds !== []) {
+            if ($selectedAdditionalQuantities !== []) {
                 if ($additionalConfig === null || ($additionalConfig['items'] ?? []) === []) {
                     throw new ValidationException('O produto da linha ' . $rowNumber . ' nao possui adicionais validos para selecao.');
                 }
@@ -735,32 +735,33 @@ final class OrderService
                 $maxSelection = $additionalConfig['max_selection'] ?? null;
                 $minSelection = $additionalConfig['min_selection'] ?? null;
                 $isRequired = (bool) ($additionalConfig['is_required'] ?? false);
-                $selectedCount = count($selectedAdditionalItemIds);
+                $selectedCount = array_sum($selectedAdditionalQuantities);
 
                 if ($maxSelection !== null && $selectedCount > $maxSelection) {
-                    throw new ValidationException('A linha ' . $rowNumber . ' excedeu o limite maximo de adicionais permitidos para o produto.');
+                    throw new ValidationException('A linha ' . $rowNumber . ' excedeu o limite maximo de unidades adicionais permitidas para o produto.');
                 }
 
                 $requiredMin = $minSelection ?? ($isRequired ? 1 : 0);
                 if ($requiredMin > 0 && $selectedCount < $requiredMin) {
-                    throw new ValidationException('A linha ' . $rowNumber . ' exige ao menos ' . $requiredMin . ' adicional(is).');
+                    throw new ValidationException('A linha ' . $rowNumber . ' exige ao menos ' . $requiredMin . ' unidade(s) adicional(is).');
                 }
 
-                foreach ($selectedAdditionalItemIds as $additionalItemId) {
+                foreach ($selectedAdditionalQuantities as $additionalItemId => $additionalQuantityPerItem) {
                     $additional = $additionalConfig['items'][$additionalItemId] ?? null;
                     if ($additional === null) {
                         throw new ValidationException('Adicional invalido selecionado na linha ' . $rowNumber . '.');
                     }
 
                     $additionalUnitPrice = (float) ($additional['price'] ?? 0);
-                    $additionalLineSubtotal = round($additionalUnitPrice * $quantity, 2);
+                    $additionalLineQuantity = $additionalQuantityPerItem * $quantity;
+                    $additionalLineSubtotal = round($additionalUnitPrice * $additionalLineQuantity, 2);
                     $additionalsSubtotal = round($additionalsSubtotal + $additionalLineSubtotal, 2);
 
                     $selectedAdditionals[] = [
                         'additional_item_id' => (int) ($additional['id'] ?? $additionalItemId),
                         'additional_name_snapshot' => (string) ($additional['name'] ?? ''),
                         'unit_price' => $additionalUnitPrice,
-                        'quantity' => $quantity,
+                        'quantity' => $additionalLineQuantity,
                         'line_subtotal' => $additionalLineSubtotal,
                     ];
                 }
@@ -821,27 +822,80 @@ final class OrderService
         return $map;
     }
 
-    private function parseAdditionalItemIds(mixed $raw): array
+    private function parseAdditionalSelections(mixed $raw): array
     {
-        if (is_array($raw)) {
-            $values = $raw;
-        } else {
-            $rawText = trim((string) $raw);
+        if (is_string($raw)) {
+            $rawText = trim($raw);
             if ($rawText === '') {
                 return [];
             }
-            $values = explode(',', $rawText);
-        }
 
-        $ids = [];
-        foreach ($values as $value) {
-            $id = (int) trim((string) $value);
-            if ($id > 0) {
-                $ids[$id] = true;
+            if (($rawText[0] ?? '') === '[' || ($rawText[0] ?? '') === '{') {
+                $decoded = json_decode($rawText, true);
+                if (is_array($decoded)) {
+                    return $this->normalizeAdditionalSelectionsArray($decoded);
+                }
             }
         }
 
-        return array_keys($ids);
+        if (is_array($raw)) {
+            return $this->normalizeAdditionalSelectionsArray($raw);
+        }
+
+        $rawText = trim((string) $raw);
+        if ($rawText === '') {
+            return [];
+        }
+
+        $values = explode(',', $rawText);
+        $selection = [];
+        foreach ($values as $value) {
+            $token = trim((string) $value);
+            if ($token === '') {
+                continue;
+            }
+
+            if (str_contains($token, ':')) {
+                [$idPart, $qtyPart] = array_pad(explode(':', $token, 2), 2, '');
+                $id = (int) trim($idPart);
+                $qty = (int) trim($qtyPart);
+            } else {
+                $id = (int) $token;
+                $qty = 1;
+            }
+
+            if ($id > 0 && $qty > 0) {
+                $selection[$id] = ($selection[$id] ?? 0) + $qty;
+            }
+        }
+
+        return $selection;
+    }
+
+    private function normalizeAdditionalSelectionsArray(array $raw): array
+    {
+        $selection = [];
+
+        foreach ($raw as $key => $value) {
+            if (is_array($value)) {
+                $id = (int) ($value['id'] ?? $value['additional_item_id'] ?? $key);
+                $qty = (int) ($value['quantity'] ?? $value['qty'] ?? 1);
+            } elseif (is_string($key) && $key !== '' && !is_numeric($key)) {
+                continue;
+            } elseif (is_numeric($key) && !is_array($value)) {
+                $id = (int) $value;
+                $qty = 1;
+            } else {
+                $id = (int) $key;
+                $qty = (int) $value;
+            }
+
+            if ($id > 0 && $qty > 0) {
+                $selection[$id] = ($selection[$id] ?? 0) + $qty;
+            }
+        }
+
+        return $selection;
     }
 
     private function parseMoney(mixed $value): float

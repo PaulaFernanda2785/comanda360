@@ -197,13 +197,17 @@ $formatMoney = static fn (float $value): string => 'R$ ' . number_format($value,
                         notes: String(item?.notes || '').slice(0, 500),
                         additionals: Array.isArray(item?.additionals)
                             ? item.additionals.slice(0, 20).map((additional) => ({
+                                id: Number(additional?.id || 0),
                                 name: String(additional?.name || 'Adicional'),
+                                price: Number(additional?.price || 0),
+                                quantity: Math.max(0, Number(additional?.quantity ?? 1)),
                             }))
                             : [],
-                        additionalIds: Array.isArray(item?.additionalIds)
-                            ? item.additionalIds.slice(0, 20).map((value) => Number(value || 0)).filter((value) => value > 0)
-                            : [],
                         lineTotal: Number(item?.lineTotal || 0),
+                    }))
+                    .map((item) => ({
+                        ...item,
+                        additionals: item.additionals.filter((additional) => additional.id > 0 && additional.quantity > 0),
                     }))
                     .filter((item) => item.productId > 0 && item.quantity > 0 && Number.isFinite(item.lineTotal) && item.lineTotal >= 0);
             } catch (error) {
@@ -250,7 +254,7 @@ $formatMoney = static fn (float $value): string => 'R$ ' . number_format($value,
                 total += Number(item.lineTotal || 0);
                 quantity += Number(item.quantity || 0);
                 const additionalsLabel = Array.isArray(item.additionals) && item.additionals.length > 0
-                    ? item.additionals.map((additional) => additional.name).join(' - ')
+                    ? item.additionals.map((additional) => `${additional.quantity}x ${additional.name}`).join(' - ')
                     : 'Sem adicionais';
 
                 html += `
@@ -280,7 +284,12 @@ $formatMoney = static fn (float $value): string => 'R$ ' . number_format($value,
                 appendHiddenField('product_id[]', Number(item.productId || 0));
                 appendHiddenField('quantity[]', Number(item.quantity || 0));
                 appendHiddenField('item_notes[]', String(item.notes || ''));
-                appendHiddenField('additional_item_ids[]', Array.isArray(item.additionalIds) ? item.additionalIds.join(',') : '');
+                appendHiddenField(
+                    'additional_item_ids[]',
+                    Array.isArray(item.additionals)
+                        ? item.additionals.map((additional) => `${Number(additional.id || 0)}:${Math.max(0, Number(additional.quantity || 0))}`).filter((token) => !token.startsWith('0:')).join(',')
+                        : ''
+                );
             });
 
             cartList.innerHTML = html;

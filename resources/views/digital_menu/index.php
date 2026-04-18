@@ -182,11 +182,18 @@ if (!is_string($productsJson)) {
     .dm-step-btn{width:42px;height:42px;border-radius:14px;border:1px solid var(--dm-border);background:#fff;font-size:22px;cursor:pointer}
     .dm-step-value{min-width:24px;text-align:center;font-weight:800}
     .dm-additionals-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-    .dm-additional-card{position:relative;padding:12px;border-radius:16px;border:1px solid var(--dm-border);background:var(--dm-surface-soft);display:grid;gap:6px;cursor:pointer}
+    .dm-additional-card{position:relative;padding:12px;border-radius:16px;border:1px solid var(--dm-border);background:var(--dm-surface-soft);display:grid;gap:8px}
     .dm-additional-card input{position:absolute;opacity:0;pointer-events:none}
     .dm-additional-card.is-selected{border-color:var(--dm-primary);background:color-mix(in srgb, var(--dm-primary) 10%, white 90%)}
     .dm-additional-card strong{font-size:13px}
     .dm-additional-card span{font-size:12px;color:var(--dm-muted)}
+    .dm-additional-controls{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .dm-additional-toggle{border:1px solid color-mix(in srgb, var(--dm-primary) 28%, white 72%);background:#fff;color:var(--dm-primary);border-radius:999px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer}
+    .dm-additional-card.is-selected .dm-additional-toggle{background:var(--dm-primary);color:#fff;border-color:var(--dm-primary)}
+    .dm-additional-qty{display:inline-flex;align-items:center;gap:6px}
+    .dm-additional-qty button{width:28px;height:28px;border-radius:999px;border:1px solid color-mix(in srgb, var(--dm-primary) 28%, white 72%);background:#fff;color:var(--dm-primary);font-weight:800;cursor:pointer}
+    .dm-additional-qty button:disabled{opacity:.45;cursor:not-allowed}
+    .dm-additional-qty strong{min-width:18px;text-align:center;font-size:13px}
     .dm-modal-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
     @media (max-width:1120px){
         .dm-main-grid{grid-template-columns:1fr}
@@ -684,14 +691,16 @@ if (!is_string($productsJson)) {
                                 id: Number(additional?.id || 0),
                                 name: String(additional?.name || 'Adicional'),
                                 price: Number(additional?.price || 0),
+                                quantity: Math.max(0, Number(additional?.quantity ?? 1)),
                             }))
-                            : [],
-                        additionalIds: Array.isArray(item?.additionalIds)
-                            ? item.additionalIds.slice(0, 20).map((value) => Number(value || 0)).filter((value) => value > 0)
                             : [],
                         lineTotal: Number(item?.lineTotal || 0),
                     };
                 })
+                .map((item) => ({
+                    ...item,
+                    additionals: item.additionals.filter((additional) => additional.id > 0 && additional.quantity > 0),
+                }))
                 .filter((item) => item.productId > 0 && item.quantity > 0 && Number.isFinite(item.lineTotal) && item.lineTotal >= 0 && productsById[String(item.productId)]);
         };
 
@@ -910,6 +919,79 @@ if (!is_string($productsJson)) {
             document.body.style.overflow = '';
         };
 
+        const readModalAdditionalSelections = () => {
+            const selections = [];
+            additionalsGrid.querySelectorAll('.dm-additional-card[data-additional-id]').forEach((card) => {
+                const checkbox = card.querySelector('input[type="checkbox"]');
+                const qtyLabel = card.querySelector('[data-additional-qty]');
+                const additionalId = Number(card.getAttribute('data-additional-id') || 0);
+                const quantity = Math.max(0, Number(qtyLabel ? qtyLabel.textContent || 0 : 0));
+                if (additionalId > 0 && checkbox && checkbox.checked && quantity > 0) {
+                    selections.push({ id: additionalId, quantity });
+                }
+            });
+
+            return selections;
+        };
+
+        const syncModalAdditionalUi = () => {
+            const selections = readModalAdditionalSelections();
+            const selectedCount = selections.length;
+            const totalUnits = selections.reduce((sum, selection) => sum + Number(selection.quantity || 0), 0);
+            const baseText = additionalsMeta.getAttribute('data-base-text') || additionalsMeta.textContent;
+
+            additionalsGrid.querySelectorAll('.dm-additional-card[data-additional-id]').forEach((card) => {
+                const checkbox = card.querySelector('input[type="checkbox"]');
+                const qtyLabel = card.querySelector('[data-additional-qty]');
+                const decreaseButton = card.querySelector('[data-additional-decrease]');
+                const increaseButton = card.querySelector('[data-additional-increase]');
+                const toggleButton = card.querySelector('[data-additional-toggle]');
+                const isSelected = Boolean(checkbox && checkbox.checked);
+                const quantity = Math.max(0, Number(qtyLabel ? qtyLabel.textContent || 0 : 0));
+
+                card.classList.toggle('is-selected', isSelected);
+                if (toggleButton) {
+                    toggleButton.textContent = isSelected ? 'Remover' : 'Adicionar';
+                }
+                if (decreaseButton) {
+                    decreaseButton.disabled = !isSelected || quantity <= 1;
+                }
+                if (increaseButton) {
+                    increaseButton.disabled = !isSelected;
+                }
+            });
+
+            if (!String(baseText).includes('Este item nao possui adicionais ativos.')) {
+                const suffix = selectedCount > 0 ? ` · ${selectedCount} adicional(is) · ${totalUnits} unidade(s)` : '';
+                additionalsMeta.textContent = `${baseText}${suffix}`;
+            }
+        };
+
+        const setModalAdditionalQuantity = (card, quantity, maxSelection) => {
+            const checkbox = card.querySelector('input[type="checkbox"]');
+            const qtyLabel = card.querySelector('[data-additional-qty]');
+            if (!checkbox || !qtyLabel) {
+                return false;
+            }
+
+            const selections = readModalAdditionalSelections();
+            const currentId = Number(card.getAttribute('data-additional-id') || 0);
+            const currentSelection = selections.find((selection) => selection.id === currentId) || { quantity: 0 };
+            const currentTotal = selections.reduce((sum, selection) => sum + Number(selection.quantity || 0), 0);
+            const nextQuantity = Math.max(0, Number(quantity || 0));
+            const nextTotal = currentTotal - Number(currentSelection.quantity || 0) + nextQuantity;
+
+            if (maxSelection !== null && nextTotal > maxSelection) {
+                alert(`Este item aceita no maximo ${maxSelection} unidade(s) de adicionais por produto.`);
+                return false;
+            }
+
+            checkbox.checked = nextQuantity > 0;
+            qtyLabel.textContent = String(nextQuantity > 0 ? nextQuantity : 0);
+            syncModalAdditionalUi();
+            return true;
+        };
+
         const renderAdditionals = (product) => {
             const additionals = Array.isArray(product.additionals) ? product.additionals : [];
             const maxSelection = product.additionals_max_selection !== null ? Number(product.additionals_max_selection) : null;
@@ -929,12 +1011,14 @@ if (!is_string($productsJson)) {
             if (maxSelection !== null) {
                 rules.push(`maximo ${maxSelection}`);
             }
-            additionalsMeta.textContent = rules.length > 0
+            const baseMetaText = rules.length > 0
                 ? `Selecao de adicionais: ${rules.join(' - ')}`
                 : 'Selecao opcional de adicionais.';
+            additionalsMeta.setAttribute('data-base-text', baseMetaText);
+            additionalsMeta.textContent = baseMetaText;
 
             additionalsGrid.innerHTML = additionals.map((additional) => `
-                <label class="dm-additional-card" data-additional-card>
+                <div class="dm-additional-card" data-additional-card data-additional-id="${additional.id}">
                     <input type="checkbox" value="${additional.id}">
                     <strong>${String(additional.name || 'Adicional').replace(/[&<>"']/g, (char) => ({
                         '&': '&amp;',
@@ -944,17 +1028,48 @@ if (!is_string($productsJson)) {
                         "'": '&#039;'
                     }[char] || char))}</strong>
                     <span>${money(additional.price)}</span>
-                </label>
+                    <div class="dm-additional-controls">
+                        <button class="dm-additional-toggle" type="button" data-additional-toggle>Adicionar</button>
+                        <div class="dm-additional-qty">
+                            <button type="button" data-additional-decrease disabled>-</button>
+                            <strong data-additional-qty>0</strong>
+                            <button type="button" data-additional-increase disabled>+</button>
+                        </div>
+                    </div>
+                </div>
             `).join('');
 
             additionalsGrid.querySelectorAll('[data-additional-card]').forEach((card) => {
-                const checkbox = card.querySelector('input[type="checkbox"]');
-                card.addEventListener('click', () => {
-                    window.setTimeout(() => {
-                        card.classList.toggle('is-selected', Boolean(checkbox && checkbox.checked));
-                    }, 0);
+                const toggleButton = card.querySelector('[data-additional-toggle]');
+                const decreaseButton = card.querySelector('[data-additional-decrease]');
+                const increaseButton = card.querySelector('[data-additional-increase]');
+
+                toggleButton?.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const checkbox = card.querySelector('input[type="checkbox"]');
+                    const isSelected = Boolean(checkbox && checkbox.checked);
+                    setModalAdditionalQuantity(card, isSelected ? 0 : 1, maxSelection);
+                });
+
+                decreaseButton?.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const qtyLabel = card.querySelector('[data-additional-qty]');
+                    const currentQty = Math.max(0, Number(qtyLabel ? qtyLabel.textContent || 0 : 0));
+                    setModalAdditionalQuantity(card, currentQty - 1, maxSelection);
+                });
+
+                increaseButton?.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const qtyLabel = card.querySelector('[data-additional-qty]');
+                    const currentQty = Math.max(0, Number(qtyLabel ? qtyLabel.textContent || 0 : 0));
+                    setModalAdditionalQuantity(card, currentQty + 1, maxSelection);
                 });
             });
+
+            syncModalAdditionalUi();
         };
 
         const openModal = (productId) => {
@@ -1008,40 +1123,41 @@ if (!is_string($productsJson)) {
             }
 
             const additionals = [];
-            const additionalIds = [];
-            additionalsGrid.querySelectorAll('input[type="checkbox"]:checked').forEach((checkbox) => {
-                const additionalId = String(checkbox.value || '');
-                const additional = (activeProduct.additionals || []).find((item) => String(item.id) === additionalId);
+            readModalAdditionalSelections().forEach((selection) => {
+                const additional = (activeProduct.additionals || []).find((item) => Number(item.id || 0) === Number(selection.id || 0));
                 if (!additional) {
                     return;
                 }
 
-                additionalIds.push(Number(additional.id));
                 additionals.push({
                     id: Number(additional.id),
                     name: String(additional.name || 'Adicional'),
                     price: Number(additional.price || 0),
+                    quantity: Math.max(1, Number(selection.quantity || 1)),
                 });
             });
 
             const maxSelection = activeProduct.additionals_max_selection !== null ? Number(activeProduct.additionals_max_selection) : null;
             const minSelection = activeProduct.additionals_min_selection !== null ? Number(activeProduct.additionals_min_selection) : 0;
             const requiredMin = Math.max(Boolean(activeProduct.additionals_is_required) ? 1 : 0, minSelection);
+            const totalAdditionalUnits = additionals.reduce((sum, additional) => sum + Number(additional.quantity || 0), 0);
 
-            if (maxSelection !== null && additionals.length > maxSelection) {
-                alert(`Este item aceita no maximo ${maxSelection} adicional(is).`);
+            if (maxSelection !== null && totalAdditionalUnits > maxSelection) {
+                alert(`Este item aceita no maximo ${maxSelection} unidade(s) de adicionais.`);
                 return;
             }
 
-            if (requiredMin > 0 && additionals.length < requiredMin) {
-                alert(`Este item exige pelo menos ${requiredMin} adicional(is).`);
+            if (requiredMin > 0 && totalAdditionalUnits < requiredMin) {
+                alert(`Este item exige pelo menos ${requiredMin} unidade(s) de adicionais.`);
                 return;
             }
 
             const unitPrice = activeProduct.promotional_price !== null && activeProduct.promotional_price !== undefined
                 ? Number(activeProduct.promotional_price)
                 : Number(activeProduct.price || 0);
-            const additionalsTotal = additionals.reduce((sum, additional) => sum + Number(additional.price || 0), 0);
+            const additionalsTotal = additionals.reduce((sum, additional) => {
+                return sum + (Number(additional.price || 0) * Number(additional.quantity || 0));
+            }, 0);
             const quantity = activeQuantity;
 
             cart.push({
@@ -1050,7 +1166,6 @@ if (!is_string($productsJson)) {
                 quantity,
                 notes: String(itemNotes.value || '').trim(),
                 additionals,
-                additionalIds,
                 lineTotal: (unitPrice + additionalsTotal) * quantity,
             });
 
