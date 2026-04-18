@@ -14,6 +14,7 @@ date_default_timezone_set($config['timezone']);
 
 $service = new \App\Services\Admin\SubscriptionPortalService();
 $subscriptions = new \App\Repositories\SubscriptionRepository();
+$subscriptionPayments = new \App\Repositories\SubscriptionPaymentRepository();
 $gateway = new \App\Services\Admin\SubscriptionGatewayService();
 
 if (!$gateway->isConfigured()) {
@@ -38,24 +39,31 @@ foreach (array_slice($argv, 1) as $argument) {
     }
 }
 
-$items = $subscriptions->listForGatewaySync($targetCompanyId);
-if ($items === []) {
+$companyIds = [];
+foreach ($subscriptions->listForGatewaySync($targetCompanyId) as $item) {
+    $companyId = (int) ($item['company_id'] ?? 0);
+    if ($companyId > 0) {
+        $companyIds[$companyId] = true;
+    }
+}
+foreach ($subscriptionPayments->listCompanyIdsForGatewaySync($targetCompanyId) as $companyId) {
+    if ($companyId > 0) {
+        $companyIds[$companyId] = true;
+    }
+}
+
+if ($companyIds === []) {
     $scope = $targetCompanyId !== null && $targetCompanyId > 0
         ? 'empresa ' . $targetCompanyId
-        : 'assinaturas elegiveis';
-    fwrite(STDOUT, "Nenhuma assinatura encontrada para sincronizar ({$scope}).\n");
+        : 'assinaturas/cobrancas elegiveis';
+    fwrite(STDOUT, "Nenhuma assinatura ou cobranca encontrada para sincronizar ({$scope}).\n");
     exit(0);
 }
 
 $processed = 0;
 $failed = 0;
 
-foreach ($items as $item) {
-    $companyId = (int) ($item['company_id'] ?? 0);
-    if ($companyId <= 0) {
-        continue;
-    }
-
+foreach (array_keys($companyIds) as $companyId) {
     try {
         $service->refreshGatewayStatus($companyId);
         $processed++;

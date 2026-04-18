@@ -6,17 +6,57 @@ namespace App\Services\Saas;
 use App\Exceptions\ValidationException;
 use App\Repositories\SubscriptionPaymentRepository;
 use App\Repositories\SubscriptionRepository;
+use App\Services\Admin\SubscriptionGatewayService;
+use App\Services\Admin\SubscriptionPortalService;
 
 final class SubscriptionPaymentService
 {
+    private const PAYMENT_LIST_PER_PAGE = 12;
+
     public function __construct(
         private readonly SubscriptionPaymentRepository $subscriptionPayments = new SubscriptionPaymentRepository(),
-        private readonly SubscriptionRepository $subscriptions = new SubscriptionRepository()
+        private readonly SubscriptionRepository $subscriptions = new SubscriptionRepository(),
+        private readonly SubscriptionPortalService $subscriptionPortal = new SubscriptionPortalService(),
+        private readonly SubscriptionGatewayService $subscriptionGateway = new SubscriptionGatewayService()
     ) {}
 
     public function list(array $filters = []): array
     {
         return $this->subscriptionPayments->allForSaas($this->normalizeFilters($filters));
+    }
+
+    public function panel(array $filters = []): array
+    {
+        $normalizedFilters = $this->normalizeFilters($filters);
+        $page = $this->subscriptionPayments->listForSaasPaginated(
+            [
+                'search' => $normalizedFilters['search'],
+                'status' => $normalizedFilters['status'],
+            ],
+            $normalizedFilters['page'],
+            $normalizedFilters['per_page']
+        );
+
+        $items = is_array($page['items'] ?? null) ? $page['items'] : [];
+        $total = (int) ($page['total'] ?? 0);
+        $currentPage = (int) ($page['page'] ?? 1);
+        $perPage = (int) ($page['per_page'] ?? self::PAYMENT_LIST_PER_PAGE);
+        $lastPage = (int) ($page['last_page'] ?? 1);
+
+        return [
+            'payments' => $items,
+            'filters' => $normalizedFilters,
+            'summary' => $this->subscriptionPayments->summary(),
+            'pagination' => [
+                'total' => $total,
+                'page' => $currentPage,
+                'per_page' => $perPage,
+                'last_page' => $lastPage,
+                'from' => $total > 0 ? (($currentPage - 1) * $perPage) + 1 : 0,
+                'to' => $total > 0 ? min($total, $currentPage * $perPage) : 0,
+                'pages' => $this->buildPaginationPages($currentPage, $lastPage),
+            ],
+        ];
     }
 
     public function subscriptionsForBilling(): array
@@ -165,6 +205,69 @@ final class SubscriptionPaymentService
         );
     }
 
+    public function syncGateway(array $input): void
+    {
+        $paymentId = (int) ($input['subscription_payment_id'] ?? 0);
+        if ($paymentId <= 0) {
+            throw new ValidationException('Cobranca invalida para sincronizacao com o gateway.');
+        }
+
+        $payment = $this->subscriptionPayments->findById($paymentId);
+        if ($payment === null) {
+            throw new ValidationException('Cobranca nao encontrada para sincronizacao.');
+        }
+
+        $subscription = $this->subscriptions->findById((int) ($payment['subscription_id'] ?? 0));
+        if ($subscription === null) {
+            throw new ValidationException('Assinatura nao encontrada para sincronizacao.');
+        }
+
+        $hasGatewayBinding = trim((string) ($payment['gateway_payment_id'] ?? '')) !== ''
+            || trim((string) ($subscription['gateway_subscription_id'] ?? '')) !== ''
+            || trim((string) ($subscription['gateway_checkout_url'] ?? '')) !== '';
+
+        if (!$hasGatewayBinding) {
+            throw new ValidationException('Esta cobranca foi baixada sem vinculo real com o gateway. Sem gateway_payment_id, a consulta automatica nao e possivel.');
+        }
+
+        $companyId = (int) ($payment['company_id'] ?? 0);
+        if ($companyId <= 0) {
+            throw new ValidationException('Empresa invalida para sincronizacao desta cobranca.');
+        }
+
+        if (trim((string) ($payment['gateway_payment_id'] ?? '')) !== '') {
+            $this->subscriptionGateway->syncPaymentById($paymentId);
+        }
+
+        $this->subscriptionPortal->refreshGatewayStatus($companyId);
+    }
+
+    public function generateGatewayPix(array $input): void
+    {
+        $paymentId = (int) ($input['subscription_payment_id'] ?? 0);
+        if ($paymentId <= 0) {
+            throw new ValidationException('Cobranca invalida para gerar PIX no gateway.');
+        }
+
+        $payment = $this->subscriptionPayments->findById($paymentId);
+        if ($payment === null) {
+            throw new ValidationException('Cobranca nao encontrada para gerar PIX no gateway.');
+        }
+
+        $status = trim((string) ($payment['status'] ?? ''));
+        if (in_array($status, ['pago', 'cancelado'], true)) {
+            throw new ValidationException('Nao e possivel gerar PIX real para uma cobranca paga ou cancelada.');
+        }
+
+        $companyId = (int) ($payment['company_id'] ?? 0);
+        if ($companyId <= 0) {
+            throw new ValidationException('Empresa invalida para gerar PIX no gateway.');
+        }
+
+        $this->subscriptionGateway->createPixCharge($companyId, $paymentId);
+        $this->subscriptionPortal->synchronizeCompanyBilling($companyId);
+    }
+
     private function parseMoney(mixed $value): float
     {
         if (is_float($value) || is_int($value)) {
@@ -206,9 +309,40 @@ final class SubscriptionPaymentService
 
     private function normalizeFilters(array $input): array
     {
+        $page = (int) ($input['payment_page'] ?? 1);
+        if ($page <= 0) {
+            $page = 1;
+        }
+
         return [
             'search' => trim((string) ($input['search'] ?? '')),
             'status' => trim((string) ($input['status'] ?? '')),
+            'page' => $page,
+            'per_page' => self::PAYMENT_LIST_PER_PAGE,
         ];
+    }
+
+    private function buildPaginationPages(int $currentPage, int $lastPage): array
+    {
+        $lastPage = max(1, $lastPage);
+        $currentPage = max(1, min($currentPage, $lastPage));
+
+        $pages = [1, $lastPage, $currentPage];
+        for ($offset = -2; $offset <= 2; $offset++) {
+            $pages[] = $currentPage + $offset;
+        }
+
+        $normalized = [];
+        foreach ($pages as $page) {
+            $pageNumber = (int) $page;
+            if ($pageNumber >= 1 && $pageNumber <= $lastPage) {
+                $normalized[$pageNumber] = true;
+            }
+        }
+
+        $result = array_keys($normalized);
+        sort($result);
+
+        return $result;
     }
 }

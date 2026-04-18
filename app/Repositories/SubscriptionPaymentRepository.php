@@ -7,30 +7,86 @@ use PDO;
 
 final class SubscriptionPaymentRepository extends BaseRepository
 {
+    public function listForSaasPaginated(array $filters, int $page, int $perPage): array
+    {
+        $page = max(1, $page);
+        $perPage = max(1, min(50, $perPage));
+        $offset = ($page - 1) * $perPage;
+
+        [$whereSql, $params] = $this->buildSaasListWhere($filters);
+
+        $countStmt = $this->db()->prepare("
+            SELECT COUNT(*)
+            FROM subscription_payments sp
+            INNER JOIN companies c ON c.id = sp.company_id
+            INNER JOIN subscriptions s ON s.id = sp.subscription_id
+            INNER JOIN plans p ON p.id = s.plan_id
+            {$whereSql}
+        ");
+        $countStmt->execute($params);
+        $total = (int) $countStmt->fetchColumn();
+
+        $itemsStmt = $this->db()->prepare("
+            SELECT
+                sp.id,
+                sp.subscription_id,
+                sp.company_id,
+                sp.reference_month,
+                sp.reference_year,
+                sp.amount,
+                sp.status,
+                sp.payment_method,
+                sp.paid_at,
+                sp.due_date,
+                sp.transaction_reference,
+                sp.charge_origin,
+                sp.pix_code,
+                sp.pix_qr_payload,
+                sp.pix_qr_image_base64,
+                sp.pix_ticket_url,
+                sp.payment_details_json,
+                sp.gateway_payment_id,
+                sp.gateway_payment_url,
+                sp.gateway_status,
+                sp.gateway_webhook_payload_json,
+                sp.gateway_last_synced_at,
+                sp.created_at,
+                c.name AS company_name,
+                c.slug AS company_slug,
+                s.status AS subscription_status,
+                s.billing_cycle,
+                p.name AS plan_name
+            FROM subscription_payments sp
+            INNER JOIN companies c ON c.id = sp.company_id
+            INNER JOIN subscriptions s ON s.id = sp.subscription_id
+            INNER JOIN plans p ON p.id = s.plan_id
+            {$whereSql}
+            ORDER BY
+                CASE sp.status
+                    WHEN 'vencido' THEN 0
+                    WHEN 'pendente' THEN 1
+                    WHEN 'pago' THEN 2
+                    WHEN 'cancelado' THEN 3
+                    ELSE 4
+                END,
+                sp.due_date ASC,
+                sp.id DESC
+            LIMIT {$perPage} OFFSET {$offset}
+        ");
+        $itemsStmt->execute($params);
+
+        return [
+            'items' => $itemsStmt->fetchAll(PDO::FETCH_ASSOC) ?: [],
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage,
+            'last_page' => max(1, (int) ceil($total / $perPage)),
+        ];
+    }
+
     public function allForSaas(array $filters = []): array
     {
-        $where = [];
-        $params = [];
-
-        $search = trim((string) ($filters['search'] ?? ''));
-        if ($search !== '') {
-            $where[] = '(
-                c.name LIKE :search
-                OR c.slug LIKE :search
-                OR p.name LIKE :search
-                OR sp.transaction_reference LIKE :search
-                OR sp.gateway_payment_id LIKE :search
-            )';
-            $params['search'] = '%' . $search . '%';
-        }
-
-        $status = trim((string) ($filters['status'] ?? ''));
-        if ($status !== '') {
-            $where[] = 'sp.status = :status';
-            $params['status'] = $status;
-        }
-
-        $whereSql = $where === [] ? '' : 'WHERE ' . implode(' AND ', $where);
+        [$whereSql, $params] = $this->buildSaasListWhere($filters);
 
         $sql = "
             SELECT
@@ -83,6 +139,32 @@ final class SubscriptionPaymentRepository extends BaseRepository
         $stmt->execute($params);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    private function buildSaasListWhere(array $filters): array
+    {
+        $where = [];
+        $params = [];
+
+        $search = trim((string) ($filters['search'] ?? ''));
+        if ($search !== '') {
+            $where[] = '(
+                c.name LIKE :search
+                OR c.slug LIKE :search
+                OR p.name LIKE :search
+                OR sp.transaction_reference LIKE :search
+                OR sp.gateway_payment_id LIKE :search
+            )';
+            $params['search'] = '%' . $search . '%';
+        }
+
+        $status = trim((string) ($filters['status'] ?? ''));
+        if ($status !== '') {
+            $where[] = 'sp.status = :status';
+            $params['status'] = $status;
+        }
+
+        return [$where === [] ? '' : 'WHERE ' . implode(' AND ', $where), $params];
     }
 
     public function listByCompany(int $companyId, int $limit = 24): array
@@ -653,5 +735,29 @@ final class SubscriptionPaymentRepository extends BaseRepository
 
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: [];
+    }
+
+    public function listCompanyIdsForGatewaySync(?int $companyId = null): array
+    {
+        $sql = "
+            SELECT DISTINCT company_id
+            FROM subscription_payments
+            WHERE status IN ('pendente', 'vencido')
+              AND COALESCE(gateway_payment_id, '') <> ''
+        ";
+
+        $params = [];
+        if ($companyId !== null && $companyId > 0) {
+            $sql .= " AND company_id = :company_id";
+            $params['company_id'] = $companyId;
+        }
+
+        $sql .= " ORDER BY company_id ASC";
+
+        $stmt = $this->db()->prepare($sql);
+        $stmt->execute($params);
+
+        $rows = $stmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        return array_values(array_filter(array_map(static fn ($value): int => (int) $value, $rows), static fn (int $value): bool => $value > 0));
     }
 }

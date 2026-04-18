@@ -81,6 +81,13 @@ $currentChargeId = (int) ($currentCharge['id'] ?? 0);
 $currentPixImage = trim((string) ($currentCharge['pix_qr_image_base64'] ?? ''));
 $currentPixPayload = trim((string) ($currentCharge['pix_qr_payload'] ?? ''));
 $currentPixTicketUrl = trim((string) ($currentCharge['pix_ticket_url'] ?? ''));
+$currentPixFallbackImageUrl = $currentPixImage === '' && $currentPixPayload !== ''
+    ? 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=' . rawurlencode($currentPixPayload)
+    : '';
+$currentGatewayPaymentId = trim((string) ($currentCharge['gateway_payment_id'] ?? ''));
+$shouldAutoPollPixStatus = $currentChargeId > 0
+    && $currentGatewayPaymentId !== ''
+    && in_array((string) ($currentCharge['status'] ?? ''), ['pendente', 'vencido'], true);
 $nextDueDate = $subscriptionSummary['next_due_date'] ?? ($subscriptionBillingAccess['next_due_date'] ?? null);
 ?>
 
@@ -260,11 +267,19 @@ $nextDueDate = $subscriptionSummary['next_due_date'] ?? ($subscriptionBillingAcc
                                 </form>
                             </div>
 
+                            <?php if ($shouldAutoPollPixStatus): ?>
+                                <div class="sp-note" id="pix-auto-status-note">
+                                    Aguardando confirmacao automatica do pagamento no gateway. Esta tela verifica o status sozinha a cada 20 segundos.
+                                </div>
+                            <?php endif; ?>
+
                             <?php if ($currentPixImage !== '' || $currentPixPayload !== ''): ?>
                                 <div class="sp-qr">
                                     <div class="sp-qr-image">
                                         <?php if ($currentPixImage !== ''): ?>
                                             <img src="data:image/png;base64,<?= htmlspecialchars($currentPixImage) ?>" alt="QR Code PIX">
+                                        <?php elseif ($currentPixFallbackImageUrl !== ''): ?>
+                                            <img src="<?= htmlspecialchars($currentPixFallbackImageUrl) ?>" alt="QR Code PIX">
                                         <?php else: ?>
                                             <span class="sp-note">QR real ainda não retornado pelo gateway.</span>
                                         <?php endif; ?>
@@ -473,4 +488,61 @@ $nextDueDate = $subscriptionSummary['next_due_date'] ?? ($subscriptionBillingAcc
             </div>
         <?php endif; ?>
     </div>
+
+    <?php if ($shouldAutoPollPixStatus): ?>
+        <script>
+            (function () {
+                const paymentId = <?= json_encode($currentChargeId) ?>;
+                const endpoint = <?= json_encode(base_url('/admin/dashboard/subscription/pix/status?subscription_payment_id=' . $currentChargeId)) ?>;
+                const note = document.getElementById('pix-auto-status-note');
+                let polling = false;
+
+                const poll = async () => {
+                    if (polling) {
+                        return;
+                    }
+
+                    polling = true;
+                    try {
+                        const response = await fetch(endpoint, {
+                            method: 'GET',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Accept': 'application/json'
+                            }
+                        });
+
+                        const payload = await response.json();
+                        if (!payload || payload.ok !== true) {
+                            if (note && payload && payload.message) {
+                                note.textContent = payload.message;
+                            }
+                            return;
+                        }
+
+                        if ((payload.payment_id || 0) !== paymentId) {
+                            return;
+                        }
+
+                        if (note && payload.status_label) {
+                            note.textContent = 'Status atual: ' + payload.status_label + (payload.gateway_status ? ' no gateway: ' + payload.gateway_status : '');
+                        }
+
+                        if (payload.status === 'pago') {
+                            window.location.reload();
+                        }
+                    } catch (error) {
+                        if (note) {
+                            note.textContent = 'Falha ao consultar automaticamente o pagamento. Tente atualizar a tela em alguns instantes.';
+                        }
+                    } finally {
+                        polling = false;
+                    }
+                };
+
+                window.setInterval(poll, 20000);
+                window.setTimeout(poll, 8000);
+            })();
+        </script>
+    <?php endif; ?>
 </section>

@@ -65,6 +65,7 @@ $router->post('/admin/dashboard/users/password', [DashboardController::class, 'u
 $router->post('/admin/dashboard/support/store', [DashboardController::class, 'storeSupportTicket'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/support/reply', [DashboardController::class, 'replySupportTicket'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/subscription/pix/generate', [DashboardController::class, 'generateSubscriptionPix'], $companyAccess('dashboard.view'));
+$router->get('/admin/dashboard/subscription/pix/status', [DashboardController::class, 'pollSubscriptionPixStatus'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/subscription/card', [DashboardController::class, 'paySubscriptionWithCard'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/subscription/pix', [DashboardController::class, 'confirmSubscriptionPix'], $companyAccess('dashboard.view'));
 $router->post('/admin/dashboard/subscription/gateway/checkout', [DashboardController::class, 'createSubscriptionRecurringCheckout'], $companyAccess('dashboard.view'));
@@ -144,6 +145,8 @@ $router->get('/saas/subscriptions', [SaasSubscriptionController::class, 'index']
 $router->get('/saas/subscription-payments', [SaasSubscriptionPaymentController::class, 'index'], $saasAccess('subscriptions.view'));
 $router->get('/saas/subscription-payments/create', [SaasSubscriptionPaymentController::class, 'create'], $saasAccess('subscriptions.manage'));
 $router->post('/saas/subscription-payments/store', [SaasSubscriptionPaymentController::class, 'store'], $saasAccess('subscriptions.manage'));
+$router->post('/saas/subscription-payments/generate-gateway-pix', [SaasSubscriptionPaymentController::class, 'generateGatewayPix'], $saasAccess('subscriptions.manage'));
+$router->post('/saas/subscription-payments/sync-gateway', [SaasSubscriptionPaymentController::class, 'syncGateway'], $saasAccess('subscriptions.manage'));
 $router->post('/saas/subscription-payments/mark-paid', [SaasSubscriptionPaymentController::class, 'markPaid'], $saasAccess('subscriptions.manage'));
 $router->post('/saas/subscription-payments/mark-overdue', [SaasSubscriptionPaymentController::class, 'markOverdue'], $saasAccess('subscriptions.manage'));
 $router->post('/saas/subscription-payments/cancel', [SaasSubscriptionPaymentController::class, 'cancel'], $saasAccess('subscriptions.manage'));

@@ -103,6 +103,10 @@ final class MercadoPagoGateway
             'Accept: application/json',
         ];
 
+        if (in_array(strtoupper($method), ['POST', 'PUT', 'PATCH'], true)) {
+            $headers[] = 'X-Idempotency-Key: ' . $this->generateIdempotencyKey($method, $path, $payload);
+        }
+
         $env = strtolower(trim((string) ($this->config['env'] ?? '')));
         if ($env === 'sandbox' || $env === 'stage') {
             $headers[] = 'X-scope: stage';
@@ -160,6 +164,19 @@ final class MercadoPagoGateway
     private function accessToken(): string
     {
         return trim((string) ($this->config['access_token'] ?? ''));
+    }
+
+    private function generateIdempotencyKey(string $method, string $path, ?array $payload = null): string
+    {
+        $fingerprint = strtoupper($method) . '|' . $path . '|' . json_encode($payload ?? [], JSON_UNESCAPED_SLASHES);
+
+        try {
+            $random = bin2hex(random_bytes(8));
+        } catch (\Throwable) {
+            $random = str_replace('.', '', uniqid('', true));
+        }
+
+        return substr(hash('sha256', $fingerprint . '|' . $random), 0, 64);
     }
 
     private function resolveCaFile(): ?string

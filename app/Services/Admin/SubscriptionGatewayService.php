@@ -49,10 +49,7 @@ final class SubscriptionGatewayService
             return;
         }
 
-        $companyEmail = trim((string) ($subscription['company_email'] ?? ''));
-        if ($companyEmail === '') {
-            throw new ValidationException('A empresa precisa ter e-mail principal cadastrado para gerar PIX no gateway.');
-        }
+        $companyEmail = $this->resolveCompanyEmail($subscription, 'gerar PIX no gateway');
 
         $reference = sprintf(
             'SUB-%d-%02d%04d-%d',
@@ -68,7 +65,7 @@ final class SubscriptionGatewayService
             'payment_method_id' => 'pix',
             'external_reference' => $reference,
             'notification_url' => app_url('/webhooks/mercado-pago'),
-            'payer' => $this->buildPayer($subscription),
+            'payer' => $this->buildPayer($subscription, $companyEmail),
         ]);
 
         $transactionData = $response['point_of_interaction']['transaction_data'] ?? [];
@@ -99,10 +96,7 @@ final class SubscriptionGatewayService
             throw new ValidationException('Assinatura nao encontrada para gerar checkout recorrente.');
         }
 
-        $companyEmail = trim((string) ($subscription['company_email'] ?? ''));
-        if ($companyEmail === '') {
-            throw new ValidationException('A empresa precisa ter e-mail principal para aderir a recorrencia do gateway.');
-        }
+        $companyEmail = $this->resolveCompanyEmail($subscription, 'aderir a recorrencia do gateway');
 
         $gatewaySubscriptionId = trim((string) ($subscription['gateway_subscription_id'] ?? ''));
         $gatewayStatus = strtolower(trim((string) ($subscription['gateway_status'] ?? '')));
@@ -210,6 +204,50 @@ final class SubscriptionGatewayService
                 'gateway_last_synced_at' => date('Y-m-d H:i:s'),
             ]);
         }
+    }
+
+    public function syncPaymentById(int $paymentId): void
+    {
+        if ($paymentId <= 0) {
+            throw new ValidationException('Cobranca invalida para sincronizacao com o gateway.');
+        }
+
+        if (!$this->isConfigured()) {
+            throw new ValidationException('Gateway nao configurado para sincronizacao desta cobranca.');
+        }
+
+        $payment = $this->subscriptionPayments->findById($paymentId);
+        if ($payment === null) {
+            throw new ValidationException('Cobranca nao encontrada para sincronizacao com o gateway.');
+        }
+
+        $gatewayPaymentId = trim((string) ($payment['gateway_payment_id'] ?? ''));
+        if ($gatewayPaymentId === '') {
+            throw new ValidationException('Esta cobranca foi registrada sem identificador do gateway. Nao e possivel consultar o pagamento automaticamente.');
+        }
+
+        $paymentResponse = $this->gateway->getPayment($gatewayPaymentId);
+        $transactionData = $paymentResponse['point_of_interaction']['transaction_data'] ?? [];
+        $status = $this->mapGatewayPaymentStatus((string) ($paymentResponse['status'] ?? ''));
+
+        $this->subscriptionPayments->updateRecord($paymentId, [
+            'status' => $status,
+            'payment_method' => $this->mapGatewayMethod((string) ($paymentResponse['payment_method_id'] ?? ($payment['payment_method'] ?? 'pix'))),
+            'paid_at' => $status === 'pago' ? ((string) ($payment['paid_at'] ?? '') !== '' ? (string) $payment['paid_at'] : date('Y-m-d H:i:s')) : null,
+            'due_date' => (string) ($payment['due_date'] ?? date('Y-m-d')),
+            'transaction_reference' => (string) ($paymentResponse['external_reference'] ?? $payment['transaction_reference'] ?? ''),
+            'charge_origin' => (string) ($payment['charge_origin'] ?? 'pix'),
+            'pix_code' => $transactionData['qr_code'] ?? ($payment['pix_code'] ?? null),
+            'pix_qr_payload' => $transactionData['qr_code'] ?? ($payment['pix_qr_payload'] ?? null),
+            'pix_qr_image_base64' => $transactionData['qr_code_base64'] ?? ($payment['pix_qr_image_base64'] ?? null),
+            'pix_ticket_url' => $transactionData['ticket_url'] ?? ($payment['pix_ticket_url'] ?? null),
+            'payment_details_json' => $payment['payment_details_json'] ?? null,
+            'gateway_payment_id' => (string) ($paymentResponse['id'] ?? $gatewayPaymentId),
+            'gateway_payment_url' => $transactionData['ticket_url'] ?? ($payment['gateway_payment_url'] ?? null),
+            'gateway_status' => (string) ($paymentResponse['status'] ?? ''),
+            'gateway_webhook_payload_json' => json_encode($paymentResponse, JSON_UNESCAPED_SLASHES),
+            'gateway_last_synced_at' => date('Y-m-d H:i:s'),
+        ]);
     }
 
     public function processWebhook(array $query, array $server): array
@@ -330,14 +368,14 @@ final class SubscriptionGatewayService
         };
     }
 
-    private function buildPayer(array $subscription): array
+    private function buildPayer(array $subscription, ?string $companyEmail = null): array
     {
         $payer = [
-            'email' => trim((string) ($subscription['company_email'] ?? '')),
+            'email' => $companyEmail ?? $this->resolveCompanyEmail($subscription, 'enviar dados do pagador ao gateway'),
         ];
 
-        $document = preg_replace('/\D+/', '', (string) ($subscription['company_document_number'] ?? '')) ?? '';
-        if ($document !== '') {
+        $document = $this->normalizeGatewayDocument((string) ($subscription['company_document_number'] ?? ''));
+        if ($document !== null) {
             $payer['identification'] = [
                 'type' => strlen($document) > 11 ? 'CNPJ' : 'CPF',
                 'number' => $document,
@@ -345,5 +383,89 @@ final class SubscriptionGatewayService
         }
 
         return $payer;
+    }
+
+    private function resolveCompanyEmail(array $subscription, string $context): string
+    {
+        $email = trim((string) ($subscription['company_email'] ?? ''));
+        if ($email === '') {
+            throw new ValidationException('A empresa precisa ter um e-mail principal cadastrado para ' . $context . '.');
+        }
+
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            throw new ValidationException('O e-mail principal da empresa esta invalido. Atualize o cadastro da empresa no SaaS antes de tentar novamente.');
+        }
+
+        return $email;
+    }
+
+    private function normalizeGatewayDocument(string $value): ?string
+    {
+        $document = preg_replace('/\D+/', '', $value) ?? '';
+        if ($document === '') {
+            return null;
+        }
+
+        if (strlen($document) === 11 && $this->isValidCpf($document)) {
+            return $document;
+        }
+
+        if (strlen($document) === 14 && $this->isValidCnpj($document)) {
+            return $document;
+        }
+
+        return null;
+    }
+
+    private function isValidCpf(string $cpf): bool
+    {
+        if (strlen($cpf) !== 11 || preg_match('/^(\\d)\\1{10}$/', $cpf) === 1) {
+            return false;
+        }
+
+        for ($digit = 9; $digit < 11; $digit++) {
+            $sum = 0;
+            for ($index = 0; $index < $digit; $index++) {
+                $sum += ((int) $cpf[$index]) * (($digit + 1) - $index);
+            }
+
+            $check = ((10 * $sum) % 11) % 10;
+            if ((int) $cpf[$digit] !== $check) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function isValidCnpj(string $cnpj): bool
+    {
+        if (strlen($cnpj) !== 14 || preg_match('/^(\\d)\\1{13}$/', $cnpj) === 1) {
+            return false;
+        }
+
+        $firstWeights = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+        $secondWeights = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+
+        $sum = 0;
+        foreach ($firstWeights as $index => $weight) {
+            $sum += ((int) $cnpj[$index]) * $weight;
+        }
+
+        $remainder = $sum % 11;
+        $firstDigit = $remainder < 2 ? 0 : 11 - $remainder;
+        if ((int) $cnpj[12] !== $firstDigit) {
+            return false;
+        }
+
+        $sum = 0;
+        foreach ($secondWeights as $index => $weight) {
+            $sum += ((int) $cnpj[$index]) * $weight;
+        }
+
+        $remainder = $sum % 11;
+        $secondDigit = $remainder < 2 ? 0 : 11 - $remainder;
+
+        return (int) $cnpj[13] === $secondDigit;
     }
 }

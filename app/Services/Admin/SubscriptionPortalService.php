@@ -110,7 +110,14 @@ final class SubscriptionPortalService
                 'charge_origin' => $payment['charge_origin'] ?? 'manual',
                 'pix_code' => null,
                 'pix_qr_payload' => null,
+                'pix_qr_image_base64' => $payment['pix_qr_image_base64'] ?? null,
+                'pix_ticket_url' => $payment['pix_ticket_url'] ?? null,
                 'payment_details_json' => json_encode($details, JSON_UNESCAPED_SLASHES),
+                'gateway_payment_id' => $payment['gateway_payment_id'] ?? null,
+                'gateway_payment_url' => $payment['gateway_payment_url'] ?? null,
+                'gateway_status' => $payment['gateway_status'] ?? null,
+                'gateway_webhook_payload_json' => $payment['gateway_webhook_payload_json'] ?? null,
+                'gateway_last_synced_at' => $payment['gateway_last_synced_at'] ?? null,
             ]);
 
             $db->commit();
@@ -159,7 +166,14 @@ final class SubscriptionPortalService
                 'charge_origin' => 'pix',
                 'pix_code' => $pixPayload['pix_code'],
                 'pix_qr_payload' => $pixPayload['pix_qr_payload'],
+                'pix_qr_image_base64' => $payment['pix_qr_image_base64'] ?? null,
+                'pix_ticket_url' => $payment['pix_ticket_url'] ?? null,
                 'payment_details_json' => json_encode($details, JSON_UNESCAPED_SLASHES),
+                'gateway_payment_id' => $payment['gateway_payment_id'] ?? null,
+                'gateway_payment_url' => $payment['gateway_payment_url'] ?? null,
+                'gateway_status' => $payment['gateway_status'] ?? null,
+                'gateway_webhook_payload_json' => $payment['gateway_webhook_payload_json'] ?? null,
+                'gateway_last_synced_at' => $payment['gateway_last_synced_at'] ?? null,
             ]);
 
             $db->commit();
@@ -219,6 +233,27 @@ final class SubscriptionPortalService
 
         $this->gatewayService->syncSubscriptionByCompany($companyId);
         $this->synchronizeByCompany($companyId);
+    }
+
+    public function refreshPaymentGatewayStatus(int $companyId, int $paymentId): array
+    {
+        if ($companyId <= 0 || $paymentId <= 0) {
+            throw new ValidationException('Cobranca invalida para atualizar o status no gateway.');
+        }
+
+        $payment = $this->loadCompanyPayment($companyId, $paymentId);
+        $gatewayPaymentId = trim((string) ($payment['gateway_payment_id'] ?? ''));
+        if ($gatewayPaymentId === '') {
+            throw new ValidationException('Esta cobranca ainda nao possui vinculo real com o gateway.');
+        }
+
+        $this->gatewayService->syncPaymentById($paymentId);
+        $this->synchronizeByCompany($companyId);
+
+        $updatedPayment = $this->loadCompanyPayment($companyId, $paymentId);
+        $updatedPayment['status_label'] = status_label('subscription_payment_status', (string) ($updatedPayment['status'] ?? ''));
+
+        return $updatedPayment;
     }
 
     public function synchronizeCompanyBilling(int $companyId): void
@@ -415,7 +450,14 @@ final class SubscriptionPortalService
                     'charge_origin' => 'auto',
                     'pix_code' => null,
                     'pix_qr_payload' => null,
+                    'pix_qr_image_base64' => $payment['pix_qr_image_base64'] ?? null,
+                    'pix_ticket_url' => $payment['pix_ticket_url'] ?? null,
                     'payment_details_json' => json_encode($details, JSON_UNESCAPED_SLASHES),
+                    'gateway_payment_id' => $payment['gateway_payment_id'] ?? null,
+                    'gateway_payment_url' => $payment['gateway_payment_url'] ?? null,
+                    'gateway_status' => $payment['gateway_status'] ?? null,
+                    'gateway_webhook_payload_json' => $payment['gateway_webhook_payload_json'] ?? null,
+                    'gateway_last_synced_at' => $payment['gateway_last_synced_at'] ?? null,
                 ]);
                 continue;
             }
@@ -436,7 +478,14 @@ final class SubscriptionPortalService
                     'charge_origin' => 'pix',
                     'pix_code' => $pixPayload['pix_code'],
                     'pix_qr_payload' => $pixPayload['pix_qr_payload'],
+                    'pix_qr_image_base64' => $payment['pix_qr_image_base64'] ?? null,
+                    'pix_ticket_url' => $payment['pix_ticket_url'] ?? null,
                     'payment_details_json' => $payment['payment_details_json'] ?? null,
+                    'gateway_payment_id' => $payment['gateway_payment_id'] ?? null,
+                    'gateway_payment_url' => $payment['gateway_payment_url'] ?? null,
+                    'gateway_status' => $payment['gateway_status'] ?? null,
+                    'gateway_webhook_payload_json' => $payment['gateway_webhook_payload_json'] ?? null,
+                    'gateway_last_synced_at' => $payment['gateway_last_synced_at'] ?? null,
                 ]);
             }
         }

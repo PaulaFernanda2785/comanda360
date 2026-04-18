@@ -476,6 +476,38 @@ final class DashboardController extends Controller
         }
     }
 
+    public function pollSubscriptionPixStatus(Request $request): Response
+    {
+        if (!Auth::check()) {
+            return Response::make(json_encode([
+                'ok' => false,
+                'message' => 'Nao autenticado.',
+            ], JSON_UNESCAPED_SLASHES), 401, ['Content-Type' => 'application/json']);
+        }
+
+        $user = Auth::user() ?? [];
+        $this->ensureAccess($user);
+        $companyId = (int) ($user['company_id'] ?? 0);
+        $paymentId = (int) ($request->input('subscription_payment_id', 0));
+
+        try {
+            $payment = $this->subscriptionService->refreshPaymentGatewayStatus($companyId, $paymentId);
+            return Response::make(json_encode([
+                'ok' => true,
+                'payment_id' => (int) ($payment['id'] ?? 0),
+                'status' => (string) ($payment['status'] ?? ''),
+                'status_label' => (string) ($payment['status_label'] ?? ''),
+                'gateway_status' => (string) ($payment['gateway_status'] ?? ''),
+                'paid_at' => (string) ($payment['paid_at'] ?? ''),
+            ], JSON_UNESCAPED_SLASHES), 200, ['Content-Type' => 'application/json']);
+        } catch (ValidationException $e) {
+            return Response::make(json_encode([
+                'ok' => false,
+                'message' => $e->getMessage(),
+            ], JSON_UNESCAPED_SLASHES), 422, ['Content-Type' => 'application/json']);
+        }
+    }
+
     public function disableSubscriptionAutoCharge(Request $request): Response
     {
         if (!Auth::check()) {
