@@ -75,7 +75,7 @@ final class StockService
         $movementsPage = $this->stock->listMovementsPaginated(
             $companyId,
             [
-                'search' => $normalized['search'],
+                'search' => $normalized['movement_search'],
                 'type' => $normalized['movement_type'],
             ],
             $normalized['movement_page'],
@@ -122,6 +122,8 @@ final class StockService
                 'status' => $payload['status'],
             ]);
 
+            $this->stock->syncItemProducts($companyId, $itemId, $payload['product_ids']);
+
             if ($initialQuantity > 0) {
                 $this->stock->createMovement([
                     'company_id' => $companyId,
@@ -158,7 +160,20 @@ final class StockService
         }
 
         $payload = $this->normalizeItemPayload($companyId, $input, $existing);
-        $this->stock->updateItem($companyId, $itemId, $payload);
+
+        $db = Database::connection();
+        $db->beginTransaction();
+
+        try {
+            $this->stock->updateItem($companyId, $itemId, $payload);
+            $this->stock->syncItemProducts($companyId, $itemId, $payload['product_ids']);
+            $db->commit();
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
     }
 
     public function recordMovement(int $companyId, int $userId, array $input): void
@@ -219,6 +234,10 @@ final class StockService
         }
 
         $reason = $this->nullableTrim($input['reason'] ?? null);
+        if ($reason !== null && strlen($reason) > 255) {
+            throw new ValidationException('O motivo do movimento excede o limite permitido.');
+        }
+
         if ($type === 'adjustment' && $reason === null) {
             $reason = 'Ajuste de inventario para saldo alvo ' . number_format($nextQuantity, 3, ',', '.') . ' ' . (string) ($item['unit_of_measure'] ?? 'un');
         }
@@ -268,6 +287,11 @@ final class StockService
             $alert = '';
         }
 
+        $movementSearch = trim((string) ($filters['stock_movement_search'] ?? ''));
+        if (strlen($movementSearch) > 80) {
+            $movementSearch = substr($movementSearch, 0, 80);
+        }
+
         $movementType = strtolower(trim((string) ($filters['stock_movement_type'] ?? '')));
         if ($movementType !== '' && !in_array($movementType, self::ALLOWED_MOVEMENT_TYPES, true)) {
             $movementType = '';
@@ -280,6 +304,7 @@ final class StockService
             'search' => $search,
             'status' => $status,
             'alert' => $alert,
+            'movement_search' => $movementSearch,
             'movement_type' => $movementType,
             'page' => $page,
             'movement_page' => $movementPage,
@@ -293,18 +318,19 @@ final class StockService
             throw new ValidationException('Informe o nome do item de estoque.');
         }
 
-        $productId = (int) ($input['product_id'] ?? ($existing['product_id'] ?? 0));
-        if ($productId <= 0) {
-            $productId = 0;
+        if (strlen($name) > 150) {
+            throw new ValidationException('O nome do item de estoque excede o limite permitido.');
         }
 
-        if ($productId > 0 && $this->products->findByIdForCompany($companyId, $productId) === null) {
-            throw new ValidationException('Produto vinculado invalido para este item de estoque.');
-        }
+        $productIds = $this->normalizeProductIds($companyId, $input['product_ids'] ?? null, $existing);
 
         $sku = $this->nullableTrim($input['sku'] ?? ($existing['sku'] ?? null));
         if ($sku !== null) {
             $sku = strtoupper($sku);
+            if (strlen($sku) > 60) {
+                throw new ValidationException('O SKU do item de estoque excede o limite permitido.');
+            }
+
             $owner = $this->stock->findBySku($companyId, $sku, $existing !== null ? (int) ($existing['id'] ?? 0) : null);
             if ($owner !== null) {
                 throw new ValidationException('Ja existe item de estoque com este SKU na empresa.');
@@ -317,7 +343,7 @@ final class StockService
         }
 
         $unit = strtolower(trim((string) ($input['unit_of_measure'] ?? ($existing['unit_of_measure'] ?? 'un'))));
-        if ($unit === '' || strlen($unit) > 20) {
+        if (!in_array($unit, self::UNIT_OPTIONS, true)) {
             throw new ValidationException('Informe uma unidade de medida valida para o item.');
         }
 
@@ -327,13 +353,72 @@ final class StockService
         }
 
         return [
-            'product_id' => $productId > 0 ? $productId : null,
+            'product_id' => $productIds !== [] ? (int) $productIds[0] : null,
+            'product_ids' => $productIds,
             'name' => $name,
             'sku' => $sku,
             'minimum_quantity' => $minimumQuantity,
             'unit_of_measure' => $unit,
             'status' => $status,
         ];
+    }
+
+    private function normalizeProductIds(int $companyId, mixed $rawProductIds, ?array $existing): array
+    {
+        if ($rawProductIds === null && $existing !== null) {
+            $rawProductIds = $this->productIdsFromExisting($existing);
+        }
+
+        if ($rawProductIds === null || $rawProductIds === '') {
+            return [];
+        }
+
+        $values = is_array($rawProductIds) ? $rawProductIds : [$rawProductIds];
+        $productIds = [];
+
+        foreach ($values as $value) {
+            $raw = trim((string) $value);
+            if ($raw === '' || !ctype_digit($raw)) {
+                continue;
+            }
+
+            $productId = (int) $raw;
+            if ($productId > 0) {
+                $productIds[$productId] = true;
+            }
+        }
+
+        $normalized = array_keys($productIds);
+        foreach ($normalized as $productId) {
+            if ($this->products->findByIdForCompany($companyId, (int) $productId) === null) {
+                throw new ValidationException('Produto vinculado invalido para este item de estoque.');
+            }
+        }
+
+        sort($normalized);
+        return array_map('intval', $normalized);
+    }
+
+    private function productIdsFromExisting(array $existing): array
+    {
+        $raw = trim((string) ($existing['linked_product_ids'] ?? ''));
+        if ($raw === '') {
+            $legacyProductId = (int) ($existing['product_id'] ?? 0);
+            return $legacyProductId > 0 ? [$legacyProductId] : [];
+        }
+
+        $ids = [];
+        foreach (explode(',', $raw) as $value) {
+            $value = trim($value);
+            if ($value !== '' && ctype_digit($value)) {
+                $ids[(int) $value] = true;
+            }
+        }
+
+        $result = array_keys($ids);
+        sort($result);
+
+        return array_map('intval', $result);
     }
 
     private function parseDecimal(mixed $value, string $label, bool $allowZero): float

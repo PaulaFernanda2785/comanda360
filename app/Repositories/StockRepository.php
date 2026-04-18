@@ -16,9 +16,15 @@ final class StockRepository extends BaseRepository
         [$whereSql, $params] = $this->buildItemWhere($companyId, $filters);
 
         $countStmt = $this->db()->prepare("
-            SELECT COUNT(*)
+            SELECT COUNT(DISTINCT si.id)
             FROM stock_items si
-            LEFT JOIN products p ON p.id = si.product_id
+            LEFT JOIN stock_item_products sip
+                ON sip.stock_item_id = si.id
+               AND sip.company_id = si.company_id
+            LEFT JOIN products p
+                ON p.id = sip.product_id
+               AND p.company_id = si.company_id
+               AND p.deleted_at IS NULL
             WHERE {$whereSql}
         ");
         $countStmt->execute($params);
@@ -37,16 +43,35 @@ final class StockRepository extends BaseRepository
                 si.status,
                 si.created_at,
                 si.updated_at,
-                p.name AS product_name,
-                p.slug AS product_slug,
+                GROUP_CONCAT(DISTINCT CAST(p.id AS CHAR) ORDER BY p.name ASC SEPARATOR ',') AS linked_product_ids,
+                GROUP_CONCAT(DISTINCT p.name ORDER BY p.name ASC SEPARATOR '||') AS linked_product_names,
+                COUNT(DISTINCT p.id) AS linked_products_count,
                 CASE
                     WHEN si.current_quantity <= 0 THEN 'out'
                     WHEN si.minimum_quantity IS NOT NULL AND si.current_quantity <= si.minimum_quantity THEN 'low'
                     ELSE 'normal'
                 END AS stock_alert
             FROM stock_items si
-            LEFT JOIN products p ON p.id = si.product_id
+            LEFT JOIN stock_item_products sip
+                ON sip.stock_item_id = si.id
+               AND sip.company_id = si.company_id
+            LEFT JOIN products p
+                ON p.id = sip.product_id
+               AND p.company_id = si.company_id
+               AND p.deleted_at IS NULL
             WHERE {$whereSql}
+            GROUP BY
+                si.id,
+                si.company_id,
+                si.product_id,
+                si.name,
+                si.sku,
+                si.current_quantity,
+                si.minimum_quantity,
+                si.unit_of_measure,
+                si.status,
+                si.created_at,
+                si.updated_at
             ORDER BY
                 CASE
                     WHEN si.current_quantity <= 0 THEN 0
@@ -129,14 +154,35 @@ final class StockRepository extends BaseRepository
                 COUNT(*) AS total_items,
                 SUM(CASE WHEN status = 'ativo' THEN 1 ELSE 0 END) AS active_items,
                 SUM(CASE WHEN status = 'inativo' THEN 1 ELSE 0 END) AS inactive_items,
-                SUM(CASE WHEN product_id IS NOT NULL THEN 1 ELSE 0 END) AS linked_products,
                 SUM(CASE WHEN current_quantity <= 0 THEN 1 ELSE 0 END) AS out_of_stock_items,
                 SUM(CASE WHEN minimum_quantity IS NOT NULL AND current_quantity > 0 AND current_quantity <= minimum_quantity THEN 1 ELSE 0 END) AS low_stock_items,
-                MAX(COALESCE(updated_at, created_at)) AS last_item_update_at
+                MAX(COALESCE(updated_at, created_at)) AS last_item_update_at,
+                (
+                    SELECT COUNT(DISTINCT sip.product_id)
+                    FROM stock_item_products sip
+                    INNER JOIN products p
+                        ON p.id = sip.product_id
+                       AND p.company_id = sip.company_id
+                       AND p.deleted_at IS NULL
+                    WHERE sip.company_id = :company_id_links
+                ) AS linked_products,
+                (
+                    SELECT COUNT(DISTINCT sip.stock_item_id)
+                    FROM stock_item_products sip
+                    INNER JOIN products p
+                        ON p.id = sip.product_id
+                       AND p.company_id = sip.company_id
+                       AND p.deleted_at IS NULL
+                    WHERE sip.company_id = :company_id_linked_items
+                ) AS linked_items
             FROM stock_items
-            WHERE company_id = :company_id
+            WHERE company_id = :company_id_items
         ");
-        $itemsStmt->execute(['company_id' => $companyId]);
+        $itemsStmt->execute([
+            'company_id_items' => $companyId,
+            'company_id_links' => $companyId,
+            'company_id_linked_items' => $companyId,
+        ]);
         $items = $itemsStmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
         $movementsStmt = $this->db()->prepare("
@@ -189,12 +235,31 @@ final class StockRepository extends BaseRepository
                 si.status,
                 si.created_at,
                 si.updated_at,
-                p.name AS product_name,
-                p.slug AS product_slug
+                GROUP_CONCAT(DISTINCT CAST(p.id AS CHAR) ORDER BY p.name ASC SEPARATOR ',') AS linked_product_ids,
+                GROUP_CONCAT(DISTINCT p.name ORDER BY p.name ASC SEPARATOR '||') AS linked_product_names,
+                COUNT(DISTINCT p.id) AS linked_products_count
             FROM stock_items si
-            LEFT JOIN products p ON p.id = si.product_id
+            LEFT JOIN stock_item_products sip
+                ON sip.stock_item_id = si.id
+               AND sip.company_id = si.company_id
+            LEFT JOIN products p
+                ON p.id = sip.product_id
+               AND p.company_id = si.company_id
+               AND p.deleted_at IS NULL
             WHERE si.company_id = :company_id
               AND si.id = :item_id
+            GROUP BY
+                si.id,
+                si.company_id,
+                si.product_id,
+                si.name,
+                si.sku,
+                si.current_quantity,
+                si.minimum_quantity,
+                si.unit_of_measure,
+                si.status,
+                si.created_at,
+                si.updated_at
             LIMIT 1
         ");
         $stmt->execute([
@@ -299,6 +364,58 @@ final class StockRepository extends BaseRepository
             'minimum_quantity' => $data['minimum_quantity'],
             'unit_of_measure' => $data['unit_of_measure'],
             'status' => $data['status'],
+        ]);
+    }
+
+    public function syncItemProducts(int $companyId, int $itemId, array $productIds): void
+    {
+        $deleteStmt = $this->db()->prepare("
+            DELETE FROM stock_item_products
+            WHERE company_id = :company_id
+              AND stock_item_id = :item_id
+        ");
+        $deleteStmt->execute([
+            'company_id' => $companyId,
+            'item_id' => $itemId,
+        ]);
+
+        if ($productIds !== []) {
+            $insertStmt = $this->db()->prepare("
+                INSERT INTO stock_item_products (
+                    company_id,
+                    stock_item_id,
+                    product_id,
+                    created_at
+                ) VALUES (
+                    :company_id,
+                    :stock_item_id,
+                    :product_id,
+                    NOW()
+                )
+            ");
+
+            foreach ($productIds as $productId) {
+                $insertStmt->execute([
+                    'company_id' => $companyId,
+                    'stock_item_id' => $itemId,
+                    'product_id' => (int) $productId,
+                ]);
+            }
+        }
+
+        $legacyProductId = $productIds !== [] ? (int) reset($productIds) : null;
+        $legacyStmt = $this->db()->prepare("
+            UPDATE stock_items
+            SET product_id = :product_id,
+                updated_at = NOW()
+            WHERE company_id = :company_id
+              AND id = :item_id
+            LIMIT 1
+        ");
+        $legacyStmt->execute([
+            'company_id' => $companyId,
+            'item_id' => $itemId,
+            'product_id' => $legacyProductId,
         ]);
     }
 

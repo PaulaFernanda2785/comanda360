@@ -51,6 +51,7 @@ DROP TABLE IF EXISTS delivery_addresses;
 DROP TABLE IF EXISTS delivery_zones;
 
 DROP TABLE IF EXISTS stock_movements;
+DROP TABLE IF EXISTS stock_item_products;
 DROP TABLE IF EXISTS stock_items;
 
 DROP TABLE IF EXISTS cash_movements;
@@ -981,6 +982,31 @@ CREATE TABLE IF NOT EXISTS stock_items (
 CREATE INDEX idx_stock_items_company_id ON stock_items(company_id);
 CREATE INDEX idx_stock_items_product_id ON stock_items(product_id);
 CREATE INDEX idx_stock_items_company_status ON stock_items(company_id, status);
+
+CREATE TABLE IF NOT EXISTS stock_item_products (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT 'Relacionamento entre item de estoque e produto',
+    company_id BIGINT UNSIGNED NOT NULL COMMENT 'Empresa proprietaria do vinculo',
+    stock_item_id BIGINT UNSIGNED NOT NULL COMMENT 'Item de estoque vinculado',
+    product_id BIGINT UNSIGNED NOT NULL COMMENT 'Produto que utiliza o item',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Data de criacao do vinculo',
+    CONSTRAINT fk_stock_item_products_company
+        FOREIGN KEY (company_id) REFERENCES companies(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT fk_stock_item_products_stock_item
+        FOREIGN KEY (stock_item_id) REFERENCES stock_items(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT fk_stock_item_products_product
+        FOREIGN KEY (product_id) REFERENCES products(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT uq_stock_item_products UNIQUE (stock_item_id, product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Produtos relacionados a cada item de estoque';
+
+CREATE INDEX idx_stock_item_products_company_id ON stock_item_products(company_id);
+CREATE INDEX idx_stock_item_products_stock_item_id ON stock_item_products(stock_item_id);
+CREATE INDEX idx_stock_item_products_product_id ON stock_item_products(product_id);
 
 CREATE TABLE IF NOT EXISTS stock_movements (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT 'Identificador do movimento de estoque',

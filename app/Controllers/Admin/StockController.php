@@ -111,6 +111,7 @@ final class StockController extends Controller
             'stock_status',
             'stock_alert',
             'stock_page',
+            'stock_movement_search',
             'stock_movement_type',
             'stock_movement_page',
         ];
