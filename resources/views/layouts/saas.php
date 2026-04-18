@@ -1,6 +1,7 @@
 ﻿<?php
 $user = is_array($user ?? null) ? $user : [];
 $currentPath = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?? '');
+$idleTimeoutSeconds = session_idle_timeout_seconds();
 
 $rawNavItems = is_array($navItems ?? null)
     ? $navItems
@@ -244,6 +245,7 @@ $routeMatches = static function (string $path, array $routes): bool {
 
         <form method="POST" action="<?= htmlspecialchars(base_url('/logout')) ?>" class="logout-form">
             <?= form_security_fields('auth.logout') ?>
+            <input type="hidden" name="logout_reason" value="" data-logout-reason>
             <button type="submit" class="logout-button">
                 <span class="nav-link-badge">OUT</span>
                 <span class="nav-link-copy">
@@ -268,6 +270,7 @@ $routeMatches = static function (string $path, array $routes): bool {
 </div>
 <script>
 (() => {
+    const idleTimeoutMs = <?= (int) $idleTimeoutSeconds ?> * 1000;
     const submitControls = (form) => Array.from(form.querySelectorAll('button[type="submit"], input[type="submit"]'));
 
     const loading = (control) => {
@@ -309,6 +312,61 @@ $routeMatches = static function (string $path, array $routes): bool {
             loading(preferred);
         }
     });
+
+    const logoutForm = document.querySelector('.logout-form');
+    const logoutReasonField = logoutForm instanceof HTMLFormElement
+        ? logoutForm.querySelector('[data-logout-reason]')
+        : null;
+
+    if (!(logoutForm instanceof HTMLFormElement) || idleTimeoutMs <= 0) {
+        return;
+    }
+
+    let idleTimer = null;
+    let logoutTriggered = false;
+
+    const triggerIdleLogout = () => {
+        if (logoutTriggered) {
+            return;
+        }
+
+        logoutTriggered = true;
+
+        if (logoutReasonField instanceof HTMLInputElement) {
+            logoutReasonField.value = 'idle_timeout';
+        }
+
+        if (typeof logoutForm.requestSubmit === 'function') {
+            logoutForm.requestSubmit();
+            return;
+        }
+
+        logoutForm.submit();
+    };
+
+    const resetIdleTimer = () => {
+        if (logoutTriggered) {
+            return;
+        }
+
+        if (idleTimer !== null) {
+            window.clearTimeout(idleTimer);
+        }
+
+        idleTimer = window.setTimeout(triggerIdleLogout, idleTimeoutMs);
+    };
+
+    ['click', 'keydown', 'mousemove', 'mousedown', 'scroll', 'touchstart'].forEach((eventName) => {
+        document.addEventListener(eventName, resetIdleTimer, { passive: true });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            resetIdleTimer();
+        }
+    });
+
+    resetIdleTimer();
 })();
 </script>
 </body>

@@ -90,6 +90,17 @@ final class Session
         }
     }
 
+    public static function invalidate(): void
+    {
+        self::start();
+
+        $_SESSION = [];
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
+    }
+
     private static function shouldUseSecureCookie(array $app): bool
     {
         $configured = $app['session_secure'] ?? null;

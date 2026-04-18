@@ -170,6 +170,16 @@ if (!function_exists('csrf_token')) {
     }
 }
 
+if (!function_exists('session_idle_timeout_seconds')) {
+    function session_idle_timeout_seconds(): int
+    {
+        $app = config('app');
+        $seconds = (int) ($app['session_idle_timeout'] ?? 1800);
+
+        return $seconds >= 60 ? $seconds : 1800;
+    }
+}
+
 if (!function_exists('idempotency_token')) {
     function idempotency_token(string $scope = 'default'): string
     {

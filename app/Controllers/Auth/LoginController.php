@@ -21,9 +21,11 @@ final class LoginController extends Controller
             return $this->redirectAuthenticatedUser($user);
         }
 
+        $timedOut = Auth::consumeTimedOut();
+
         return $this->view('auth/login', [
             'title' => 'Login',
-            'error' => null,
+            'error' => $timedOut ? 'Sessao encerrada com seguranca apos 30 minutos de inatividade. Entre novamente.' : null,
         ], 'layouts/auth');
     }
 
@@ -76,7 +78,11 @@ final class LoginController extends Controller
 
         Auth::logout();
         Session::start();
-        Session::flash('success', 'Logout realizado com sucesso.');
+        $logoutReason = strtolower(trim((string) $request->input('logout_reason', '')));
+        $message = $logoutReason === 'idle_timeout'
+            ? 'Sessao encerrada com seguranca apos 30 minutos de inatividade.'
+            : 'Logout realizado com sucesso.';
+        Session::flash('success', $message);
 
         return $this->redirect('/login');
     }

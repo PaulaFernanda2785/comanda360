@@ -10,4 +10,5 @@ return [
     'session_name' => getenv('SESSION_NAME') ?: 'comanda360_session',
     'session_secure' => filter_var(getenv('SESSION_SECURE') ?: '', FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE),
     'session_same_site' => getenv('SESSION_SAMESITE') ?: 'Lax',
+    'session_idle_timeout' => (int) (getenv('SESSION_IDLE_TIMEOUT') ?: 1800),
 ];
