@@ -5,6 +5,7 @@ namespace App\Services\Saas;
 
 use App\Exceptions\ValidationException;
 use App\Repositories\DashboardRepository;
+use App\Services\Shared\SupportAttachmentService;
 
 final class SupportService
 {
@@ -30,7 +31,8 @@ final class SupportService
     private const SUPPORT_LIST_PER_PAGE = 10;
 
     public function __construct(
-        private readonly DashboardRepository $repository = new DashboardRepository()
+        private readonly DashboardRepository $repository = new DashboardRepository(),
+        private readonly SupportAttachmentService $supportAttachments = new SupportAttachmentService()
     ) {}
 
     public function panel(array $filters): array
@@ -61,12 +63,24 @@ final class SupportService
             $items
         )));
 
+        $messagesByTicketId = $this->repository->listSupportTicketMessagesByTicketIds($ticketIds);
+        $messageIds = [];
+        foreach ($messagesByTicketId as $ticketMessages) {
+            if (!is_array($ticketMessages)) {
+                continue;
+            }
+            foreach ($ticketMessages as $message) {
+                $messageId = (int) ($message['id'] ?? 0);
+                if ($messageId > 0) {
+                    $messageIds[] = $messageId;
+                }
+            }
+        }
+        $attachmentsByMessageId = $this->repository->listSupportTicketAttachmentsByMessageIds($messageIds);
+
         return [
             'tickets' => $items,
-            'threads' => $this->hydrateThreads(
-                $items,
-                $this->repository->listSupportTicketMessagesByTicketIds($ticketIds)
-            ),
+            'threads' => $this->hydrateThreads($items, $messagesByTicketId, $attachmentsByMessageId),
             'filters' => $normalizedFilters,
             'pagination' => [
                 'total' => $total,
@@ -89,7 +103,7 @@ final class SupportService
         ];
     }
 
-    public function replyToTicket(int $userId, array $input): void
+    public function replyToTicket(int $userId, array $input, array $files = []): void
     {
         if ($userId <= 0) {
             throw new ValidationException('Usuario SaaS invalido para responder chamado.');
@@ -106,8 +120,10 @@ final class SupportService
         }
 
         $message = trim((string) ($input['message'] ?? ''));
-        if ($message === '') {
-            throw new ValidationException('Escreva a resposta para registrar no historico do chamado.');
+        $attachmentFiles = $files['attachments'] ?? [];
+        $hasAttachments = $this->hasUploadedSupportAttachments($attachmentFiles);
+        if ($message === '' && !$hasAttachments) {
+            throw new ValidationException('Escreva a resposta ou anexe arquivos para registrar no historico do chamado.');
         }
 
         $status = strtolower(trim((string) ($input['status'] ?? 'in_progress')));
@@ -119,20 +135,36 @@ final class SupportService
             ? date('Y-m-d H:i:s')
             : null;
 
-        $this->repository->transaction(function () use ($ticketId, $userId, $message, $status, $closedAt): void {
-            $this->repository->createSupportTicketMessage([
-                'ticket_id' => $ticketId,
-                'sender_user_id' => $userId,
-                'sender_context' => 'saas',
-                'message' => $message,
-            ]);
+        $companyId = (int) ($ticket['company_id'] ?? 0);
+        $storedAttachments = [];
 
-            $this->repository->updateSupportTicketConversationState($ticketId, [
-                'assigned_to_user_id' => $userId,
-                'status' => $status,
-                'closed_at' => $closedAt,
-            ]);
-        });
+        try {
+            $this->repository->transaction(function () use ($ticketId, $userId, $message, $status, $closedAt, $companyId, $attachmentFiles, &$storedAttachments): void {
+                $messageId = $this->repository->createSupportTicketMessage([
+                    'ticket_id' => $ticketId,
+                    'sender_user_id' => $userId,
+                    'sender_context' => 'saas',
+                    'message' => $message,
+                ]);
+
+                $storedAttachments = $this->supportAttachments->storeAttachments(
+                    $companyId,
+                    $ticketId,
+                    $messageId,
+                    $attachmentFiles
+                );
+                $this->repository->createSupportTicketMessageAttachments($messageId, $storedAttachments);
+
+                $this->repository->updateSupportTicketConversationState($ticketId, [
+                    'assigned_to_user_id' => $userId,
+                    'status' => $status,
+                    'closed_at' => $closedAt,
+                ]);
+            });
+        } catch (\Throwable $e) {
+            $this->supportAttachments->deleteAttachments($storedAttachments);
+            throw $e;
+        }
     }
 
     private function normalizeFilters(array $filters): array
@@ -178,7 +210,7 @@ final class SupportService
         ];
     }
 
-    private function hydrateThreads(array $tickets, array $messagesByTicketId): array
+    private function hydrateThreads(array $tickets, array $messagesByTicketId, array $attachmentsByMessageId): array
     {
         $threads = [];
         foreach ($tickets as $ticket) {
@@ -199,8 +231,18 @@ final class SupportService
                     'updated_at' => (string) ($ticket['updated_at'] ?? ''),
                     'sender_user_name' => (string) ($ticket['opened_by_user_name'] ?? '-'),
                     'sender_role_name' => 'Empresa',
+                    'attachments' => [],
                 ];
             }
+
+            foreach ($messages as &$message) {
+                $messageId = (int) ($message['id'] ?? 0);
+                $message['attachments'] = $this->resolveSupportMessageAttachments(
+                    $message,
+                    is_array($attachmentsByMessageId[$messageId] ?? null) ? $attachmentsByMessageId[$messageId] : []
+                );
+            }
+            unset($message);
 
             $threads[$ticketId] = $messages;
         }
@@ -229,5 +271,52 @@ final class SupportService
         $result = array_keys($normalized);
         sort($result);
         return $result;
+    }
+
+    private function hasUploadedSupportAttachments(mixed $files): bool
+    {
+        if (!is_array($files)) {
+            return false;
+        }
+
+        $errors = $files['error'] ?? null;
+        if (is_array($errors)) {
+            foreach ($errors as $error) {
+                if ((int) $error !== UPLOAD_ERR_NO_FILE) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        return (int) ($files['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
+    }
+
+    private function resolveSupportMessageAttachments(array $message, array $attachments): array
+    {
+        $resolved = [];
+        foreach ($attachments as $attachment) {
+            if (!is_array($attachment)) {
+                continue;
+            }
+
+            $attachment['is_image'] = $this->supportAttachments->isImageMimeType((string) ($attachment['attachment_mime_type'] ?? ''));
+            $resolved[] = $attachment;
+        }
+
+        $legacyPath = trim((string) ($message['attachment_path'] ?? ''));
+        if ($legacyPath !== '') {
+            $resolved[] = [
+                'id' => 0,
+                'message_id' => (int) ($message['id'] ?? 0),
+                'attachment_path' => $legacyPath,
+                'attachment_original_name' => (string) ($message['attachment_original_name'] ?? 'Anexo'),
+                'attachment_mime_type' => (string) ($message['attachment_mime_type'] ?? 'application/octet-stream'),
+                'attachment_size_bytes' => (int) ($message['attachment_size_bytes'] ?? 0),
+                'is_image' => $this->supportAttachments->isImageMimeType((string) ($message['attachment_mime_type'] ?? '')),
+            ];
+        }
+
+        return $resolved;
     }
 }

@@ -88,6 +88,26 @@ $formatSupportDate = static function (mixed $value): string {
 
     return date('d/m/Y H:i', $timestamp);
 };
+
+$formatSupportAttachmentSize = static function (mixed $value): string {
+    $bytes = max(0, (int) ($value ?? 0));
+    if ($bytes >= 1048576) {
+        return number_format($bytes / 1048576, 2, ',', '.') . ' MB';
+    }
+    if ($bytes >= 1024) {
+        return number_format($bytes / 1024, 1, ',', '.') . ' KB';
+    }
+    return $bytes . ' B';
+};
+
+$supportAttachmentUrl = static function (array $attachment): string {
+    $attachmentId = (int) ($attachment['id'] ?? 0);
+    if ($attachmentId > 0) {
+        return base_url('/media/support-attachment?attachment_id=' . $attachmentId);
+    }
+
+    return base_url('/media/support-attachment?message_id=' . (int) ($attachment['message_id'] ?? 0));
+};
 ?>
 
 <section class="dash-section<?= $activeSection === 'support' ? ' active' : '' ?>" data-section="support">
@@ -142,6 +162,35 @@ $formatSupportDate = static function (mixed $value): string {
         .st-thread-badge.is-company{background:#dbeafe;color:#1d4ed8}
         .st-thread-badge.is-saas{background:#e2e8f0;color:#334155}
         .st-thread-message{margin:0;color:#1e293b;font-size:13px;line-height:1.55}
+        .st-thread-attachment{display:grid;gap:6px;padding:10px;border-radius:10px;background:rgba(255,255,255,.72);border:1px solid #cbd5e1}
+        .st-thread-attachment a{font-weight:700;color:#1d4ed8;text-decoration:none;overflow-wrap:anywhere}
+        .st-thread-attachment a:hover{text-decoration:underline}
+        .st-thread-attachment small{color:#64748b;font-size:11px}
+        .st-thread-attachments{display:grid;gap:8px}
+        .st-thread-attachments.is-image-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+        .st-thread-attachment.is-image{padding:6px;background:#fff}
+        .st-thread-attachment-preview{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;border:1px solid #dbe2ea;background:#f8fafc}
+        .st-thread-attachment.is-file{grid-template-columns:auto 1fr;align-items:center}
+        .st-thread-attachment-icon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:#dcfce7;color:#166534;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+        .st-thread-attachment-copy{display:grid;gap:4px}
+        .st-thread-bubble{display:grid;gap:8px}
+        .st-composer{display:grid;gap:10px}
+        .st-uploader{display:grid;gap:10px}
+        .st-uploader-input{display:none}
+        .st-uploader-dropzone{border:1px dashed #86efac;background:linear-gradient(180deg,#f0fdf4 0%,#dcfce7 100%);border-radius:14px;padding:14px;display:grid;gap:6px;cursor:pointer;transition:border-color .18s ease, transform .18s ease, box-shadow .18s ease}
+        .st-uploader.is-dragover .st-uploader-dropzone{border-color:#16a34a;box-shadow:0 12px 24px rgba(22,163,74,.12);transform:translateY(-1px)}
+        .st-uploader-dropzone strong{font-size:14px;color:#166534}
+        .st-uploader-dropzone span{font-size:12px;color:#166534}
+        .st-uploader-meta{display:flex;gap:8px;flex-wrap:wrap}
+        .st-uploader-pill{padding:4px 8px;border-radius:999px;background:#bbf7d0;color:#166534;font-size:11px;font-weight:700}
+        .st-uploader-list{display:grid;gap:8px}
+        .st-uploader-item{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px;border:1px solid #dbe2ea;border-radius:12px;background:#fff}
+        .st-uploader-thumb{width:52px;height:52px;border-radius:10px;object-fit:cover;border:1px solid #dbe2ea;background:#f8fafc}
+        .st-uploader-fileicon{width:52px;height:52px;border-radius:10px;display:grid;place-items:center;background:#e0f2fe;color:#075985;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+        .st-uploader-copy{display:grid;gap:4px;min-width:0}
+        .st-uploader-copy strong{font-size:13px;color:#0f172a;overflow-wrap:anywhere}
+        .st-uploader-copy small{font-size:11px;color:#64748b}
+        .st-uploader-remove{border:0;background:#fee2e2;color:#991b1b;border-radius:10px;padding:8px 10px;cursor:pointer;font-size:12px;font-weight:700}
         .st-reply-box{display:grid;gap:10px;border-top:1px dashed #cbd5e1;padding-top:10px}
         .st-reply-box .field{margin:0}
         .st-reply-box textarea{min-height:108px}
@@ -224,7 +273,7 @@ $formatSupportDate = static function (mixed $value): string {
                         </div>
                     </div>
 
-                    <form method="POST" action="<?= htmlspecialchars(base_url('/admin/dashboard/support/store')) ?>">
+                    <form method="POST" action="<?= htmlspecialchars(base_url('/admin/dashboard/support/store')) ?>" enctype="multipart/form-data">
                         <?= form_security_fields('dashboard.support.store') ?>
                         <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnSupportQuery) ?>">
 
@@ -244,12 +293,27 @@ $formatSupportDate = static function (mixed $value): string {
                             </div>
                             <div class="field full">
                                 <label for="ticket_description">Mensagem para a equipe técnica</label>
-                                <textarea id="ticket_description" name="description" rows="6" required placeholder="Informe o que aconteceu, quando ocorreu, quem foi impactado, se existe bloqueio operacional e como reproduzir o erro."></textarea>
+                                <textarea id="ticket_description" name="description" rows="6" placeholder="Informe o que aconteceu, quando ocorreu, quem foi impactado, se existe bloqueio operacional e como reproduzir o erro."></textarea>
+                            </div>
+                            <div class="field full">
+                                <div class="st-uploader" data-chat-uploader>
+                                    <label for="ticket_attachments">Anexos da conversa</label>
+                                    <input class="st-uploader-input" id="ticket_attachments" data-uploader-input name="attachments[]" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.zip">
+                                    <div class="st-uploader-dropzone" data-uploader-dropzone tabindex="0">
+                                        <strong>Arraste, cole ou clique para anexar arquivos</strong>
+                                        <span>Envie varias imagens e documentos na mesma mensagem, como em uma conversa de app.</span>
+                                        <div class="st-uploader-meta">
+                                            <span class="st-uploader-pill">Ate 8 arquivos</span>
+                                            <span class="st-uploader-pill">Maximo 10MB por arquivo</span>
+                                        </div>
+                                    </div>
+                                    <div class="st-uploader-list" data-uploader-list hidden></div>
+                                </div>
                             </div>
                         </div>
 
                         <div class="st-form-footer">
-                            <p class="st-form-note">Use `Urgente` apenas para indisponibilidade operacional real. Chamados bem classificados reduzem fila, duplicidade e tempo de resposta.</p>
+                            <p class="st-form-note">Use `Urgente` apenas para indisponibilidade operacional real. Se houver evidencia, anexe imagem, PDF, planilha, TXT ou ZIP com ate 10MB.</p>
                             <button class="btn" type="submit">Abrir chamado</button>
                         </div>
                     </form>
@@ -401,19 +465,68 @@ $formatSupportDate = static function (mixed $value): string {
                                                             </div>
                                                             <small><?= htmlspecialchars($formatSupportDate($threadMessage['created_at'] ?? '')) ?></small>
                                                         </div>
-                                                        <p class="st-thread-message"><?= nl2br(htmlspecialchars((string) ($threadMessage['message'] ?? '')), false) ?></p>
+                                                        <div class="st-thread-bubble">
+                                                            <?php $attachments = is_array($threadMessage['attachments'] ?? null) ? $threadMessage['attachments'] : []; ?>
+                                                            <?php if ($attachments !== []): ?>
+                                                                <div class="st-thread-attachments<?= count(array_filter($attachments, static fn (array $attachment): bool => (bool) ($attachment['is_image'] ?? false))) === count($attachments) ? ' is-image-grid' : '' ?>">
+                                                                    <?php foreach ($attachments as $attachment): ?>
+                                                                        <?php if ((bool) ($attachment['is_image'] ?? false)): ?>
+                                                                            <a class="st-thread-attachment is-image" href="<?= htmlspecialchars($supportAttachmentUrl($attachment)) ?>" target="_blank" rel="noopener noreferrer">
+                                                                                <img class="st-thread-attachment-preview" src="<?= htmlspecialchars($supportAttachmentUrl($attachment)) ?>" alt="<?= htmlspecialchars((string) ($attachment['attachment_original_name'] ?? 'Imagem')) ?>">
+                                                                                <small><?= htmlspecialchars((string) ($attachment['attachment_original_name'] ?? 'Imagem')) ?></small>
+                                                                            </a>
+                                                                        <?php else: ?>
+                                                                            <div class="st-thread-attachment is-file">
+                                                                                <div class="st-thread-attachment-icon"><?= htmlspecialchars(strtoupper(substr((string) pathinfo((string) ($attachment['attachment_original_name'] ?? 'arquivo'), PATHINFO_EXTENSION), 0, 4)) ?: 'DOC') ?></div>
+                                                                                <div class="st-thread-attachment-copy">
+                                                                                    <a href="<?= htmlspecialchars($supportAttachmentUrl($attachment)) ?>" target="_blank" rel="noopener noreferrer">
+                                                                                        <?= htmlspecialchars((string) ($attachment['attachment_original_name'] ?? 'Anexo')) ?>
+                                                                                    </a>
+                                                                                    <small>
+                                                                                        <?= htmlspecialchars((string) ($attachment['attachment_mime_type'] ?? 'arquivo')) ?>
+                                                                                        <?php if ((int) ($attachment['attachment_size_bytes'] ?? 0) > 0): ?>
+                                                                                            - <?= htmlspecialchars($formatSupportAttachmentSize($attachment['attachment_size_bytes'] ?? 0)) ?>
+                                                                                        <?php endif; ?>
+                                                                                    </small>
+                                                                                </div>
+                                                                            </div>
+                                                                        <?php endif; ?>
+                                                                    <?php endforeach; ?>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                            <?php $threadBody = trim((string) ($threadMessage['message'] ?? '')); ?>
+                                                            <?php if ($threadBody !== ''): ?>
+                                                                <p class="st-thread-message"><?= nl2br(htmlspecialchars($threadBody), false) ?></p>
+                                                            <?php endif; ?>
+                                                        </div>
                                                     </div>
                                                 <?php endforeach; ?>
                                             </div>
 
-                                            <form class="st-reply-box" method="POST" action="<?= htmlspecialchars(base_url('/admin/dashboard/support/reply')) ?>">
+                                            <form class="st-reply-box" method="POST" action="<?= htmlspecialchars(base_url('/admin/dashboard/support/reply')) ?>" enctype="multipart/form-data">
                                                 <?= form_security_fields('dashboard.support.reply.' . $ticketId) ?>
                                                 <input type="hidden" name="ticket_id" value="<?= $ticketId ?>">
                                                 <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnSupportQuery) ?>">
 
                                                 <div class="field">
                                                     <label for="support_reply_<?= $ticketId ?>">Responder no mesmo chamado</label>
-                                                    <textarea id="support_reply_<?= $ticketId ?>" name="message" rows="4" required placeholder="Escreva a continuidade da conversa para o suporte SaaS."></textarea>
+                                                    <textarea id="support_reply_<?= $ticketId ?>" name="message" rows="4" placeholder="Escreva a continuidade da conversa para o suporte SaaS."></textarea>
+                                                </div>
+
+                                                <div class="field">
+                                                    <div class="st-uploader" data-chat-uploader>
+                                                        <label for="support_reply_attachments_<?= $ticketId ?>">Arquivos da resposta</label>
+                                                        <input class="st-uploader-input" id="support_reply_attachments_<?= $ticketId ?>" data-uploader-input name="attachments[]" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.zip">
+                                                        <div class="st-uploader-dropzone" data-uploader-dropzone tabindex="0">
+                                                            <strong>Arraste, cole ou clique para anexar</strong>
+                                                            <span>Imagem, PDF, planilha, ZIP e outros arquivos permitidos na mesma resposta.</span>
+                                                            <div class="st-uploader-meta">
+                                                                <span class="st-uploader-pill">Ate 8 arquivos</span>
+                                                                <span class="st-uploader-pill">Maximo 10MB por arquivo</span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="st-uploader-list" data-uploader-list hidden></div>
+                                                    </div>
                                                 </div>
 
                                                 <div class="st-reply-footer">
@@ -423,6 +536,7 @@ $formatSupportDate = static function (mixed $value): string {
                                                         <?php else: ?>
                                                             A resposta entra na mesma thread do chamado, sem criar outro registro no histórico.
                                                         <?php endif; ?>
+                                                        Tambem e possivel enviar somente anexos, sem texto, quando os arquivos ja explicam a ocorrencia.
                                                     </p>
                                                     <button class="btn secondary" type="submit">Enviar resposta</button>
                                                 </div>
@@ -525,3 +639,109 @@ $formatSupportDate = static function (mixed $value): string {
         </div>
     </div>
 </section>
+<script>
+(() => {
+    const supportsDataTransfer = () => new DataTransfer();
+    const imageMime = (file) => typeof file.type === 'string' && file.type.startsWith('image/');
+    const formatSize = (size) => {
+        const bytes = Number(size || 0);
+        if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(2).replace('.', ',')} MB`;
+        if (bytes >= 1024) return `${(bytes / 1024).toFixed(1).replace('.', ',')} KB`;
+        return `${bytes} B`;
+    };
+
+    document.querySelectorAll('[data-chat-uploader]').forEach((root) => {
+        const input = root.querySelector('[data-uploader-input]');
+        const dropzone = root.querySelector('[data-uploader-dropzone]');
+        const list = root.querySelector('[data-uploader-list]');
+        const form = root.closest('form');
+        if (!input || !dropzone || !list || !form) {
+            return;
+        }
+
+        const syncFiles = (files) => {
+            const dt = supportsDataTransfer();
+            files.forEach((file) => dt.items.add(file));
+            input.files = dt.files;
+        };
+
+        const getFiles = () => Array.from(input.files || []);
+        const render = () => {
+            const files = getFiles();
+            list.innerHTML = '';
+            list.hidden = files.length === 0;
+            files.forEach((file, index) => {
+                const item = document.createElement('div');
+                item.className = 'st-uploader-item';
+                const preview = imageMime(file)
+                    ? `<img class="st-uploader-thumb" src="${URL.createObjectURL(file)}" alt="${file.name.replace(/"/g, '&quot;')}">`
+                    : `<div class="st-uploader-fileicon">${(file.name.split('.').pop() || 'DOC').slice(0, 4).toUpperCase()}</div>`;
+                item.innerHTML = `
+                    ${preview}
+                    <div class="st-uploader-copy">
+                        <strong>${file.name}</strong>
+                        <small>${file.type || 'arquivo'} - ${formatSize(file.size)}</small>
+                    </div>
+                    <button class="st-uploader-remove" type="button" data-remove-index="${index}">Remover</button>
+                `;
+                list.appendChild(item);
+            });
+        };
+
+        const appendFiles = (incoming) => {
+            const current = getFiles();
+            const next = [...current];
+            Array.from(incoming || []).forEach((file) => {
+                if (!(file instanceof File)) return;
+                if (next.length >= 8) return;
+                next.push(file);
+            });
+            syncFiles(next);
+            render();
+        };
+
+        input.addEventListener('change', () => render());
+        dropzone.addEventListener('click', () => input.click());
+        dropzone.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                input.click();
+            }
+        });
+        ['dragenter', 'dragover'].forEach((type) => {
+            dropzone.addEventListener(type, (event) => {
+                event.preventDefault();
+                root.classList.add('is-dragover');
+            });
+        });
+        ['dragleave', 'dragend', 'drop'].forEach((type) => {
+            dropzone.addEventListener(type, (event) => {
+                event.preventDefault();
+                root.classList.remove('is-dragover');
+            });
+        });
+        dropzone.addEventListener('drop', (event) => {
+            appendFiles(event.dataTransfer?.files || []);
+        });
+        form.addEventListener('paste', (event) => {
+            if (!form.contains(document.activeElement)) {
+                return;
+            }
+            const clipboardFiles = Array.from(event.clipboardData?.files || []);
+            if (clipboardFiles.length === 0) {
+                return;
+            }
+            event.preventDefault();
+            appendFiles(clipboardFiles);
+        });
+        list.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-remove-index]');
+            if (!button) return;
+            const removeIndex = Number(button.getAttribute('data-remove-index'));
+            const next = getFiles().filter((_, index) => index !== removeIndex);
+            syncFiles(next);
+            render();
+        });
+    });
+})();
+</script>

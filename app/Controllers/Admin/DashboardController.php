@@ -317,7 +317,7 @@ final class DashboardController extends Controller
         $openedByUserId = (int) ($user['id'] ?? 0);
 
         try {
-            $this->service->openSupportTicket($companyId, $openedByUserId, $request->all());
+            $this->service->openSupportTicket($companyId, $openedByUserId, $request->all(), $request->files);
             return $this->backWithSuccess('Chamado tecnico aberto e encaminhado para o administrador do sistema.', $redirectTo);
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), $redirectTo);
@@ -344,7 +344,7 @@ final class DashboardController extends Controller
         $userId = (int) ($user['id'] ?? 0);
 
         try {
-            $this->service->replySupportTicket($companyId, $ticketId, $userId, $request->all());
+            $this->service->replySupportTicket($companyId, $ticketId, $userId, $request->all(), $request->files);
             return $this->backWithSuccess('Mensagem enviada no historico do chamado.', $redirectTo);
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), $redirectTo);

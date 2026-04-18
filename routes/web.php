@@ -57,6 +57,7 @@ $router->get('/account/password', [AccountController::class, 'editPassword'], [A
 $router->post('/account/password', [AccountController::class, 'updatePassword'], [AuthMiddleware::class, CompanyBillingAccessMiddleware::class]);
 $router->get('/media/company', [MediaController::class, 'company']);
 $router->get('/media/product', [MediaController::class, 'product']);
+$router->get('/media/support-attachment', [MediaController::class, 'supportAttachment'], [AuthMiddleware::class]);
 $router->get('/media/table-qr', [MediaController::class, 'tableQr']);
 $router->post('/webhooks/mercado-pago', [WebhookController::class, 'mercadoPago']);
 

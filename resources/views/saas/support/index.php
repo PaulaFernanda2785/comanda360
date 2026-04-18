@@ -98,6 +98,26 @@ $formatSupportDate = static function (mixed $value): string {
 
     return date('d/m/Y H:i', $timestamp);
 };
+
+$formatSupportAttachmentSize = static function (mixed $value): string {
+    $bytes = max(0, (int) ($value ?? 0));
+    if ($bytes >= 1048576) {
+        return number_format($bytes / 1048576, 2, ',', '.') . ' MB';
+    }
+    if ($bytes >= 1024) {
+        return number_format($bytes / 1024, 1, ',', '.') . ' KB';
+    }
+    return $bytes . ' B';
+};
+
+$supportAttachmentUrl = static function (array $attachment): string {
+    $attachmentId = (int) ($attachment['id'] ?? 0);
+    if ($attachmentId > 0) {
+        return base_url('/media/support-attachment?attachment_id=' . $attachmentId);
+    }
+
+    return base_url('/media/support-attachment?message_id=' . (int) ($attachment['message_id'] ?? 0));
+};
 ?>
 
 <style>
@@ -145,6 +165,18 @@ $formatSupportDate = static function (mixed $value): string {
     .saas-thread-badge.is-company{background:#ffedd5;color:#c2410c}
     .saas-thread-badge.is-saas{background:#dbeafe;color:#1d4ed8}
     .saas-thread-message{margin:0;font-size:13px;color:#1e293b;line-height:1.55}
+    .saas-thread-attachment{display:grid;gap:6px;padding:10px;border-radius:10px;background:rgba(255,255,255,.8);border:1px solid #cbd5e1}
+    .saas-thread-attachment a{font-weight:700;color:#1d4ed8;text-decoration:none;overflow-wrap:anywhere}
+    .saas-thread-attachment a:hover{text-decoration:underline}
+    .saas-thread-attachment small{color:#64748b;font-size:11px}
+    .saas-thread-attachments{display:grid;gap:8px}
+    .saas-thread-attachments.is-image-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+    .saas-thread-attachment.is-image{padding:6px;background:#fff}
+    .saas-thread-attachment-preview{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;border:1px solid #dbe2ea;background:#f8fafc}
+    .saas-thread-attachment.is-file{grid-template-columns:auto 1fr;align-items:center}
+    .saas-thread-attachment-icon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:#dcfce7;color:#166534;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+    .saas-thread-attachment-copy{display:grid;gap:4px}
+    .saas-thread-bubble{display:grid;gap:8px}
 
     .saas-reply-box{display:grid;gap:10px;border-top:1px dashed #cbd5e1;padding-top:12px}
     .saas-reply-grid{display:grid;grid-template-columns:1fr 220px;gap:10px}
@@ -184,6 +216,22 @@ $formatSupportDate = static function (mixed $value): string {
     .saas-page-btn{display:inline-block;padding:8px 11px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#0f172a;text-decoration:none}
     .saas-page-btn.is-active{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
     .saas-page-ellipsis{color:#64748b;padding:0 2px}
+    .saas-uploader{display:grid;gap:10px}
+    .saas-uploader-input{display:none}
+    .saas-uploader-dropzone{border:1px dashed #86efac;background:linear-gradient(180deg,#f0fdf4 0%,#dcfce7 100%);border-radius:14px;padding:14px;display:grid;gap:6px;cursor:pointer;transition:border-color .18s ease, transform .18s ease, box-shadow .18s ease}
+    .saas-uploader.is-dragover .saas-uploader-dropzone{border-color:#16a34a;box-shadow:0 12px 24px rgba(22,163,74,.12);transform:translateY(-1px)}
+    .saas-uploader-dropzone strong{font-size:14px;color:#166534}
+    .saas-uploader-dropzone span{font-size:12px;color:#166534}
+    .saas-uploader-meta{display:flex;gap:8px;flex-wrap:wrap}
+    .saas-uploader-pill{padding:4px 8px;border-radius:999px;background:#bbf7d0;color:#166534;font-size:11px;font-weight:700}
+    .saas-uploader-list{display:grid;gap:8px}
+    .saas-uploader-item{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px;border:1px solid #dbe2ea;border-radius:12px;background:#fff}
+    .saas-uploader-thumb{width:52px;height:52px;border-radius:10px;object-fit:cover;border:1px solid #dbe2ea;background:#f8fafc}
+    .saas-uploader-fileicon{width:52px;height:52px;border-radius:10px;display:grid;place-items:center;background:#e0f2fe;color:#075985;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+    .saas-uploader-copy{display:grid;gap:4px;min-width:0}
+    .saas-uploader-copy strong{font-size:13px;color:#0f172a;overflow-wrap:anywhere}
+    .saas-uploader-copy small{font-size:11px;color:#64748b}
+    .saas-uploader-remove{border:0;background:#fee2e2;color:#991b1b;border-radius:10px;padding:8px 10px;cursor:pointer;font-size:12px;font-weight:700}
 
     @media (max-width:1180px){
         .saas-support-grid{grid-template-columns:1fr}
@@ -360,12 +408,56 @@ $formatSupportDate = static function (mixed $value): string {
                                                         </div>
                                                         <small><?= htmlspecialchars($formatSupportDate($message['created_at'] ?? '')) ?></small>
                                                     </div>
-                                                    <p class="saas-thread-message"><?= nl2br(htmlspecialchars((string) ($message['message'] ?? '')), false) ?></p>
+                                                    <?php $attachments = is_array($message['attachments'] ?? null) ? $message['attachments'] : []; ?>
+                                                    <?php if ($attachments !== []): ?>
+                                                        <div class="saas-thread-attachments<?= count(array_filter($attachments, static fn (array $attachment): bool => (bool) ($attachment['is_image'] ?? false))) === count($attachments) ? ' is-image-grid' : '' ?>">
+                                                            <?php foreach ($attachments as $attachment): ?>
+                                                                <?php if ((bool) ($attachment['is_image'] ?? false)): ?>
+                                                                    <a class="saas-thread-attachment is-image" href="<?= htmlspecialchars($supportAttachmentUrl($attachment)) ?>" target="_blank" rel="noopener noreferrer">
+                                                                        <img class="saas-thread-attachment-preview" src="<?= htmlspecialchars($supportAttachmentUrl($attachment)) ?>" alt="<?= htmlspecialchars((string) ($attachment['attachment_original_name'] ?? 'Imagem')) ?>">
+                                                                        <small><?= htmlspecialchars((string) ($attachment['attachment_original_name'] ?? 'Imagem')) ?></small>
+                                                                    </a>
+                                                                <?php else: ?>
+                                                                    <div class="saas-thread-attachment is-file">
+                                                                        <div class="saas-thread-attachment-icon"><?= htmlspecialchars(strtoupper(substr((string) pathinfo((string) ($attachment['attachment_original_name'] ?? 'arquivo'), PATHINFO_EXTENSION), 0, 4)) ?: 'DOC') ?></div>
+                                                                        <div class="saas-thread-attachment-copy">
+                                                                            <a href="<?= htmlspecialchars($supportAttachmentUrl($attachment)) ?>" target="_blank" rel="noopener noreferrer">
+                                                                                <?= htmlspecialchars((string) ($attachment['attachment_original_name'] ?? 'Anexo')) ?>
+                                                                            </a>
+                                                                            <small>
+                                                                                <?= htmlspecialchars((string) ($attachment['attachment_mime_type'] ?? 'arquivo')) ?>
+                                                                                <?php if ((int) ($attachment['attachment_size_bytes'] ?? 0) > 0): ?>
+                                                                                    - <?= htmlspecialchars($formatSupportAttachmentSize($attachment['attachment_size_bytes'] ?? 0)) ?>
+                                                                                <?php endif; ?>
+                                                                            </small>
+                                                                        </div>
+                                                                    </div>
+                                                                <?php endif; ?>
+                                                            <?php endforeach; ?>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                    <?php $threadBody = trim((string) ($message['message'] ?? '')); ?>
+                                                    <?php if ($threadBody !== ''): ?>
+                                                        <p class="saas-thread-message"><?= nl2br(htmlspecialchars($threadBody), false) ?></p>
+                                                    <?php endif; ?>
+                                                    <?php if (false && trim((string) ($message['attachment_path'] ?? '')) !== ''): ?>
+                                                        <div class="saas-thread-attachment">
+                                                            <a href="<?= htmlspecialchars($supportAttachmentUrl($message)) ?>" target="_blank" rel="noopener noreferrer">
+                                                                <?= htmlspecialchars((string) ($message['attachment_original_name'] ?? 'Anexo')) ?>
+                                                            </a>
+                                                            <small>
+                                                                <?= htmlspecialchars((string) ($message['attachment_mime_type'] ?? 'arquivo')) ?>
+                                                                <?php if ((int) ($message['attachment_size_bytes'] ?? 0) > 0): ?>
+                                                                    · <?= htmlspecialchars($formatSupportAttachmentSize($message['attachment_size_bytes'] ?? 0)) ?>
+                                                                <?php endif; ?>
+                                                            </small>
+                                                        </div>
+                                                    <?php endif; ?>
                                                 </div>
                                             <?php endforeach; ?>
                                         </div>
 
-                                        <form class="saas-reply-box" method="POST" action="<?= htmlspecialchars(base_url('/saas/support/reply')) ?>">
+                                        <form class="saas-reply-box" method="POST" action="<?= htmlspecialchars(base_url('/saas/support/reply')) ?>" enctype="multipart/form-data">
                                             <?= form_security_fields('saas.support.reply.' . $ticketId) ?>
                                             <input type="hidden" name="ticket_id" value="<?= $ticketId ?>">
                                             <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery) ?>">
@@ -373,7 +465,7 @@ $formatSupportDate = static function (mixed $value): string {
                                             <div class="saas-reply-grid">
                                                 <div class="field">
                                                     <label for="saas_reply_message_<?= $ticketId ?>">Responder na mesma thread</label>
-                                                    <textarea id="saas_reply_message_<?= $ticketId ?>" name="message" rows="5" required placeholder="Escreva a resposta que ficara visivel no historico da empresa."></textarea>
+                                                    <textarea id="saas_reply_message_<?= $ticketId ?>" name="message" rows="5" placeholder="Escreva a resposta que ficara visivel no historico da empresa."></textarea>
                                                 </div>
                                                 <div class="field">
                                                     <label for="saas_reply_status_<?= $ticketId ?>">Novo status</label>
@@ -386,8 +478,24 @@ $formatSupportDate = static function (mixed $value): string {
                                                 </div>
                                             </div>
 
+                                            <div class="field">
+                                                <div class="saas-uploader" data-chat-uploader>
+                                                    <label for="saas_reply_attachments_<?= $ticketId ?>">Arquivos da resposta</label>
+                                                    <input class="saas-uploader-input" id="saas_reply_attachments_<?= $ticketId ?>" data-uploader-input name="attachments[]" type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.zip">
+                                                    <div class="saas-uploader-dropzone" data-uploader-dropzone tabindex="0">
+                                                        <strong>Arraste, cole ou clique para anexar</strong>
+                                                        <span>Envie varias evidencias na mesma resposta, no estilo de conversa.</span>
+                                                        <div class="saas-uploader-meta">
+                                                            <span class="saas-uploader-pill">Ate 8 arquivos</span>
+                                                            <span class="saas-uploader-pill">Maximo 10MB por arquivo</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="saas-uploader-list" data-uploader-list hidden></div>
+                                                </div>
+                                            </div>
+
                                             <div class="saas-reply-footer">
-                                                <p class="saas-reply-note">A resposta fica registrada na mesma conversa do chamado e passa a aparecer tambem no ambiente da empresa. Ao responder, o chamado fica atribuido ao usuario SaaS atual.</p>
+                                                <p class="saas-reply-note">A resposta fica registrada na mesma conversa do chamado e passa a aparecer tambem no ambiente da empresa. Ao responder, o chamado fica atribuido ao usuario SaaS atual. Tambem e possivel enviar somente anexos, inclusive varios arquivos na mesma mensagem.</p>
                                                 <button class="btn" type="submit">Responder chamado</button>
                                             </div>
                                         </form>
@@ -461,3 +569,109 @@ $formatSupportDate = static function (mixed $value): string {
         </aside>
     </div>
 </div>
+<script>
+(() => {
+    const supportsDataTransfer = () => new DataTransfer();
+    const imageMime = (file) => typeof file.type === 'string' && file.type.startsWith('image/');
+    const formatSize = (size) => {
+        const bytes = Number(size || 0);
+        if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(2).replace('.', ',')} MB`;
+        if (bytes >= 1024) return `${(bytes / 1024).toFixed(1).replace('.', ',')} KB`;
+        return `${bytes} B`;
+    };
+
+    document.querySelectorAll('[data-chat-uploader]').forEach((root) => {
+        const input = root.querySelector('[data-uploader-input]');
+        const dropzone = root.querySelector('[data-uploader-dropzone]');
+        const list = root.querySelector('[data-uploader-list]');
+        const form = root.closest('form');
+        if (!input || !dropzone || !list || !form) {
+            return;
+        }
+
+        const syncFiles = (files) => {
+            const dt = supportsDataTransfer();
+            files.forEach((file) => dt.items.add(file));
+            input.files = dt.files;
+        };
+
+        const getFiles = () => Array.from(input.files || []);
+        const render = () => {
+            const files = getFiles();
+            list.innerHTML = '';
+            list.hidden = files.length === 0;
+            files.forEach((file, index) => {
+                const item = document.createElement('div');
+                item.className = 'saas-uploader-item';
+                const preview = imageMime(file)
+                    ? `<img class="saas-uploader-thumb" src="${URL.createObjectURL(file)}" alt="${file.name.replace(/"/g, '&quot;')}">`
+                    : `<div class="saas-uploader-fileicon">${(file.name.split('.').pop() || 'DOC').slice(0, 4).toUpperCase()}</div>`;
+                item.innerHTML = `
+                    ${preview}
+                    <div class="saas-uploader-copy">
+                        <strong>${file.name}</strong>
+                        <small>${file.type || 'arquivo'} - ${formatSize(file.size)}</small>
+                    </div>
+                    <button class="saas-uploader-remove" type="button" data-remove-index="${index}">Remover</button>
+                `;
+                list.appendChild(item);
+            });
+        };
+
+        const appendFiles = (incoming) => {
+            const current = getFiles();
+            const next = [...current];
+            Array.from(incoming || []).forEach((file) => {
+                if (!(file instanceof File)) return;
+                if (next.length >= 8) return;
+                next.push(file);
+            });
+            syncFiles(next);
+            render();
+        };
+
+        input.addEventListener('change', () => render());
+        dropzone.addEventListener('click', () => input.click());
+        dropzone.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                input.click();
+            }
+        });
+        ['dragenter', 'dragover'].forEach((type) => {
+            dropzone.addEventListener(type, (event) => {
+                event.preventDefault();
+                root.classList.add('is-dragover');
+            });
+        });
+        ['dragleave', 'dragend', 'drop'].forEach((type) => {
+            dropzone.addEventListener(type, (event) => {
+                event.preventDefault();
+                root.classList.remove('is-dragover');
+            });
+        });
+        dropzone.addEventListener('drop', (event) => {
+            appendFiles(event.dataTransfer?.files || []);
+        });
+        form.addEventListener('paste', (event) => {
+            if (!form.contains(document.activeElement)) {
+                return;
+            }
+            const clipboardFiles = Array.from(event.clipboardData?.files || []);
+            if (clipboardFiles.length === 0) {
+                return;
+            }
+            event.preventDefault();
+            appendFiles(clipboardFiles);
+        });
+        list.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-remove-index]');
+            if (!button) return;
+            const removeIndex = Number(button.getAttribute('data-remove-index'));
+            const next = getFiles().filter((_, index) => index !== removeIndex);
+            syncFiles(next);
+            render();
+        });
+    });
+})();
+</script>

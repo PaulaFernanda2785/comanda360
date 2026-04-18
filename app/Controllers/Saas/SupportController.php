@@ -40,7 +40,7 @@ final class SupportController extends Controller
         $userId = (int) ($user['id'] ?? 0);
 
         try {
-            $this->service->replyToTicket($userId, $request->all());
+            $this->service->replyToTicket($userId, $request->all(), $request->files);
             return $this->backWithSuccess('Resposta registrada no historico do chamado.', $redirectTo);
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), $redirectTo);

@@ -1427,6 +1427,10 @@ final class DashboardRepository extends BaseRepository
                 sender_user_id,
                 sender_context,
                 message,
+                attachment_path,
+                attachment_original_name,
+                attachment_mime_type,
+                attachment_size_bytes,
                 created_at,
                 updated_at
             ) VALUES (
@@ -1434,6 +1438,10 @@ final class DashboardRepository extends BaseRepository
                 :sender_user_id,
                 :sender_context,
                 :message,
+                :attachment_path,
+                :attachment_original_name,
+                :attachment_mime_type,
+                :attachment_size_bytes,
                 NOW(),
                 NOW()
             )
@@ -1443,9 +1451,54 @@ final class DashboardRepository extends BaseRepository
             'sender_user_id' => $data['sender_user_id'],
             'sender_context' => $data['sender_context'],
             'message' => $data['message'],
+            'attachment_path' => $data['attachment_path'] ?? null,
+            'attachment_original_name' => $data['attachment_original_name'] ?? null,
+            'attachment_mime_type' => $data['attachment_mime_type'] ?? null,
+            'attachment_size_bytes' => $data['attachment_size_bytes'] ?? null,
         ]);
 
         return (int) $this->db()->lastInsertId();
+    }
+
+    public function createSupportTicketMessageAttachments(int $messageId, array $attachments): void
+    {
+        if ($messageId <= 0 || $attachments === []) {
+            return;
+        }
+
+        $stmt = $this->db()->prepare("
+            INSERT INTO support_ticket_message_attachments (
+                message_id,
+                stored_path,
+                original_name,
+                mime_type,
+                size_bytes,
+                created_at,
+                updated_at
+            ) VALUES (
+                :message_id,
+                :stored_path,
+                :original_name,
+                :mime_type,
+                :size_bytes,
+                NOW(),
+                NOW()
+            )
+        ");
+
+        foreach ($attachments as $attachment) {
+            if (!is_array($attachment)) {
+                continue;
+            }
+
+            $stmt->execute([
+                'message_id' => $messageId,
+                'stored_path' => $attachment['attachment_path'] ?? null,
+                'original_name' => $attachment['attachment_original_name'] ?? null,
+                'mime_type' => $attachment['attachment_mime_type'] ?? null,
+                'size_bytes' => $attachment['attachment_size_bytes'] ?? null,
+            ]);
+        }
     }
 
     public function listSupportTicketMessagesByTicketIds(array $ticketIds): array
@@ -1478,6 +1531,10 @@ final class DashboardRepository extends BaseRepository
                 stm.sender_user_id,
                 stm.sender_context,
                 stm.message,
+                stm.attachment_path,
+                stm.attachment_original_name,
+                stm.attachment_mime_type,
+                stm.attachment_size_bytes,
                 stm.created_at,
                 stm.updated_at,
                 u.name AS sender_user_name,
@@ -1508,6 +1565,129 @@ final class DashboardRepository extends BaseRepository
         }
 
         return $grouped;
+    }
+
+    public function listSupportTicketAttachmentsByMessageIds(array $messageIds): array
+    {
+        $normalizedIds = [];
+        foreach ($messageIds as $messageId) {
+            $value = (int) $messageId;
+            if ($value > 0) {
+                $normalizedIds[$value] = true;
+            }
+        }
+
+        $ids = array_keys($normalizedIds);
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = [];
+        $params = [];
+        foreach ($ids as $index => $messageId) {
+            $key = 'message_id_' . $index;
+            $placeholders[] = ':' . $key;
+            $params[$key] = $messageId;
+        }
+
+        $stmt = $this->db()->prepare("
+            SELECT
+                id,
+                message_id,
+                stored_path,
+                original_name,
+                mime_type,
+                size_bytes,
+                created_at,
+                updated_at
+            FROM support_ticket_message_attachments
+            WHERE message_id IN (" . implode(', ', $placeholders) . ")
+            ORDER BY id ASC
+        ");
+        $stmt->execute($params);
+
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $grouped = [];
+        foreach ($rows as $row) {
+            $messageId = (int) ($row['message_id'] ?? 0);
+            if ($messageId <= 0) {
+                continue;
+            }
+
+            if (!isset($grouped[$messageId])) {
+                $grouped[$messageId] = [];
+            }
+
+            $grouped[$messageId][] = [
+                'id' => (int) ($row['id'] ?? 0),
+                'message_id' => $messageId,
+                'attachment_path' => (string) ($row['stored_path'] ?? ''),
+                'attachment_original_name' => (string) ($row['original_name'] ?? ''),
+                'attachment_mime_type' => (string) ($row['mime_type'] ?? ''),
+                'attachment_size_bytes' => (int) ($row['size_bytes'] ?? 0),
+                'created_at' => (string) ($row['created_at'] ?? ''),
+                'updated_at' => (string) ($row['updated_at'] ?? ''),
+            ];
+        }
+
+        return $grouped;
+    }
+
+    public function findSupportTicketAttachmentById(int $attachmentId): ?array
+    {
+        $stmt = $this->db()->prepare("
+            SELECT
+                sta.id,
+                sta.message_id,
+                sta.stored_path AS attachment_path,
+                sta.original_name AS attachment_original_name,
+                sta.mime_type AS attachment_mime_type,
+                sta.size_bytes AS attachment_size_bytes,
+                stm.ticket_id,
+                stm.sender_context,
+                st.company_id
+            FROM support_ticket_message_attachments sta
+            INNER JOIN support_ticket_messages stm
+                ON stm.id = sta.message_id
+            INNER JOIN support_tickets st
+                ON st.id = stm.ticket_id
+            WHERE sta.id = :attachment_id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'attachment_id' => $attachmentId,
+        ]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public function findSupportTicketMessageAttachmentById(int $messageId): ?array
+    {
+        $stmt = $this->db()->prepare("
+            SELECT
+                stm.id,
+                stm.ticket_id,
+                stm.sender_context,
+                stm.attachment_path,
+                stm.attachment_original_name,
+                stm.attachment_mime_type,
+                stm.attachment_size_bytes,
+                st.company_id
+            FROM support_ticket_messages stm
+            INNER JOIN support_tickets st
+                ON st.id = stm.ticket_id
+            WHERE stm.id = :message_id
+              AND stm.attachment_path IS NOT NULL
+              AND stm.attachment_path <> ''
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'message_id' => $messageId,
+        ]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
     }
 
     public function updateSupportTicketConversationState(int $ticketId, array $data): void
@@ -1591,6 +1771,13 @@ final class DashboardRepository extends BaseRepository
                     WHERE stm.ticket_id = st.id
                       AND (
                           LOWER(COALESCE(stm.message, '')) LIKE :support_search
+                          OR LOWER(COALESCE(stm.attachment_original_name, '')) LIKE :support_search
+                          OR EXISTS (
+                              SELECT 1
+                              FROM support_ticket_message_attachments sta
+                              WHERE sta.message_id = stm.id
+                                AND LOWER(COALESCE(sta.original_name, '')) LIKE :support_search
+                          )
                           OR LOWER(COALESCE(su.name, '')) LIKE :support_search
                       )
                 )

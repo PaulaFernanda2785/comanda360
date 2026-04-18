@@ -5,6 +5,7 @@ namespace App\Services\Admin;
 
 use App\Exceptions\ValidationException;
 use App\Repositories\DashboardRepository;
+use App\Services\Shared\SupportAttachmentService;
 
 final class DashboardService
 {
@@ -76,7 +77,8 @@ final class DashboardService
     private const DEFAULT_FOOTER_TEXT = 'Comanda360 - Sistema de gestao de atendimento e vendas.';
 
     public function __construct(
-        private readonly DashboardRepository $repository = new DashboardRepository()
+        private readonly DashboardRepository $repository = new DashboardRepository(),
+        private readonly SupportAttachmentService $supportAttachments = new SupportAttachmentService()
     ) {}
 
     public function panel(int $companyId, array $filters): array
@@ -721,7 +723,7 @@ final class DashboardService
         }
     }
 
-    public function openSupportTicket(int $companyId, int $openedByUserId, array $input): int
+    public function openSupportTicket(int $companyId, int $openedByUserId, array $input, array $files = []): int
     {
         if ($companyId <= 0 || $openedByUserId <= 0) {
             throw new ValidationException('Contexto invalido para abertura de chamado.');
@@ -730,6 +732,8 @@ final class DashboardService
         $subject = trim((string) ($input['subject'] ?? ''));
         $description = trim((string) ($input['description'] ?? ''));
         $priority = strtolower(trim((string) ($input['priority'] ?? 'medium')));
+        $attachmentFiles = $files['attachments'] ?? [];
+        $hasAttachments = $this->hasUploadedSupportAttachments($attachmentFiles);
 
         if ($subject === '') {
             throw new ValidationException('Informe o assunto do chamado tecnico.');
@@ -739,36 +743,51 @@ final class DashboardService
             throw new ValidationException('O assunto deve ter no maximo 180 caracteres.');
         }
 
-        if ($description === '') {
-            throw new ValidationException('Descreva o chamado para a equipe tecnica.');
+        if ($description === '' && !$hasAttachments) {
+            throw new ValidationException('Descreva o chamado ou anexe arquivos para a equipe tecnica.');
         }
 
         if (!in_array($priority, self::ALLOWED_SUPPORT_PRIORITY, true)) {
             throw new ValidationException('Prioridade invalida para o chamado.');
         }
 
-        return $this->repository->transaction(function () use ($companyId, $openedByUserId, $subject, $description, $priority): int {
-            $ticketId = $this->repository->createSupportTicket([
-                'company_id' => $companyId,
-                'opened_by_user_id' => $openedByUserId,
-                'assigned_to_user_id' => $this->repository->findDefaultSupportAssignee(),
-                'subject' => $subject,
-                'description' => $description,
-                'priority' => $priority,
-            ]);
+        $storedAttachments = [];
 
-            $this->repository->createSupportTicketMessage([
-                'ticket_id' => $ticketId,
-                'sender_user_id' => $openedByUserId,
-                'sender_context' => 'company',
-                'message' => $description,
-            ]);
+        try {
+            return $this->repository->transaction(function () use ($companyId, $openedByUserId, $subject, $description, $priority, $attachmentFiles, &$storedAttachments): int {
+                $ticketId = $this->repository->createSupportTicket([
+                    'company_id' => $companyId,
+                    'opened_by_user_id' => $openedByUserId,
+                    'assigned_to_user_id' => $this->repository->findDefaultSupportAssignee(),
+                    'subject' => $subject,
+                    'description' => $description,
+                    'priority' => $priority,
+                ]);
 
-            return $ticketId;
-        });
+                $messageId = $this->repository->createSupportTicketMessage([
+                    'ticket_id' => $ticketId,
+                    'sender_user_id' => $openedByUserId,
+                    'sender_context' => 'company',
+                    'message' => $description,
+                ]);
+
+                $storedAttachments = $this->supportAttachments->storeAttachments(
+                    $companyId,
+                    $ticketId,
+                    $messageId,
+                    $attachmentFiles
+                );
+                $this->repository->createSupportTicketMessageAttachments($messageId, $storedAttachments);
+
+                return $ticketId;
+            });
+        } catch (\Throwable $e) {
+            $this->supportAttachments->deleteAttachments($storedAttachments);
+            throw $e;
+        }
     }
 
-    public function replySupportTicket(int $companyId, int $ticketId, int $userId, array $input): void
+    public function replySupportTicket(int $companyId, int $ticketId, int $userId, array $input, array $files = []): void
     {
         if ($companyId <= 0 || $ticketId <= 0 || $userId <= 0) {
             throw new ValidationException('Contexto invalido para resposta do chamado.');
@@ -780,27 +799,44 @@ final class DashboardService
         }
 
         $message = trim((string) ($input['message'] ?? ''));
-        if ($message === '') {
-            throw new ValidationException('Escreva a mensagem para continuar a conversa do chamado.');
+        $attachmentFiles = $files['attachments'] ?? [];
+        $hasAttachments = $this->hasUploadedSupportAttachments($attachmentFiles);
+        if ($message === '' && !$hasAttachments) {
+            throw new ValidationException('Escreva a mensagem ou anexe arquivos para continuar a conversa do chamado.');
         }
 
         $currentStatus = strtolower(trim((string) ($ticket['status'] ?? 'open')));
         $nextStatus = in_array($currentStatus, ['resolved', 'closed'], true) ? 'open' : $currentStatus;
 
-        $this->repository->transaction(function () use ($ticketId, $userId, $message, $ticket, $nextStatus): void {
-            $this->repository->createSupportTicketMessage([
-                'ticket_id' => $ticketId,
-                'sender_user_id' => $userId,
-                'sender_context' => 'company',
-                'message' => $message,
-            ]);
+        $storedAttachments = [];
 
-            $this->repository->updateSupportTicketConversationState($ticketId, [
-                'assigned_to_user_id' => (int) ($ticket['assigned_to_user_id'] ?? 0),
-                'status' => $nextStatus,
-                'closed_at' => $nextStatus === 'closed' ? date('Y-m-d H:i:s') : null,
-            ]);
-        });
+        try {
+            $this->repository->transaction(function () use ($ticketId, $userId, $message, $ticket, $nextStatus, $companyId, $attachmentFiles, &$storedAttachments): void {
+                $messageId = $this->repository->createSupportTicketMessage([
+                    'ticket_id' => $ticketId,
+                    'sender_user_id' => $userId,
+                    'sender_context' => 'company',
+                    'message' => $message,
+                ]);
+
+                $storedAttachments = $this->supportAttachments->storeAttachments(
+                    $companyId,
+                    $ticketId,
+                    $messageId,
+                    $attachmentFiles
+                );
+                $this->repository->createSupportTicketMessageAttachments($messageId, $storedAttachments);
+
+                $this->repository->updateSupportTicketConversationState($ticketId, [
+                    'assigned_to_user_id' => (int) ($ticket['assigned_to_user_id'] ?? 0),
+                    'status' => $nextStatus,
+                    'closed_at' => $nextStatus === 'closed' ? date('Y-m-d H:i:s') : null,
+                ]);
+            });
+        } catch (\Throwable $e) {
+            $this->supportAttachments->deleteAttachments($storedAttachments);
+            throw $e;
+        }
     }
 
     private function resolveReportViewsStatus(): array
@@ -916,10 +952,21 @@ final class DashboardService
             static fn (array $ticket): int => (int) ($ticket['id'] ?? 0),
             $items
         )));
-        $threads = $this->hydrateSupportThreads(
-            $items,
-            $this->repository->listSupportTicketMessagesByTicketIds($ticketIds)
-        );
+        $messagesByTicketId = $this->repository->listSupportTicketMessagesByTicketIds($ticketIds);
+        $messageIds = [];
+        foreach ($messagesByTicketId as $ticketMessages) {
+            if (!is_array($ticketMessages)) {
+                continue;
+            }
+            foreach ($ticketMessages as $message) {
+                $messageId = (int) ($message['id'] ?? 0);
+                if ($messageId > 0) {
+                    $messageIds[] = $messageId;
+                }
+            }
+        }
+        $attachmentsByMessageId = $this->repository->listSupportTicketAttachmentsByMessageIds($messageIds);
+        $threads = $this->hydrateSupportThreads($items, $messagesByTicketId, $attachmentsByMessageId);
 
         return [
             'tickets' => $items,
@@ -946,7 +993,7 @@ final class DashboardService
         ];
     }
 
-    private function hydrateSupportThreads(array $tickets, array $messagesByTicketId): array
+    private function hydrateSupportThreads(array $tickets, array $messagesByTicketId, array $attachmentsByMessageId): array
     {
         $threads = [];
         foreach ($tickets as $ticket) {
@@ -967,8 +1014,18 @@ final class DashboardService
                     'updated_at' => (string) ($ticket['updated_at'] ?? ''),
                     'sender_user_name' => (string) ($ticket['opened_by_user_name'] ?? '-'),
                     'sender_role_name' => 'Empresa',
+                    'attachments' => [],
                 ];
             }
+
+            foreach ($messages as &$message) {
+                $messageId = (int) ($message['id'] ?? 0);
+                $message['attachments'] = $this->resolveSupportMessageAttachments(
+                    $message,
+                    is_array($attachmentsByMessageId[$messageId] ?? null) ? $attachmentsByMessageId[$messageId] : []
+                );
+            }
+            unset($message);
 
             $threads[$ticketId] = $messages;
         }
@@ -1071,6 +1128,53 @@ final class DashboardService
         $result = array_keys($normalized);
         sort($result);
         return $result;
+    }
+
+    private function hasUploadedSupportAttachments(mixed $files): bool
+    {
+        if (!is_array($files)) {
+            return false;
+        }
+
+        $errors = $files['error'] ?? null;
+        if (is_array($errors)) {
+            foreach ($errors as $error) {
+                if ((int) $error !== UPLOAD_ERR_NO_FILE) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        return (int) ($files['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
+    }
+
+    private function resolveSupportMessageAttachments(array $message, array $attachments): array
+    {
+        $resolved = [];
+        foreach ($attachments as $attachment) {
+            if (!is_array($attachment)) {
+                continue;
+            }
+
+            $attachment['is_image'] = $this->supportAttachments->isImageMimeType((string) ($attachment['attachment_mime_type'] ?? ''));
+            $resolved[] = $attachment;
+        }
+
+        $legacyPath = trim((string) ($message['attachment_path'] ?? ''));
+        if ($legacyPath !== '') {
+            $resolved[] = [
+                'id' => 0,
+                'message_id' => (int) ($message['id'] ?? 0),
+                'attachment_path' => $legacyPath,
+                'attachment_original_name' => (string) ($message['attachment_original_name'] ?? 'Anexo'),
+                'attachment_mime_type' => (string) ($message['attachment_mime_type'] ?? 'application/octet-stream'),
+                'attachment_size_bytes' => (int) ($message['attachment_size_bytes'] ?? 0),
+                'is_image' => $this->supportAttachments->isImageMimeType((string) ($message['attachment_mime_type'] ?? '')),
+            ];
+        }
+
+        return $resolved;
     }
 
     private function normalizePermissionIds(mixed $rawPermissionIds): array

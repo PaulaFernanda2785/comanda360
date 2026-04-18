@@ -3,13 +3,21 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Request;
 use App\Core\Response;
+use App\Repositories\DashboardRepository;
+use App\Services\Shared\SupportAttachmentService;
 use RuntimeException;
 
 final class MediaController extends Controller
 {
+    public function __construct(
+        private readonly DashboardRepository $dashboard = new DashboardRepository(),
+        private readonly SupportAttachmentService $supportAttachments = new SupportAttachmentService()
+    ) {}
+
     public function company(Request $request): Response
     {
         $rawPath = trim((string) $request->input('path', ''));
@@ -174,6 +182,60 @@ final class MediaController extends Controller
         return Response::make($content, 200, [
             'Content-Type' => 'image/png',
             'Cache-Control' => 'public, max-age=31536000',
+        ]);
+    }
+
+    public function supportAttachment(Request $request): Response
+    {
+        $user = Auth::user() ?? [];
+        if ($user === []) {
+            return Response::make('Autenticacao obrigatoria.', 401, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        $attachmentId = (int) $request->input('attachment_id', 0);
+        $messageId = (int) $request->input('message_id', 0);
+        if ($attachmentId <= 0 && $messageId <= 0) {
+            return Response::make('Anexo nao informado.', 404, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        $attachment = $attachmentId > 0
+            ? $this->dashboard->findSupportTicketAttachmentById($attachmentId)
+            : $this->dashboard->findSupportTicketMessageAttachmentById($messageId);
+        if ($attachment === null) {
+            return Response::make('Anexo nao encontrado.', 404, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        $isSaasUser = (int) ($user['is_saas_user'] ?? 0) === 1
+            || strtolower(trim((string) ($user['role_context'] ?? ''))) === 'saas';
+        $sameCompany = (int) ($user['company_id'] ?? 0) > 0
+            && (int) ($attachment['company_id'] ?? 0) === (int) ($user['company_id'] ?? 0);
+
+        if (!$isSaasUser && !$sameCompany) {
+            return Response::make('Acesso negado ao anexo.', 403, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        $absolutePath = $this->supportAttachments->resolveAbsolutePath((string) ($attachment['attachment_path'] ?? ''));
+        if ($absolutePath === null) {
+            return Response::make('Arquivo do anexo nao encontrado no servidor.', 404, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        $content = file_get_contents($absolutePath);
+        if ($content === false) {
+            return Response::make('Falha ao ler o anexo.', 500, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        $mime = trim((string) ($attachment['attachment_mime_type'] ?? ''));
+        if ($mime === '') {
+            $mime = 'application/octet-stream';
+        }
+
+        $downloadName = trim((string) ($attachment['attachment_original_name'] ?? 'anexo'));
+        $downloadName = str_replace(["\r", "\n", '"'], [' ', ' ', "'"], $downloadName);
+
+        return Response::make($content, 200, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'inline; filename="' . $downloadName . '"',
+            'Cache-Control' => 'private, no-store',
         ]);
     }
 

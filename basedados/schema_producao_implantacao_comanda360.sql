@@ -1329,6 +1329,10 @@ CREATE TABLE IF NOT EXISTS support_ticket_messages (
     sender_user_id BIGINT UNSIGNED NOT NULL COMMENT 'Usuario que enviou a mensagem',
     sender_context VARCHAR(20) NOT NULL COMMENT 'Origem do remetente: empresa ou SaaS',
     message TEXT NOT NULL COMMENT 'Conteudo textual da mensagem',
+    attachment_path VARCHAR(255) NULL COMMENT 'Caminho interno do anexo da mensagem',
+    attachment_original_name VARCHAR(190) NULL COMMENT 'Nome original do arquivo anexado',
+    attachment_mime_type VARCHAR(120) NULL COMMENT 'Tipo MIME validado do anexo',
+    attachment_size_bytes INT UNSIGNED NULL COMMENT 'Tamanho do anexo em bytes',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Data/hora de criacao da mensagem',
     updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Data/hora da ultima alteracao da mensagem',
     CONSTRAINT fk_support_ticket_messages_ticket
@@ -1347,5 +1351,23 @@ CREATE TABLE IF NOT EXISTS support_ticket_messages (
 CREATE INDEX idx_support_ticket_messages_ticket_id ON support_ticket_messages(ticket_id);
 CREATE INDEX idx_support_ticket_messages_sender_user_id ON support_ticket_messages(sender_user_id);
 CREATE INDEX idx_support_ticket_messages_created_at ON support_ticket_messages(created_at);
+
+CREATE TABLE IF NOT EXISTS support_ticket_message_attachments (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT 'Identificador do anexo da mensagem',
+    message_id BIGINT UNSIGNED NOT NULL COMMENT 'Mensagem do chamado que recebeu o anexo',
+    stored_path VARCHAR(255) NOT NULL COMMENT 'Caminho interno do arquivo salvo em storage',
+    original_name VARCHAR(190) NOT NULL COMMENT 'Nome original enviado pelo usuario',
+    mime_type VARCHAR(120) NOT NULL COMMENT 'Tipo MIME validado do arquivo',
+    size_bytes INT UNSIGNED NOT NULL COMMENT 'Tamanho do arquivo em bytes',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Data/hora de criacao do anexo',
+    updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Data/hora da ultima alteracao do anexo',
+    CONSTRAINT fk_support_ticket_message_attachments_message
+        FOREIGN KEY (message_id) REFERENCES support_ticket_messages(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Anexos multiplos vinculados a cada mensagem do suporte';
+
+CREATE INDEX idx_support_ticket_message_attachments_message_id ON support_ticket_message_attachments(message_id);
+CREATE INDEX idx_support_ticket_message_attachments_created_at ON support_ticket_message_attachments(created_at);
 
 SET foreign_key_checks = 1;
