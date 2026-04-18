@@ -76,6 +76,7 @@ $routeMatches = static function (string $path, array $routes): bool {
             --theme-primary:#1d4ed8;
             --theme-accent:#0891b2;
             --theme-dark:#0f172a;
+            --theme-main-card:#0f172a;
             --line:#dbe2ea;
             --surface:#ffffff;
         }

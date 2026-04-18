@@ -146,6 +146,10 @@ final class SubscriptionPaymentService
             throw new ValidationException('Nao e permitido dar baixa em cobranca cancelada.');
         }
 
+        if ((string) ($payment['status'] ?? '') === 'pago') {
+            throw new ValidationException('Esta cobranca ja esta marcada como paga.');
+        }
+
         $this->subscriptionPayments->updateStatus(
             $paymentId,
             'pago',
@@ -314,9 +318,19 @@ final class SubscriptionPaymentService
             $page = 1;
         }
 
+        $search = trim((string) ($input['search'] ?? ''));
+        if (strlen($search) > 80) {
+            $search = substr($search, 0, 80);
+        }
+
+        $status = strtolower(trim((string) ($input['status'] ?? '')));
+        if ($status !== '' && !in_array($status, ['pendente', 'pago', 'vencido', 'cancelado'], true)) {
+            $status = '';
+        }
+
         return [
-            'search' => trim((string) ($input['search'] ?? '')),
-            'status' => trim((string) ($input['status'] ?? '')),
+            'search' => $search,
+            'status' => $status,
             'page' => $page,
             'per_page' => self::PAYMENT_LIST_PER_PAGE,
         ];

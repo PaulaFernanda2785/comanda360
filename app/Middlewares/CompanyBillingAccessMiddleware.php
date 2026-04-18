@@ -59,6 +59,10 @@ final class CompanyBillingAccessMiddleware
             return in_array($section, ['support', 'subscription'], true);
         }
 
+        if ($path === '/account/password') {
+            return true;
+        }
+
         return str_starts_with($path, '/admin/dashboard/support/')
             || str_starts_with($path, '/admin/dashboard/subscription/');
     }

@@ -228,7 +228,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
 
 <style>
     .stock-page{display:grid;gap:16px}
-    .stock-hero{border:1px solid #bfdbfe;background:linear-gradient(120deg,#0f172a 0%,#1d4ed8 46%,#0f766e 100%);color:#fff;border-radius:18px;padding:22px;position:relative;overflow:hidden}
+    .stock-hero{border:1px solid #bfdbfe;background:linear-gradient(120deg,var(--theme-main-card,#0f172a) 0%,#1d4ed8 46%,#0f766e 100%);color:#fff;border-radius:18px;padding:22px;position:relative;overflow:hidden}
     .stock-hero:before{content:"";position:absolute;top:-48px;right:-20px;width:210px;height:210px;border-radius:999px;background:rgba(255,255,255,.09)}
     .stock-hero:after{content:"";position:absolute;bottom:-82px;left:-30px;width:190px;height:190px;border-radius:999px;background:rgba(255,255,255,.08)}
     .stock-hero-body{position:relative;z-index:1;display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}

@@ -102,7 +102,7 @@ $dateInputValue = static function (mixed $value): string {
 
 <style>
     .saas-company-page{display:grid;gap:16px}
-    .saas-company-hero{border:1px solid #bfdbfe;background:linear-gradient(118deg,#0f172a 0%,#1d4ed8 55%,#0f766e 100%);color:#fff;border-radius:16px;padding:18px;position:relative;overflow:hidden}
+    .saas-company-hero{border:1px solid #bfdbfe;background:linear-gradient(118deg,var(--theme-main-card,#0f172a) 0%,#1d4ed8 55%,#0f766e 100%);color:#fff;border-radius:16px;padding:18px;position:relative;overflow:hidden}
     .saas-company-hero:before{content:"";position:absolute;top:-54px;right:-38px;width:216px;height:216px;border-radius:999px;background:rgba(255,255,255,.11)}
     .saas-company-hero:after{content:"";position:absolute;bottom:-74px;left:-32px;width:180px;height:180px;border-radius:999px;background:rgba(255,255,255,.08)}
     .saas-company-hero-body{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}

@@ -36,8 +36,8 @@ final class AccountService
         }
 
         $currentPassword = (string) ($input['current_password'] ?? '');
-        $newPassword = trim((string) ($input['password'] ?? ''));
-        $confirmPassword = trim((string) ($input['password_confirm'] ?? ''));
+        $newPassword = (string) ($input['password'] ?? '');
+        $confirmPassword = (string) ($input['password_confirm'] ?? '');
 
         if ($currentPassword === '') {
             throw new ValidationException('Informe a senha atual.');

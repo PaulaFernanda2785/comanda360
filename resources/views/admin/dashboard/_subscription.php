@@ -94,7 +94,7 @@ $nextDueDate = $subscriptionSummary['next_due_date'] ?? ($subscriptionBillingAcc
 <section class="dash-section<?= $activeSection === 'subscription' ? ' active' : '' ?>" data-section="subscription">
     <style>
         .sp-shell{display:grid;gap:14px}
-        .sp-hero{border:1px solid #bfdbfe;border-radius:16px;background:linear-gradient(130deg,#0f172a 0%,#0f766e 55%,#2dd4bf 100%);color:#fff;padding:18px}
+        .sp-hero{border:1px solid #bfdbfe;border-radius:16px;background:linear-gradient(130deg,var(--theme-main-card,#0f172a) 0%,#0f766e 55%,#2dd4bf 100%);color:#fff;padding:18px}
         .sp-hero h2{margin:0 0 8px;color:#fff}
         .sp-hero p{margin:0;max-width:860px;color:#ccfbf1;line-height:1.5}
         .sp-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}

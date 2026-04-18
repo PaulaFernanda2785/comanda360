@@ -55,7 +55,7 @@ $paymentLabel = $paymentStatusFilter !== '' ? status_label('order_payment_status
     .report-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
     .report-actions .btn{min-width:170px;text-align:center}
     .report-paper{background:#fff;border:1px solid #dbeafe;border-radius:14px;box-shadow:0 12px 28px rgba(15,23,42,.12);overflow:hidden}
-    .report-header{background:linear-gradient(120deg,#0f172a 0%,#1e293b 55%,#334155 100%);color:#fff;padding:18px 20px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+    .report-header{background:linear-gradient(120deg,var(--theme-main-card,#0f172a) 0%,#1e293b 55%,#334155 100%);color:#fff;padding:18px 20px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
     .report-header h1{margin:0;font-size:24px}
     .report-header p{margin:8px 0 0;color:#cbd5e1;max-width:720px}
     .report-id{font-size:12px;background:rgba(255,255,255,.12);padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.25)}

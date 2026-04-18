@@ -4,7 +4,7 @@ $subscriptions = is_array($subscriptions ?? null) ? $subscriptions : [];
 
 <style>
     .saas-charge-create{display:grid;gap:16px}
-    .saas-charge-create-hero{border:1px solid #c7d2fe;background:linear-gradient(125deg,#0f172a 0%,#1d4ed8 52%,#0f766e 100%);color:#fff;border-radius:18px;padding:20px;position:relative;overflow:hidden}
+    .saas-charge-create-hero{border:1px solid #c7d2fe;background:linear-gradient(125deg,var(--theme-main-card,#0f172a) 0%,#1d4ed8 52%,#0f766e 100%);color:#fff;border-radius:18px;padding:20px;position:relative;overflow:hidden}
     .saas-charge-create-hero:before{content:"";position:absolute;top:-52px;right:-26px;width:190px;height:190px;border-radius:999px;background:rgba(255,255,255,.12)}
     .saas-charge-create-hero:after{content:"";position:absolute;bottom:-66px;left:-34px;width:166px;height:166px;border-radius:999px;background:rgba(255,255,255,.08)}
     .saas-charge-create-hero-body{position:relative;z-index:1;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}

@@ -125,7 +125,7 @@ $formatDateTime = static function (mixed $value): string {
 <section class="dash-section<?= $activeSection === 'users' ? ' active' : '' ?>" data-section="users">
     <style>
         .iu-shell{display:grid;gap:14px}
-        .iu-hero{border:1px solid #bfdbfe;background:linear-gradient(118deg,#0f172a 0%,#1e3a8a 58%,#0ea5e9 100%);color:#fff;border-radius:14px;padding:16px;position:relative;overflow:hidden}
+        .iu-hero{border:1px solid #bfdbfe;background:linear-gradient(118deg,var(--theme-main-card,#0f172a) 0%,#1e3a8a 58%,#0ea5e9 100%);color:#fff;border-radius:14px;padding:16px;position:relative;overflow:hidden}
         .iu-hero:before{content:"";position:absolute;top:-60px;right:-48px;width:210px;height:210px;border-radius:999px;background:rgba(255,255,255,.12)}
         .iu-hero:after{content:"";position:absolute;bottom:-70px;left:-34px;width:180px;height:180px;border-radius:999px;background:rgba(255,255,255,.1)}
         .iu-hero-body{position:relative;z-index:1;display:flex;gap:12px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}

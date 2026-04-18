@@ -681,8 +681,8 @@ final class DashboardService
             throw new ValidationException('Usuario nao encontrado para a empresa autenticada.');
         }
 
-        $newPassword = trim((string) ($input['password'] ?? ''));
-        $confirmPassword = trim((string) ($input['password_confirm'] ?? ''));
+        $newPassword = (string) ($input['password'] ?? '');
+        $confirmPassword = (string) ($input['password_confirm'] ?? '');
 
         if ($newPassword === '') {
             throw new ValidationException('Informe a nova senha do usuario.');
@@ -712,11 +712,11 @@ final class DashboardService
             $this->updateInternalUserStatus($companyId, $userId, $currentUserId, $input['status']);
         }
 
-        $newPassword = trim((string) ($input['password'] ?? ''));
+        $newPassword = (string) ($input['password'] ?? '');
         if ($newPassword !== '') {
             $this->updateInternalUserPassword($companyId, $userId, [
                 'password' => $newPassword,
-                'password_confirm' => trim((string) ($input['password_confirm'] ?? $newPassword)),
+                'password_confirm' => (string) ($input['password_confirm'] ?? $newPassword),
             ]);
         }
     }

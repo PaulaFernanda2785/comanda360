@@ -158,7 +158,7 @@ $supportChartTotal = max(
 
 <style>
     .saas-command-page{display:grid;gap:16px}
-    .saas-command-hero{border:1px solid #bfdbfe;background:linear-gradient(120deg,#0f172a 0%,#1d4ed8 42%,#0f766e 100%);color:#fff;border-radius:18px;padding:20px;position:relative;overflow:hidden}
+    .saas-command-hero{border:1px solid #bfdbfe;background:linear-gradient(120deg,var(--theme-main-card,#0f172a) 0%,#1d4ed8 42%,#0f766e 100%);color:#fff;border-radius:18px;padding:20px;position:relative;overflow:hidden}
     .saas-command-hero:before{content:"";position:absolute;top:-54px;right:-34px;width:220px;height:220px;border-radius:999px;background:rgba(255,255,255,.11)}
     .saas-command-hero:after{content:"";position:absolute;bottom:-82px;left:-38px;width:190px;height:190px;border-radius:999px;background:rgba(255,255,255,.08)}
     .saas-command-hero-body{position:relative;z-index:1;display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap}

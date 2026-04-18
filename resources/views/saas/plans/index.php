@@ -124,7 +124,7 @@ $featureStateFromJson = static function (mixed $value) use ($featureCatalog): ar
 
 <style>
     .saas-plan-page{display:grid;gap:16px}
-    .saas-plan-hero{border:1px solid #bfdbfe;background:linear-gradient(118deg,#0f172a 0%,#1d4ed8 52%,#7c3aed 100%);color:#fff;border-radius:16px;padding:18px;position:relative;overflow:hidden}
+    .saas-plan-hero{border:1px solid #bfdbfe;background:linear-gradient(118deg,var(--theme-main-card,#0f172a) 0%,#1d4ed8 52%,#7c3aed 100%);color:#fff;border-radius:16px;padding:18px;position:relative;overflow:hidden}
     .saas-plan-hero:before{content:"";position:absolute;top:-54px;right:-38px;width:216px;height:216px;border-radius:999px;background:rgba(255,255,255,.11)}
     .saas-plan-hero:after{content:"";position:absolute;bottom:-74px;left:-32px;width:180px;height:180px;border-radius:999px;background:rgba(255,255,255,.08)}
     .saas-plan-hero-body{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}

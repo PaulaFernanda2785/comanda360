@@ -102,7 +102,7 @@ $formatSupportDate = static function (mixed $value): string {
 
 <style>
     .saas-support-page{display:grid;gap:16px}
-    .saas-support-hero{border:1px solid #bfdbfe;background:linear-gradient(118deg,#0f172a 0%,#1e3a8a 58%,#0891b2 100%);color:#fff;border-radius:16px;padding:18px;position:relative;overflow:hidden}
+    .saas-support-hero{border:1px solid #bfdbfe;background:linear-gradient(118deg,var(--theme-main-card,#0f172a) 0%,#1e3a8a 58%,#0891b2 100%);color:#fff;border-radius:16px;padding:18px;position:relative;overflow:hidden}
     .saas-support-hero:before{content:"";position:absolute;top:-56px;right:-42px;width:220px;height:220px;border-radius:999px;background:rgba(255,255,255,.12)}
     .saas-support-hero:after{content:"";position:absolute;bottom:-78px;left:-36px;width:185px;height:185px;border-radius:999px;background:rgba(255,255,255,.1)}
     .saas-support-hero-body{position:relative;z-index:1;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}

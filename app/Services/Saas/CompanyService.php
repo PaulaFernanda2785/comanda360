@@ -248,9 +248,9 @@ final class CompanyService
             throw new ValidationException('Informe um e-mail valido para a empresa.');
         }
 
-        $initialAdminPassword = trim((string) ($input['initial_admin_password'] ?? ''));
+        $initialAdminPassword = (string) ($input['initial_admin_password'] ?? '');
         if ($existing === null) {
-            if ($initialAdminPassword === '') {
+            if ($initialAdminPassword === '' || preg_match('/^\s+$/u', $initialAdminPassword) === 1) {
                 throw new ValidationException('Informe a senha inicial do administrador da empresa.');
             }
 
