@@ -8,6 +8,7 @@ $solutions = is_array($landingPage['solutions'] ?? null) ? $landingPage['solutio
 $featureGroups = is_array($landingPage['feature_groups'] ?? null) ? $landingPage['feature_groups'] : [];
 $plans = is_array($landingPage['plans'] ?? null) ? $landingPage['plans'] : [];
 $featuredPlans = is_array($landingPage['featured_plans'] ?? null) ? $landingPage['featured_plans'] : [];
+$recommendedPlans = is_array($landingPage['recommended_plans'] ?? null) ? $landingPage['recommended_plans'] : [];
 $plansStats = is_array($landingPage['plans_stats'] ?? null) ? $landingPage['plans_stats'] : [];
 $workflow = is_array($landingPage['workflow'] ?? null) ? $landingPage['workflow'] : [];
 $blogArticles = is_array($landingPage['blog_articles'] ?? null) ? $landingPage['blog_articles'] : [];
@@ -24,12 +25,27 @@ $formatMoney = static function (?float $amount): string {
     return 'R$ ' . number_format($amount, 2, ',', '.');
 };
 
+$formatPercent = static function (float $value): string {
+    $formatted = number_format($value, 2, ',', '.');
+    $formatted = rtrim(rtrim($formatted, '0'), ',');
+
+    return $formatted !== '' ? $formatted : '0';
+};
+
 $formatLimit = static function (?int $value, string $label): string {
     if ($value === null) {
         return $label . ' ilimitados';
     }
 
     return $value . ' ' . $label;
+};
+
+$formatLimitValue = static function (?int $value): string {
+    if ($value === null) {
+        return 'Ilimitado';
+    }
+
+    return (string) $value;
 };
 ?>
 
@@ -481,7 +497,7 @@ $formatLimit = static function (?int $value, string $label): string {
     .solution-eyebrow{background:#dff8f5;color:#0a5c67}
     .blog-category{background:#edf2ff;color:#21358a}
     .feature-chip{background:#eef4fb;color:#19344f}
-    .plan-badge{background:#fff4d4;color:#8b5c00}
+    .plan-badge{background:#fff4d4;color:#8b5c00;white-space:nowrap}
 
     .feature-card ul,
     .plan-features,
@@ -571,6 +587,7 @@ $formatLimit = static function (?int $value, string $label): string {
         position:relative;
         display:grid;
         gap:18px;
+        align-content:start;
         transition:transform .24s ease, box-shadow .24s ease;
     }
     .plan-card:hover{
@@ -581,18 +598,81 @@ $formatLimit = static function (?int $value, string $label): string {
         background:linear-gradient(180deg,#fff7e7 0%, #ffffff 100%);
         border-color:rgba(255,199,90,.78);
     }
+    .plan-card.is-recommended{
+        background:linear-gradient(160deg,#081b2e 0%, #12324f 54%, #ff7a18 135%);
+        border-color:rgba(255,190,92,.92);
+        color:#eff7ff;
+        transform:translateY(-10px);
+        box-shadow:0 34px 64px rgba(8,27,46,.3);
+    }
+    .plan-card.is-recommended .plan-price strong,
+    .plan-card.is-recommended h3,
+    .plan-card.is-recommended .plan-meta-box strong{
+        color:#fff;
+    }
+    .plan-card.is-recommended p,
+    .plan-card.is-recommended .plan-price span,
+    .plan-card.is-recommended .plan-disclaimer,
+    .plan-card.is-recommended .plan-meta-box span{
+        color:rgba(239,247,255,.78);
+    }
+    .plan-card.is-recommended .plan-meta-box{
+        background:rgba(255,255,255,.1);
+        border-color:rgba(255,255,255,.14);
+    }
+    .plan-card.is-recommended .btn-secondary{
+        background:rgba(255,255,255,.12);
+        border-color:rgba(255,255,255,.16);
+        color:#fff;
+    }
+    .plan-card.is-recommended .plan-badge{
+        background:#fff;
+        color:#081b2e;
+    }
+    .plan-card.is-recommended .plan-features li{
+        color:rgba(239,247,255,.86);
+    }
+    .plan-card.is-recommended .plan-annual-note{
+        color:rgba(239,247,255,.86);
+    }
+    .plan-card.is-recommended .plan-features li::before{
+        background:linear-gradient(135deg,#facc15,#fff7cc);
+    }
+    .plan-badges{display:flex;gap:10px;flex-wrap:wrap}
+    .plan-card h3{
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+    }
+    .plan-card > div p{
+        display:-webkit-box;
+        -webkit-line-clamp:2;
+        -webkit-box-orient:vertical;
+        overflow:hidden;
+    }
     .plan-price{
         display:flex;
-        align-items:flex-end;
+        align-items:center;
+        justify-content:space-between;
         gap:10px;
-        flex-wrap:wrap;
+        flex-wrap:nowrap;
     }
     .plan-price strong{
         font:700 40px/.95 "Space Grotesk","Manrope",sans-serif;
         letter-spacing:-.05em;
         color:#081b2e;
+        white-space:nowrap;
     }
-    .plan-price span{color:#5c6b7c;font-weight:700}
+    .plan-price span{color:#5c6b7c;font-weight:700;white-space:nowrap}
+    .plan-annual-note{
+        font-size:12px;
+        font-weight:800;
+        line-height:1.4;
+        color:#365067;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+    }
     .plan-meta{
         display:grid;
         grid-template-columns:repeat(3,minmax(0,1fr));
@@ -616,9 +696,33 @@ $formatLimit = static function (?int $value, string $label): string {
         margin-top:8px;
         color:#0c2238;
         line-height:1.4;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
     }
-    .plan-actions{display:flex;gap:12px;flex-wrap:wrap}
-    .plan-disclaimer{font-size:13px;color:#66788b;line-height:1.55}
+    .plan-features{
+        margin:0;
+        padding:0;
+        list-style:none;
+        display:grid;
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:8px;
+    }
+    .plan-features li{
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+    }
+    .plan-actions{display:flex;gap:12px;flex-wrap:nowrap}
+    .plan-actions .btn{flex:1;min-width:0}
+    .plan-disclaimer{
+        font-size:12px;
+        color:#66788b;
+        line-height:1.45;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+    }
 
     .blog-card a,
     .contact-card a,
@@ -762,9 +866,11 @@ $formatLimit = static function (?int $value, string $label): string {
         .blog-grid,
         .workflow,
         .form-grid,
-        .plan-meta{grid-template-columns:1fr}
+        .plan-meta,
+        .plan-features{grid-template-columns:1fr}
         .plans-head{align-items:flex-start}
         .plan-price strong{font-size:34px}
+        .plan-actions{flex-wrap:wrap}
     }
 </style>
 
@@ -977,13 +1083,13 @@ $formatLimit = static function (?int $value, string $label): string {
                 <div class="section-head reveal">
                     <span class="eyebrow">Planos</span>
                     <h2>Os planos desta pagina seguem o cadastro ativo do SaaS.</h2>
-                    <p>Isso evita promessa comercial fora da realidade. O que aparece aqui respeita o catalogo vigente e prioriza os planos marcados como destaque na administracao interna.</p>
+                    <p>Isso evita promessa comercial fora da realidade. O que aparece aqui respeita o catalogo vigente e aplica os marcadores comerciais de destaque e recomendado definidos na administracao interna.</p>
                 </div>
 
                 <div class="plans-head reveal">
                     <div>
                         <strong style="display:block;font:700 22px/1.1 'Space Grotesk','Manrope',sans-serif;color:#081b2e">Catalogo comercial ativo</strong>
-                        <span class="pricing-hint"><?= htmlspecialchars((string) ($plansStats['total_active'] ?? 0)) ?> planos ativos e <?= htmlspecialchars((string) ($plansStats['featured'] ?? 0)) ?> destaques publicados.</span>
+                        <span class="pricing-hint"><?= htmlspecialchars((string) ($plansStats['total_active'] ?? 0)) ?> planos ativos, <?= htmlspecialchars((string) ($plansStats['featured'] ?? 0)) ?> destaques e <?= htmlspecialchars((string) ($plansStats['recommended'] ?? 0)) ?> recomendados publicados.</span>
                     </div>
                     <div class="pricing-toggle" data-pricing-toggle>
                         <button class="is-active" type="button" data-cycle="mensal">Mensal</button>
@@ -1005,11 +1111,15 @@ $formatLimit = static function (?int $value, string $label): string {
                             $planDescription = trim((string) ($plan['description'] ?? ''));
                             $priceMonthly = isset($plan['price_monthly']) ? (float) $plan['price_monthly'] : 0.0;
                             $priceYearly = $plan['price_yearly'] !== null ? (float) $plan['price_yearly'] : null;
+                            $priceYearlyBase = isset($plan['price_yearly_base']) ? (float) $plan['price_yearly_base'] : ($priceMonthly * 12);
+                            $yearlyDiscountPercent = (float) ($plan['price_yearly_discount_percent'] ?? 0);
                             ?>
-                            <article class="plan-card reveal<?= !empty($plan['is_featured']) ? ' is-featured' : '' ?>" data-plan-card data-monthly="<?= htmlspecialchars(number_format($priceMonthly, 2, '.', '')) ?>" data-yearly="<?= htmlspecialchars($priceYearly !== null ? number_format($priceYearly, 2, '.', '') : '') ?>">
-                                <?php if (!empty($plan['is_featured'])): ?>
-                                    <span class="plan-badge">Plano em destaque</span>
-                                <?php endif; ?>
+                            <article class="plan-card reveal<?= !empty($plan['is_featured']) ? ' is-featured' : '' ?><?= !empty($plan['is_recommended']) ? ' is-recommended' : '' ?>" data-plan-card data-monthly="<?= htmlspecialchars(number_format($priceMonthly, 2, '.', '')) ?>" data-yearly="<?= htmlspecialchars($priceYearly !== null ? number_format($priceYearly, 2, '.', '') : '') ?>" data-yearly-base="<?= htmlspecialchars(number_format($priceYearlyBase, 2, '.', '')) ?>" data-yearly-discount="<?= htmlspecialchars((string) $yearlyDiscountPercent) ?>">
+                                <div class="plan-badges">
+                                    <?php if (!empty($plan['is_recommended'])): ?>
+                                        <span class="plan-badge">Plano recomendado</span>
+                                    <?php endif; ?>
+                                </div>
                                 <div>
                                     <h3><?= htmlspecialchars($planName) ?></h3>
                                     <p><?= htmlspecialchars($planDescription !== '' ? $planDescription : 'Plano comercial ativo para operacao SaaS com cobranca recorrente.') ?></p>
@@ -1019,27 +1129,32 @@ $formatLimit = static function (?int $value, string $label): string {
                                     <strong data-plan-price><?= htmlspecialchars($formatMoney($priceMonthly)) ?></strong>
                                     <span data-plan-cycle>/ mensal</span>
                                 </div>
+                                <div class="plan-annual-note" data-plan-note>
+                                    Anual: <?= htmlspecialchars($formatMoney($priceYearly)) ?> com <?= htmlspecialchars($formatPercent($yearlyDiscountPercent)) ?>% OFF
+                                </div>
 
                                 <div class="plan-meta">
                                     <div class="plan-meta-box">
                                         <span>Usuarios</span>
-                                        <strong><?= htmlspecialchars($formatLimit($plan['max_users'] ?? null, 'usuarios')) ?></strong>
+                                        <strong title="<?= htmlspecialchars($formatLimit($plan['max_users'] ?? null, 'usuarios')) ?>"><?= htmlspecialchars($formatLimitValue($plan['max_users'] ?? null)) ?></strong>
                                     </div>
                                     <div class="plan-meta-box">
                                         <span>Produtos</span>
-                                        <strong><?= htmlspecialchars($formatLimit($plan['max_products'] ?? null, 'produtos')) ?></strong>
+                                        <strong title="<?= htmlspecialchars($formatLimit($plan['max_products'] ?? null, 'produtos')) ?>"><?= htmlspecialchars($formatLimitValue($plan['max_products'] ?? null)) ?></strong>
                                     </div>
                                     <div class="plan-meta-box">
                                         <span>Mesas</span>
-                                        <strong><?= htmlspecialchars($formatLimit($plan['max_tables'] ?? null, 'mesas')) ?></strong>
+                                        <strong title="<?= htmlspecialchars($formatLimit($plan['max_tables'] ?? null, 'mesas')) ?>"><?= htmlspecialchars($formatLimitValue($plan['max_tables'] ?? null)) ?></strong>
                                     </div>
                                 </div>
 
-                                <ul class="plan-features">
-                                    <?php foreach ((array) ($plan['feature_labels'] ?? []) as $featureLabel): ?>
-                                        <li><?= htmlspecialchars((string) $featureLabel) ?></li>
-                                    <?php endforeach; ?>
-                                </ul>
+                                <?php if (!empty($plan['feature_labels'])): ?>
+                                    <ul class="plan-features">
+                                        <?php foreach ((array) ($plan['feature_labels'] ?? []) as $featureLabel): ?>
+                                            <li title="<?= htmlspecialchars((string) $featureLabel) ?>"><?= htmlspecialchars((string) $featureLabel) ?></li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                <?php endif; ?>
 
                                 <div class="plan-actions">
                                     <a class="btn btn-primary" href="#contato">Quero este plano</a>
@@ -1047,7 +1162,7 @@ $formatLimit = static function (?int $value, string $label): string {
                                 </div>
 
                                 <div class="plan-disclaimer">
-                                    Pagamento recorrente com suporte a PIX e cartao. Ao alternar para anual, a pagina exibe o valor anual quando ele estiver cadastrado no plano.
+                                    Pagamento recorrente com suporte a PIX e cartao.
                                 </div>
                             </article>
                         <?php endforeach; ?>
@@ -1291,20 +1406,39 @@ $formatLimit = static function (?int $value, string $label): string {
         return parsed.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     };
 
+    const formatDiscount = (amount) => {
+        const parsed = Number(amount || 0);
+        if (!Number.isFinite(parsed)) {
+            return '0';
+        }
+
+        return parsed.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    };
+
     const updatePrices = (cycle) => {
         planCards.forEach((card) => {
             const priceNode = card.querySelector('[data-plan-price]');
             const cycleNode = card.querySelector('[data-plan-cycle]');
-            if (!(priceNode instanceof HTMLElement) || !(cycleNode instanceof HTMLElement)) {
+            const noteNode = card.querySelector('[data-plan-note]');
+            if (!(priceNode instanceof HTMLElement) || !(cycleNode instanceof HTMLElement) || !(noteNode instanceof HTMLElement)) {
                 return;
             }
 
             const monthly = card.getAttribute('data-monthly') || '';
             const yearly = card.getAttribute('data-yearly') || '';
+            const yearlyBase = card.getAttribute('data-yearly-base') || '';
+            const yearlyDiscount = card.getAttribute('data-yearly-discount') || '0';
             const useYearly = cycle === 'anual' && yearly !== '';
 
             priceNode.textContent = formatMoney(useYearly ? yearly : monthly);
             cycleNode.textContent = useYearly ? '/ anual' : (cycle === 'anual' ? '/ anual sob consulta' : '/ mensal');
+
+            if (useYearly) {
+                noteNode.textContent = `Economia de ${formatDiscount(yearlyDiscount)}% sobre ${formatMoney(yearlyBase)} no plano anual`;
+                return;
+            }
+
+            noteNode.textContent = `Anual: ${formatMoney(yearly)} com ${formatDiscount(yearlyDiscount)}% OFF`;
         });
     };
 

@@ -7,6 +7,23 @@ use PDO;
 
 final class PlanRepository extends BaseRepository
 {
+    public function transaction(callable $callback): mixed
+    {
+        $db = $this->db();
+        $db->beginTransaction();
+
+        try {
+            $result = $callback();
+            $db->commit();
+            return $result;
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
     public function listForSaasPaginated(array $filters, int $page, int $perPage): array
     {
         $page = max(1, $page);
@@ -269,6 +286,69 @@ final class PlanRepository extends BaseRepository
             'features_json' => $data['features_json'],
             'status' => $data['status'],
         ]);
+    }
+
+    public function clearRecommendedFlagFromOtherActivePlans(int $exceptPlanId): void
+    {
+        $stmt = $this->db()->prepare("
+            SELECT
+                p.id,
+                p.features_json
+            FROM plans p
+            WHERE p.id <> :except_plan_id
+              AND p.status = 'ativo'
+        ");
+        $stmt->execute([
+            'except_plan_id' => $exceptPlanId,
+        ]);
+
+        $plans = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if ($plans === []) {
+            return;
+        }
+
+        $update = $this->db()->prepare("
+            UPDATE plans
+            SET
+                features_json = :features_json,
+                updated_at = NOW()
+            WHERE id = :plan_id
+            LIMIT 1
+        ");
+
+        foreach ($plans as $plan) {
+            $rawFeatures = trim((string) ($plan['features_json'] ?? ''));
+            if ($rawFeatures === '') {
+                continue;
+            }
+
+            $decoded = json_decode($rawFeatures, true);
+            if (!is_array($decoded)) {
+                continue;
+            }
+
+            $publicConfig = is_array($decoded['vitrine_publica'] ?? null)
+                ? $decoded['vitrine_publica']
+                : [];
+
+            if (empty($publicConfig['recomendado'])) {
+                continue;
+            }
+
+            $decoded['vitrine_publica'] = array_merge($publicConfig, [
+                'recomendado' => false,
+            ]);
+
+            $encoded = json_encode($decoded, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            if ($encoded === false) {
+                continue;
+            }
+
+            $update->execute([
+                'plan_id' => (int) ($plan['id'] ?? 0),
+                'features_json' => $encoded,
+            ]);
+        }
     }
 
     public function delete(int $planId): void

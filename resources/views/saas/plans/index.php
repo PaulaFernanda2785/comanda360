@@ -70,6 +70,22 @@ $formatLimit = static function (mixed $value): string {
     return (string) (int) $value;
 };
 
+$calculateYearlyDiscountPrice = static function (mixed $monthlyValue, mixed $discountPercentValue): float {
+    $monthly = (float) ($monthlyValue ?? 0);
+    $discountPercent = (float) ($discountPercentValue ?? 0);
+    $discountPercent = max(0, min(100, $discountPercent));
+
+    return round(($monthly * 12) * ((100 - $discountPercent) / 100), 2);
+};
+
+$formatDiscountPercent = static function (mixed $value): string {
+    $percent = round((float) ($value ?? 0), 2);
+    $formatted = number_format($percent, 2, ',', '.');
+    $formatted = rtrim(rtrim($formatted, '0'), ',');
+
+    return $formatted !== '' ? $formatted : '0';
+};
+
 $formatFeaturesPreview = static function (mixed $value): string {
     $raw = trim((string) $value);
     if ($raw === '') {
@@ -124,12 +140,12 @@ $featureStateFromJson = static function (mixed $value) use ($featureCatalog): ar
 $landingStateFromJson = static function (mixed $value): array {
     $raw = trim((string) $value);
     if ($raw === '') {
-        return ['destaque' => false];
+        return ['destaque' => false, 'recomendado' => false];
     }
 
     $decoded = json_decode($raw, true);
     if (!is_array($decoded)) {
-        return ['destaque' => false];
+        return ['destaque' => false, 'recomendado' => false];
     }
 
     $publicConfig = is_array($decoded['vitrine_publica'] ?? null)
@@ -138,6 +154,47 @@ $landingStateFromJson = static function (mixed $value): array {
 
     return [
         'destaque' => (bool) ($publicConfig['destaque'] ?? false),
+        'recomendado' => (bool) ($publicConfig['recomendado'] ?? false),
+    ];
+};
+
+$pricingStateFromJson = static function (mixed $value, mixed $fallbackMonthly = null, mixed $fallbackYearly = null): array {
+    $monthly = $fallbackMonthly !== null ? round((float) $fallbackMonthly, 2) : 0.0;
+    $yearly = $fallbackYearly !== null ? round((float) $fallbackYearly, 2) : null;
+    $discountPercent = 0.0;
+
+    $raw = trim((string) $value);
+    if ($raw === '') {
+        return [
+            'mensal' => $monthly,
+            'anual' => $yearly,
+            'desconto_anual_percentual' => $discountPercent,
+        ];
+    }
+
+    $decoded = json_decode($raw, true);
+    if (!is_array($decoded)) {
+        return [
+            'mensal' => $monthly,
+            'anual' => $yearly,
+            'desconto_anual_percentual' => $discountPercent,
+        ];
+    }
+
+    $pricing = is_array($decoded['precificacao'] ?? null)
+        ? $decoded['precificacao']
+        : [];
+
+    return [
+        'mensal' => isset($pricing['mensal']) && is_numeric((string) $pricing['mensal'])
+            ? round((float) $pricing['mensal'], 2)
+            : $monthly,
+        'anual' => isset($pricing['anual']) && is_numeric((string) $pricing['anual'])
+            ? round((float) $pricing['anual'], 2)
+            : $yearly,
+        'desconto_anual_percentual' => isset($pricing['desconto_anual_percentual']) && is_numeric((string) $pricing['desconto_anual_percentual'])
+            ? round((float) $pricing['desconto_anual_percentual'], 2)
+            : $discountPercent,
     ];
 };
 ?>
@@ -300,6 +357,8 @@ $landingStateFromJson = static function (mixed $value): array {
                             $canDeletePlan = $linkedCompanies <= 0 && $linkedSubscriptions <= 0;
                             $featureState = $featureStateFromJson($plan['features_json'] ?? '');
                             $landingState = $landingStateFromJson($plan['features_json'] ?? '');
+                            $pricingState = $pricingStateFromJson($plan['features_json'] ?? '', $plan['price_monthly'] ?? null, $plan['price_yearly'] ?? null);
+                            $yearlyDiscountPercent = (float) ($pricingState['desconto_anual_percentual'] ?? 0);
                             ?>
                             <article class="saas-plan-card">
                                 <div class="saas-plan-card-top">
@@ -312,21 +371,25 @@ $landingStateFromJson = static function (mixed $value): array {
                                         <?php if (!empty($landingState['destaque'])): ?>
                                             <span class="badge">Destaque na landing</span>
                                         <?php endif; ?>
+                                        <?php if (!empty($landingState['recomendado'])): ?>
+                                            <span class="badge">Recomendado na landing</span>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
 
                                 <div class="saas-plan-info">
                                     <div class="saas-plan-box">
                                         <span>Preço mensal</span>
-                                        <strong class="amount">R$ <?= number_format((float) ($plan['price_monthly'] ?? 0), 2, ',', '.') ?></strong>
+                                        <strong class="amount">R$ <?= number_format((float) ($pricingState['mensal'] ?? 0), 2, ',', '.') ?></strong>
                                     </div>
                                     <div class="saas-plan-box">
                                         <span>Preço anual</span>
                                         <strong class="amount">
-                                            <?= $plan['price_yearly'] !== null
-                                                ? 'R$ ' . number_format((float) $plan['price_yearly'], 2, ',', '.')
+                                            <?= ($pricingState['anual'] ?? null) !== null
+                                                ? 'R$ ' . number_format((float) $pricingState['anual'], 2, ',', '.')
                                                 : 'Não informado' ?>
                                         </strong>
+                                        <strong><?= htmlspecialchars($formatDiscountPercent($yearlyDiscountPercent)) ?>% OFF</strong>
                                     </div>
                                     <div class="saas-plan-box">
                                         <span>Limites</span>
@@ -374,17 +437,34 @@ $landingStateFromJson = static function (mixed $value): array {
                                                             </span>
                                                         </label>
                                                     </div>
+                                                    <div class="field">
+                                                        <label for="plan_landing_recommended_<?= $planId ?>">Plano recomendado</label>
+                                                        <label class="saas-plan-feature-option" for="plan_landing_recommended_<?= $planId ?>">
+                                                            <input type="hidden" name="landing_recommended" value="0">
+                                                            <input id="plan_landing_recommended_<?= $planId ?>" type="checkbox" name="landing_recommended" value="1" <?= !empty($landingState['recomendado']) ? 'checked' : '' ?>>
+                                                            <span>
+                                                                <strong>Marcar como recomendado</strong>
+                                                                <small>Ao salvar um recomendado ativo, o recomendado ativo anterior perde essa marcacao.</small>
+                                                            </span>
+                                                        </label>
+                                                    </div>
                                                     <div class="field full">
                                                         <label for="plan_description_<?= $planId ?>">Descrição comercial</label>
                                                         <textarea id="plan_description_<?= $planId ?>" name="description" rows="3" placeholder="Resumo da proposta comercial do plano"><?= htmlspecialchars((string) ($plan['description'] ?? '')) ?></textarea>
                                                     </div>
                                                     <div class="field">
                                                         <label for="plan_price_monthly_<?= $planId ?>">Preço mensal</label>
-                                                        <input id="plan_price_monthly_<?= $planId ?>" name="price_monthly" type="number" min="0" step="0.01" required value="<?= htmlspecialchars(number_format((float) ($plan['price_monthly'] ?? 0), 2, '.', '')) ?>">
+                                                        <input id="plan_price_monthly_<?= $planId ?>" name="price_monthly" type="number" min="0" step="0.01" required value="<?= htmlspecialchars(number_format((float) ($pricingState['mensal'] ?? 0), 2, '.', '')) ?>">
                                                     </div>
                                                     <div class="field">
-                                                        <label for="plan_price_yearly_<?= $planId ?>">Preço anual</label>
-                                                        <input id="plan_price_yearly_<?= $planId ?>" name="price_yearly" type="number" min="0" step="0.01" value="<?= $plan['price_yearly'] !== null ? htmlspecialchars(number_format((float) $plan['price_yearly'], 2, '.', '')) : '' ?>">
+                                                        <label for="plan_yearly_discount_percent_<?= $planId ?>">Desconto anual (%)</label>
+                                                        <input id="plan_yearly_discount_percent_<?= $planId ?>" name="yearly_discount_percent" type="number" min="0" max="100" step="0.01" value="<?= htmlspecialchars(number_format($yearlyDiscountPercent, 2, '.', '')) ?>" data-yearly-discount>
+                                                        <small class="muted">Percentual manual aplicado sobre 12 mensalidades.</small>
+                                                    </div>
+                                                    <div class="field">
+                                                        <label for="plan_price_yearly_<?= $planId ?>">Preço anual calculado</label>
+                                                        <input id="plan_price_yearly_<?= $planId ?>" name="price_yearly" type="number" min="0" step="0.01" readonly value="<?= htmlspecialchars(number_format((float) ($pricingState['anual'] ?? $calculateYearlyDiscountPrice($pricingState['mensal'] ?? 0, $yearlyDiscountPercent)), 2, '.', '')) ?>" data-yearly-price>
+                                                        <small class="muted">Atualizado automaticamente conforme mensal e desconto.</small>
                                                     </div>
                                                     <div class="field">
                                                         <label for="plan_max_users_<?= $planId ?>">Limite de usuários</label>
@@ -533,8 +613,14 @@ $landingStateFromJson = static function (mixed $value): array {
                                 <input id="new_plan_price_monthly" name="price_monthly" type="number" min="0" step="0.01" required>
                             </div>
                             <div class="field">
-                                <label for="new_plan_price_yearly">Preço anual</label>
-                                <input id="new_plan_price_yearly" name="price_yearly" type="number" min="0" step="0.01">
+                                <label for="new_plan_yearly_discount_percent">Desconto anual (%)</label>
+                                <input id="new_plan_yearly_discount_percent" name="yearly_discount_percent" type="number" min="0" max="100" step="0.01" value="0.00" data-yearly-discount>
+                                <small class="muted">Percentual manual aplicado sobre 12 mensalidades.</small>
+                            </div>
+                            <div class="field">
+                                <label for="new_plan_price_yearly">Preço anual calculado</label>
+                                <input id="new_plan_price_yearly" name="price_yearly" type="number" min="0" step="0.01" readonly value="0.00" data-yearly-price>
+                                <small class="muted">Atualizado automaticamente conforme mensal e desconto.</small>
                             </div>
                             <div class="field">
                                 <label for="new_plan_max_users">Limite de usuários</label>
@@ -563,6 +649,17 @@ $landingStateFromJson = static function (mixed $value): array {
                                     <span>
                                         <strong>Destacar na landing</strong>
                                         <small>Exibe este plano como destaque na pagina publica do SaaS.</small>
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="field">
+                                <label for="new_plan_landing_recommended">Plano recomendado</label>
+                                <label class="saas-plan-feature-option" for="new_plan_landing_recommended">
+                                    <input type="hidden" name="landing_recommended" value="0">
+                                    <input id="new_plan_landing_recommended" type="checkbox" name="landing_recommended" value="1">
+                                    <span>
+                                        <strong>Marcar como recomendado</strong>
+                                        <small>Ao salvar um recomendado ativo, o recomendado ativo anterior perde essa marcacao.</small>
                                     </span>
                                 </label>
                             </div>
@@ -612,9 +709,55 @@ $landingStateFromJson = static function (mixed $value): array {
                 <ul>
                     <li>Plano com histórico comercial deve ser inativado, não apagado.</li>
                     <li>Limites precisam refletir o contrato vendido de verdade.</li>
+                    <li>Apenas um plano recomendado ativo pode existir por vez.</li>
                     <li>JSON de recursos deve permanecer consistente com os módulos que o produto realmente entrega.</li>
                 </ul>
             </section>
         </aside>
     </div>
 </div>
+<script>
+(() => {
+    const clampDiscount = (discountRaw) => {
+        const discount = Number(discountRaw || 0);
+        if (!Number.isFinite(discount)) {
+            return 0;
+        }
+
+        return Math.min(100, Math.max(0, discount));
+    };
+
+    const calculateYearly = (monthlyRaw, discountRaw) => {
+        const monthly = Number(monthlyRaw || 0);
+        if (!Number.isFinite(monthly) || monthly <= 0) {
+            return '0.00';
+        }
+
+        const discount = clampDiscount(discountRaw);
+        return ((monthly * 12) * ((100 - discount) / 100)).toFixed(2);
+    };
+
+    document.querySelectorAll('form').forEach((form) => {
+        if (!(form instanceof HTMLFormElement)) {
+            return;
+        }
+
+        const monthlyField = form.querySelector('input[name="price_monthly"]');
+        const discountField = form.querySelector('[data-yearly-discount]');
+        const yearlyField = form.querySelector('[data-yearly-price]');
+        if (!(monthlyField instanceof HTMLInputElement) || !(discountField instanceof HTMLInputElement) || !(yearlyField instanceof HTMLInputElement)) {
+            return;
+        }
+
+        const syncYearly = () => {
+            yearlyField.value = calculateYearly(monthlyField.value, discountField.value);
+        };
+
+        monthlyField.addEventListener('input', syncYearly);
+        monthlyField.addEventListener('change', syncYearly);
+        discountField.addEventListener('input', syncYearly);
+        discountField.addEventListener('change', syncYearly);
+        syncYearly();
+    });
+})();
+</script>

@@ -151,6 +151,23 @@ final class PlanFeatureCatalogService
         return $summary;
     }
 
+    public function enabledLabelsFromJson(mixed $value): array
+    {
+        $state = $this->stateFromJson($value);
+        $labels = [];
+
+        foreach (self::BUSINESS_FEATURE_CATALOG as $feature) {
+            $key = (string) ($feature['key'] ?? '');
+            if ($key === '' || empty($state[$key])) {
+                continue;
+            }
+
+            $labels[] = (string) ($feature['label'] ?? $key);
+        }
+
+        return $labels;
+    }
+
     public function publicLandingConfigFromJson(mixed $value): array
     {
         $decoded = $this->decodeJson($value);
@@ -160,6 +177,27 @@ final class PlanFeatureCatalogService
 
         return [
             'destaque' => (bool) ($publicConfig['destaque'] ?? false),
+            'recomendado' => (bool) ($publicConfig['recomendado'] ?? false),
+        ];
+    }
+
+    public function pricingConfigFromJson(mixed $value): array
+    {
+        $decoded = $this->decodeJson($value);
+        $pricing = is_array($decoded['precificacao'] ?? null)
+            ? $decoded['precificacao']
+            : [];
+
+        return [
+            'mensal' => isset($pricing['mensal']) && is_numeric((string) $pricing['mensal'])
+                ? round((float) $pricing['mensal'], 2)
+                : null,
+            'anual' => isset($pricing['anual']) && is_numeric((string) $pricing['anual'])
+                ? round((float) $pricing['anual'], 2)
+                : null,
+            'desconto_anual_percentual' => isset($pricing['desconto_anual_percentual']) && is_numeric((string) $pricing['desconto_anual_percentual'])
+                ? round((float) $pricing['desconto_anual_percentual'], 2)
+                : 0.0,
         ];
     }
 
@@ -167,6 +205,12 @@ final class PlanFeatureCatalogService
     {
         $config = $this->publicLandingConfigFromJson($value);
         return !empty($config['destaque']);
+    }
+
+    public function isRecommendedOnPublicLanding(mixed $value): bool
+    {
+        $config = $this->publicLandingConfigFromJson($value);
+        return !empty($config['recomendado']);
     }
 
     private function decodeJson(mixed $value): array

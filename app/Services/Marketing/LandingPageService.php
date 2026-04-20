@@ -33,6 +33,10 @@ final class LandingPageService
             $plans,
             static fn (array $plan): bool => !empty($plan['is_featured'])
         ));
+        $recommendedPlans = array_values(array_filter(
+            $plans,
+            static fn (array $plan): bool => !empty($plan['is_recommended'])
+        ));
 
         return [
             'seo' => $this->buildSeo(),
@@ -93,9 +97,11 @@ final class LandingPageService
             'feature_groups' => $this->featureGroups(),
             'plans' => $plans,
             'featured_plans' => $featuredPlans,
+            'recommended_plans' => $recommendedPlans,
             'plans_stats' => [
                 'total_active' => count($plans),
                 'featured' => count($featuredPlans),
+                'recommended' => count($recommendedPlans),
             ],
             'workflow' => [
                 [
@@ -106,7 +112,7 @@ final class LandingPageService
                 [
                     'step' => '02',
                     'title' => 'Plano escolhido e assinatura registrada',
-                    'description' => 'O catalogo comercial respeita os planos ativos e os destaques definidos no cadastro interno.',
+                    'description' => 'O catalogo comercial respeita os planos ativos, os destaques e os recomendados definidos no cadastro interno.',
                 ],
                 [
                     'step' => '03',
@@ -139,7 +145,7 @@ final class LandingPageService
             'faq' => [
                 [
                     'question' => 'Os planos exibidos na pagina publica sao automaticos?',
-                    'answer' => 'Sim. A landing publica lista apenas planos ativos cadastrados no painel SaaS e prioriza os marcados como destaque.',
+                    'answer' => 'Sim. A landing publica lista apenas planos ativos cadastrados no painel SaaS e aplica os marcadores de destaque e recomendado definidos no catalogo.',
                 ],
                 [
                     'question' => 'A plataforma trabalha com pagamento via PIX e cartao?',
@@ -168,7 +174,7 @@ final class LandingPageService
                 'name' => 'Os planos exibidos na pagina publica sao automaticos?',
                 'acceptedAnswer' => [
                     '@type' => 'Answer',
-                    'text' => 'A pagina publica lista apenas planos ativos cadastrados no painel SaaS e prioriza os marcados como destaque.',
+                    'text' => 'A pagina publica lista apenas planos ativos cadastrados no painel SaaS e aplica os marcadores de destaque e recomendado definidos no catalogo.',
                 ],
             ],
             [
@@ -276,23 +282,41 @@ final class LandingPageService
             }
 
             $featuresJson = $plan['features_json'] ?? null;
-            $featureLabels = $this->featureCatalog->summaryFromJson($featuresJson);
+            $pricing = $this->featureCatalog->pricingConfigFromJson($featuresJson);
+            $featureLabels = $this->featureCatalog->enabledLabelsFromJson($featuresJson);
+            $priceMonthly = $pricing['mensal'] !== null
+                ? (float) $pricing['mensal']
+                : (float) ($plan['price_monthly'] ?? 0);
+            $priceYearly = $pricing['anual'] !== null
+                ? (float) $pricing['anual']
+                : ($plan['price_yearly'] !== null ? (float) $plan['price_yearly'] : null);
+            $yearlyBasePrice = round($priceMonthly * 12, 2);
+            $yearlyDiscountPercent = round((float) ($pricing['desconto_anual_percentual'] ?? 0), 2);
             $normalized[] = [
                 'id' => (int) ($plan['id'] ?? 0),
                 'name' => trim((string) ($plan['name'] ?? 'Plano')),
                 'slug' => trim((string) ($plan['slug'] ?? '')),
                 'description' => trim((string) ($plan['description'] ?? '')),
-                'price_monthly' => (float) ($plan['price_monthly'] ?? 0),
-                'price_yearly' => $plan['price_yearly'] !== null ? (float) $plan['price_yearly'] : null,
+                'price_monthly' => $priceMonthly,
+                'price_yearly' => $priceYearly,
+                'price_yearly_base' => $yearlyBasePrice,
+                'price_yearly_discount_percent' => $yearlyDiscountPercent,
                 'max_users' => $plan['max_users'] !== null ? (int) $plan['max_users'] : null,
                 'max_products' => $plan['max_products'] !== null ? (int) $plan['max_products'] : null,
                 'max_tables' => $plan['max_tables'] !== null ? (int) $plan['max_tables'] : null,
-                'feature_labels' => array_slice($featureLabels, 0, 6),
+                'feature_labels' => $featureLabels,
                 'is_featured' => $this->featureCatalog->isFeaturedOnPublicLanding($featuresJson),
+                'is_recommended' => $this->featureCatalog->isRecommendedOnPublicLanding($featuresJson),
             ];
         }
 
         usort($normalized, static function (array $left, array $right): int {
+            $leftRecommended = !empty($left['is_recommended']) ? 0 : 1;
+            $rightRecommended = !empty($right['is_recommended']) ? 0 : 1;
+            if ($leftRecommended !== $rightRecommended) {
+                return $leftRecommended <=> $rightRecommended;
+            }
+
             $leftFeatured = !empty($left['is_featured']) ? 0 : 1;
             $rightFeatured = !empty($right['is_featured']) ? 0 : 1;
 

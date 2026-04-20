@@ -68,7 +68,13 @@ final class PlanService
     public function createPlan(array $input): int
     {
         $payload = $this->normalizePayload($input, null);
-        return $this->plans->create($payload);
+
+        return $this->plans->transaction(function () use ($payload): int {
+            $planId = $this->plans->create($payload);
+            $this->syncRecommendedPlanRule($planId, $payload);
+
+            return $planId;
+        });
     }
 
     public function updatePlan(int $planId, array $input): void
@@ -83,7 +89,10 @@ final class PlanService
         }
 
         $payload = $this->normalizePayload($input, $existing);
-        $this->plans->update($planId, $payload);
+        $this->plans->transaction(function () use ($planId, $payload): void {
+            $this->plans->update($planId, $payload);
+            $this->syncRecommendedPlanRule($planId, $payload);
+        });
     }
 
     public function deletePlan(int $planId): void
@@ -150,7 +159,11 @@ final class PlanService
         );
 
         $priceMonthly = $this->normalizeMoney($input['price_monthly'] ?? null, 'mensal');
-        $priceYearly = $this->normalizeNullableMoney($input['price_yearly'] ?? null, 'anual');
+        $yearlyDiscountPercent = $this->normalizeDiscountPercent(
+            $input['yearly_discount_percent'] ?? null,
+            $existing['features_json'] ?? null
+        );
+        $priceYearly = $this->calculateYearlyPrice($priceMonthly, $yearlyDiscountPercent);
         $maxUsers = $this->normalizeNullableLimit($input['max_users'] ?? null, 'usuarios');
         $maxProducts = $this->normalizeNullableLimit($input['max_products'] ?? null, 'produtos');
         $maxTables = $this->normalizeNullableLimit($input['max_tables'] ?? null, 'mesas');
@@ -164,6 +177,7 @@ final class PlanService
             $status,
             $priceMonthly,
             $priceYearly,
+            $yearlyDiscountPercent,
             $maxUsers,
             $maxProducts,
             $maxTables,
@@ -200,23 +214,32 @@ final class PlanService
         return round($amount, 2);
     }
 
-    private function normalizeNullableMoney(mixed $value, string $label): ?float
+    private function normalizeDiscountPercent(mixed $value, mixed $existingFeaturesJson = null): float
     {
         $raw = str_replace(',', '.', trim((string) ($value ?? '')));
         if ($raw === '') {
-            return null;
+            $pricing = $this->featureCatalog->pricingConfigFromJson($existingFeaturesJson);
+            return round((float) ($pricing['desconto_anual_percentual'] ?? 0), 2);
         }
 
         if (!is_numeric($raw)) {
-            throw new ValidationException('Informe um valor ' . $label . ' valido.');
+            throw new ValidationException('Informe um percentual valido para o desconto anual.');
         }
 
-        $amount = (float) $raw;
-        if ($amount < 0) {
-            throw new ValidationException('O valor ' . $label . ' nao pode ser negativo.');
+        $discount = (float) $raw;
+        if ($discount < 0 || $discount > 100) {
+            throw new ValidationException('O desconto anual deve estar entre 0% e 100%.');
         }
 
-        return round($amount, 2);
+        return round($discount, 2);
+    }
+
+    private function calculateYearlyPrice(float $priceMonthly, float $discountPercent): float
+    {
+        $baseYearly = $priceMonthly * 12;
+        $discountFactor = max(0, (100 - $discountPercent) / 100);
+
+        return round($baseYearly * $discountFactor, 2);
     }
 
     private function normalizeNullableLimit(mixed $value, string $label): ?int
@@ -238,6 +261,7 @@ final class PlanService
         string $status,
         float $priceMonthly,
         ?float $priceYearly,
+        float $yearlyDiscountPercent,
         ?int $maxUsers,
         ?int $maxProducts,
         ?int $maxTables,
@@ -263,6 +287,7 @@ final class PlanService
             'precificacao' => [
                 'mensal' => round($priceMonthly, 2),
                 'anual' => $priceYearly !== null ? round($priceYearly, 2) : null,
+                'desconto_anual_percentual' => round($yearlyDiscountPercent, 2),
             ],
             'limites' => [
                 'usuarios' => $maxUsers,
@@ -281,6 +306,7 @@ final class PlanService
             ],
             'vitrine_publica' => [
                 'destaque' => (bool) ($publicLanding['destaque'] ?? false),
+                'recomendado' => (bool) ($publicLanding['recomendado'] ?? false),
             ],
         ];
 
@@ -395,11 +421,13 @@ final class PlanService
         if (array_key_exists('landing_featured', $input)) {
             return [
                 'destaque' => $this->normalizeFeatureFlag($input['landing_featured']),
+                'recomendado' => $this->normalizeFeatureFlag($input['landing_recommended'] ?? ($existingPublic['recomendado'] ?? false)),
             ];
         }
 
         return [
             'destaque' => (bool) ($existingPublic['destaque'] ?? false),
+            'recomendado' => (bool) ($existingPublic['recomendado'] ?? false),
         ];
     }
 
@@ -407,5 +435,23 @@ final class PlanService
     {
         $normalized = strtolower(trim((string) $value));
         return in_array($normalized, ['1', 'true', 'on', 'yes', 'sim'], true);
+    }
+
+    private function syncRecommendedPlanRule(int $planId, array $payload): void
+    {
+        if ($planId <= 0) {
+            return;
+        }
+
+        if (($payload['status'] ?? '') !== 'ativo') {
+            return;
+        }
+
+        $publicLanding = $this->featureCatalog->publicLandingConfigFromJson($payload['features_json'] ?? null);
+        if (empty($publicLanding['recomendado'])) {
+            return;
+        }
+
+        $this->plans->clearRecommendedFlagFromOtherActivePlans($planId);
     }
 }
