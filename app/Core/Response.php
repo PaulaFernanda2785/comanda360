@@ -18,6 +18,10 @@ final class Response
 
     public static function redirect(string $location, int $status = 302): self
     {
+        if ($location !== '' && str_starts_with($location, '/') && preg_match('#^(https?:)?//#i', $location) !== 1) {
+            $location = \base_url($location);
+        }
+
         return new self('', $status, ['Location' => $location]);
     }
 

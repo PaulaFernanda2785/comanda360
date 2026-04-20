@@ -4,8 +4,17 @@ declare(strict_types=1);
 if (!function_exists('request_base_path')) {
     function request_base_path(): string
     {
+        $configuredBaseUrl = trim((string) (getenv('APP_URL') ?: ''));
+        if ($configuredBaseUrl !== '') {
+            $configuredPath = trim((string) parse_url($configuredBaseUrl, PHP_URL_PATH), "/\\.");
+            if ($configuredPath !== '') {
+                return '/' . $configuredPath;
+            }
+        }
+
         $scriptName = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
-        if ($scriptName === '') {
+        $scriptFile = basename($scriptName);
+        if ($scriptName === '' || !str_ends_with(strtolower($scriptFile), '.php')) {
             return '';
         }
 
