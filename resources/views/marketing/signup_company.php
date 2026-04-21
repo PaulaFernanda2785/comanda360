@@ -260,7 +260,7 @@ $formatLimit = static function (?int $value, string $label): string {
             </a>
             <div class="topbar-links">
                 <a href="<?= htmlspecialchars(base_url('/#planos')) ?>">Voltar aos planos</a>
-                <a class="btn btn-secondary" href="<?= htmlspecialchars(base_url('/login#acesso')) ?>">Ja sou cliente</a>
+                <a class="btn btn-secondary" href="<?= htmlspecialchars(base_url('/login')) ?>">Ja sou cliente</a>
             </div>
         </div>
 

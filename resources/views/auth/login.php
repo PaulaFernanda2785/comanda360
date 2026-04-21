@@ -917,7 +917,7 @@ $formatLimitValue = static function (?int $value): string {
             </nav>
 
             <div class="header-actions">
-                <a class="btn btn-secondary" href="#acesso">Entrar agora</a>
+                <a class="btn btn-secondary" href="<?= htmlspecialchars(base_url('/login')) ?>">Acessar agora</a>
                 <button class="menu-toggle" type="button" aria-label="Abrir menu" data-menu-toggle>
                     <span>Menu</span>
                 </button>
@@ -949,45 +949,19 @@ $formatLimitValue = static function (?int $value): string {
                     </div>
                 </div>
 
-                <aside class="panel login-panel reveal" id="acesso">
+                <aside class="panel login-panel reveal">
                     <div class="panel-header">
-                        <span class="eyebrow">Acesso a plataforma</span>
-                        <h2>Entrar no sistema</h2>
-                        <p>Use seu e-mail e senha para acessar o ambiente administrativo, financeiro ou SaaS conforme seu perfil.</p>
+                        <span class="eyebrow">Clientes ja ativos</span>
+                        <h2>Acesso separado da pagina comercial</h2>
+                        <p>Quem ja tem empresa liberada ou usuario interno agora entra por uma tela exclusiva. A landing publica fica focada em conversao, nao em autenticacao.</p>
                     </div>
 
-                    <div class="flash-stack">
-                        <?php if (!empty($flashSuccess)): ?>
-                            <div class="flash success"><?= htmlspecialchars((string) $flashSuccess) ?></div>
-                        <?php endif; ?>
-                        <?php if (!empty($flashError)): ?>
-                            <div class="flash error"><?= htmlspecialchars((string) $flashError) ?></div>
-                        <?php endif; ?>
-                        <?php if (!empty($error)): ?>
-                            <div class="flash error"><?= htmlspecialchars((string) $error) ?></div>
-                        <?php endif; ?>
-                    </div>
-
-                    <form method="POST" action="<?= htmlspecialchars(base_url('/login')) ?>">
-                        <?= form_security_fields('auth.login') ?>
-
-                        <div class="field">
-                            <label for="email">E-mail</label>
-                            <input id="email" name="email" type="email" required autocomplete="email" placeholder="voce@empresa.com.br">
-                        </div>
-
-                        <div class="field" style="margin-top:14px">
-                            <label for="password">Senha</label>
-                            <input id="password" name="password" type="password" required autocomplete="current-password" placeholder="Sua senha de acesso">
-                        </div>
-
-                        <button class="btn btn-primary" type="submit" style="width:100%;margin-top:18px">Acessar plataforma</button>
-                    </form>
+                    <a class="btn btn-primary" href="<?= htmlspecialchars(base_url('/login')) ?>" style="width:100%">Ir para a tela de login</a>
 
                     <ul class="helper-list">
-                        <li>Cadastro de empresas, assinaturas e pagamentos recorrentes centralizados no mesmo ecossistema.</li>
-                        <li>Fluxo preparado para PIX, cartao, ciclo mensal e anual.</li>
-                        <li>Separacao de acessos por contexto: empresa e operacao SaaS.</li>
+                        <li>Clientes novos continuam entrando pelo fluxo de plano, cadastro e pagamento.</li>
+                        <li>Usuarios operacionais e SaaS acessam a plataforma pela nova pagina dedicada.</li>
+                        <li>Separacao de acessos por contexto: empresa, operacao e ambiente SaaS.</li>
                     </ul>
                 </aside>
             </div>
@@ -1180,7 +1154,7 @@ $formatLimitValue = static function (?int $value): string {
 
                                 <div class="plan-actions">
                                     <a class="btn btn-primary" href="<?= htmlspecialchars(base_url('/cadastro/empresa?plano=' . rawurlencode((string) ($plan['slug'] ?? '')) . '&ciclo=mensal')) ?>" data-plan-signup>Quero este plano</a>
-                                    <a class="btn btn-secondary" href="#acesso">Ja sou cliente</a>
+                                    <a class="btn btn-secondary" href="<?= htmlspecialchars(base_url('/login')) ?>">Ja sou cliente</a>
                                 </div>
 
                                 <div class="plan-disclaimer">
@@ -1351,7 +1325,7 @@ $formatLimitValue = static function (?int $value): string {
                     <ul class="footer-list">
                         <li><a href="#planos">Planos ativos</a></li>
                         <li><a href="#contato">Solicitar contato</a></li>
-                        <li><a href="#acesso">Acesso a plataforma</a></li>
+                        <li><a href="<?= htmlspecialchars(base_url('/login')) ?>">Acesso a plataforma</a></li>
                     </ul>
                 </div>
 
@@ -1380,7 +1354,6 @@ $formatLimitValue = static function (?int $value): string {
     const revealItems = Array.from(document.querySelectorAll('.reveal'));
     const pricingToggle = document.querySelector('[data-pricing-toggle]');
     const planCards = Array.from(document.querySelectorAll('[data-plan-card]'));
-    const loginFeedback = <?= json_encode(!empty($error) || !empty($flashError) || !empty($flashSuccess)) ?>;
 
     if (toggle instanceof HTMLButtonElement && nav instanceof HTMLElement) {
         toggle.addEventListener('click', () => {
@@ -1497,13 +1470,6 @@ $formatLimitValue = static function (?int $value): string {
     const sourceField = document.querySelector('[data-source-url]');
     if (sourceField instanceof HTMLInputElement) {
         sourceField.value = window.location.href;
-    }
-
-    if (loginFeedback) {
-        const access = document.getElementById('acesso');
-        if (access instanceof HTMLElement) {
-            window.setTimeout(() => access.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
-        }
     }
 
     document.addEventListener('submit', (event) => {

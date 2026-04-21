@@ -426,7 +426,7 @@ $stateHint = trim((string) ($paymentState['hint'] ?? ''));
             <a class="brand" href="<?= htmlspecialchars(base_url('/')) ?>">
                 <img src="<?= htmlspecialchars($logoUrl) ?>" alt="Comanda360">
             </a>
-            <a class="btn btn-secondary" href="<?= htmlspecialchars(base_url('/login#acesso')) ?>">Ja sou cliente</a>
+            <a class="btn btn-secondary" href="<?= htmlspecialchars(base_url('/login')) ?>">Ja sou cliente</a>
         </div>
 
         <section class="hero">

@@ -191,7 +191,7 @@ $formatDate = static function (?string $value): string {
             <a class="brand" href="<?= htmlspecialchars(base_url('/')) ?>">
                 <img src="<?= htmlspecialchars($logoUrl) ?>" alt="Comanda360">
             </a>
-            <a class="btn btn-secondary" href="<?= htmlspecialchars(base_url('/login#acesso')) ?>">Ir para o login</a>
+            <a class="btn btn-secondary" href="<?= htmlspecialchars(base_url('/login')) ?>">Ir para o login</a>
         </div>
         <section class="panel">
             <div class="hero">
@@ -212,7 +212,7 @@ $formatDate = static function (?string $value): string {
                     </ul>
 
                     <div class="actions">
-                        <a class="btn btn-primary" href="<?= htmlspecialchars(base_url('/login#acesso')) ?>">Ir para o login</a>
+                        <a class="btn btn-primary" href="<?= htmlspecialchars(base_url('/login')) ?>">Ir para o login</a>
                         <a class="btn btn-secondary" href="<?= htmlspecialchars(base_url('/')) ?>">Voltar para a pagina inicial</a>
                     </div>
                 </article>

@@ -233,7 +233,7 @@ final class LandingPageService
             ['href' => '#problemas', 'label' => 'Problemas'],
             ['href' => '#solucoes', 'label' => 'Solucoes'],
             ['href' => '#funcionalidades', 'label' => 'Funcionalidades'],
-            ['href' => '#acesso', 'label' => 'Acesso'],
+            ['href' => '/login', 'label' => 'Acesso'],
             ['href' => '#blog', 'label' => 'Blog'],
             ['href' => '#contato', 'label' => 'Contato'],
             ['href' => '#planos', 'label' => 'Planos'],

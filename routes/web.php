@@ -52,7 +52,7 @@ $companyFeatureAccess = static fn (string $permissionSlug, string $featureKey): 
     [PermissionMiddleware::class, $permissionSlug],
 ];
 
-$router->get('/', [LoginController::class, 'show']);
+$router->get('/', [LoginController::class, 'landing']);
 $router->get('/login', [LoginController::class, 'show']);
 $router->post('/login', [LoginController::class, 'store']);
 $router->post('/contact', [LeadController::class, 'store']);
