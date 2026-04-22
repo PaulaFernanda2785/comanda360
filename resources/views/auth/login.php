@@ -585,6 +585,13 @@ $formatLimitValue = static function (?int $value): string {
         flex-wrap:wrap;
         margin-bottom:22px;
     }
+    #planos > .container > .section-head{
+        max-width:700px;
+    }
+    #planos > .container > .section-head h2{
+        font-size:clamp(24px,2.7vw,36px);
+        line-height:1.08;
+    }
     .pricing-toggle{
         display:inline-flex;
         align-items:center;
@@ -1113,7 +1120,6 @@ $formatLimitValue = static function (?int $value): string {
                 <div class="section-head reveal">
                     <span class="eyebrow">Planos</span>
                     <h2>Os planos desta pagina seguem o cadastro ativo do Comanda360.</h2>
-                    <p>Isso evita promessa comercial fora da realidade. O que aparece aqui respeita o catalogo vigente e aplica os marcadores comerciais de destaque e recomendado definidos na administracao interna.</p>
                 </div>
 
                 <div class="plans-head reveal">
