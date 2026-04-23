@@ -22,6 +22,7 @@ $heroPanelImageUrl = public_embedded_image_url('img/painel-descktop.png');
 $aboutPanelImageUrl = public_embedded_image_url('img/painel-tablet.png');
 $featuresPanelImageUrl = public_embedded_image_url('img/painel-tablet.png');
 $currentUrl = app_url((string) ($_SERVER['REQUEST_URI'] ?? '/'));
+$landingFormContext = strtolower(trim((string) ($_GET['landing_form'] ?? '')));
 
 $formatMoney = static function (?float $amount): string {
     if ($amount === null) {
@@ -153,6 +154,7 @@ $formatLimitValue = static function (?int $value): string {
     #problemas .section-head h2,
     #solucoes .section-head h2,
     #blog .section-head h2,
+    #contato .section-head h2,
     #funcionalidades .section-head h2{
         font-size:clamp(24px,3vw,38px);
         line-height:1.08;
@@ -1874,6 +1876,176 @@ $formatLimitValue = static function (?int $value): string {
         color:rgba(239,247,251,.72);
         line-height:1.6;
     }
+    .contact-grid{align-items:stretch}
+    .contact-panel{
+        position:relative;
+        overflow:hidden;
+        background:linear-gradient(148deg,#081b2e 0%, #123a58 54%, #0f766e 100%);
+        color:#eff7fb;
+        display:grid;
+        gap:20px;
+    }
+    .contact-panel::before{
+        content:"";
+        position:absolute;
+        top:-54px;
+        right:-36px;
+        width:220px;
+        height:220px;
+        border-radius:999px;
+        background:rgba(255,255,255,.11);
+    }
+    .contact-panel > *{position:relative;z-index:1}
+    .contact-panel-badge{
+        display:inline-flex;
+        align-items:center;
+        gap:8px;
+        width:max-content;
+        padding:8px 14px;
+        border-radius:999px;
+        background:rgba(255,255,255,.12);
+        border:1px solid rgba(255,255,255,.18);
+        color:#fff;
+        font-size:11px;
+        font-weight:800;
+        letter-spacing:.08em;
+        text-transform:uppercase;
+    }
+    .contact-panel h3{color:#fff}
+    .contact-panel p{color:rgba(239,247,251,.78);margin-top:0}
+    .contact-panel-points,
+    .contact-response-list,
+    .contact-channel-list{
+        display:grid;
+        gap:12px;
+    }
+    .contact-panel-point,
+    .contact-response-item,
+    .contact-channel-item{
+        padding:16px 18px;
+        border-radius:18px;
+        border:1px solid rgba(255,255,255,.12);
+        background:rgba(255,255,255,.07);
+    }
+    .contact-panel-point strong,
+    .contact-response-item strong,
+    .contact-channel-item strong{
+        display:block;
+        color:#fff;
+        font:700 18px/1.12 "Space Grotesk","Manrope",sans-serif;
+    }
+    .contact-panel-point span,
+    .contact-response-item span,
+    .contact-channel-item span{
+        display:block;
+        margin-top:6px;
+        color:rgba(239,247,251,.76);
+        line-height:1.6;
+    }
+    .contact-form-card{
+        display:grid;
+        gap:18px;
+        background:linear-gradient(180deg,rgba(255,255,255,.92) 0%, rgba(246,250,255,.96) 100%);
+        border:1px solid rgba(203,213,225,.8);
+    }
+    .contact-form-head{
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        gap:14px;
+        flex-wrap:wrap;
+    }
+    .contact-form-head h3{margin:0}
+    .contact-form-head p{margin:8px 0 0}
+    .contact-form-badge{
+        display:inline-flex;
+        align-items:center;
+        gap:8px;
+        padding:8px 12px;
+        border-radius:999px;
+        background:#eff6ff;
+        border:1px solid rgba(59,130,246,.14);
+        color:#1d4ed8;
+        font-size:11px;
+        font-weight:800;
+        letter-spacing:.08em;
+        text-transform:uppercase;
+    }
+    .contact-form-note{
+        padding:16px 18px;
+        border-radius:18px;
+        background:#f8fbff;
+        border:1px solid rgba(8,27,46,.08);
+        color:#506476;
+        line-height:1.68;
+    }
+    .contact-form-submit{
+        display:flex;
+        justify-content:space-between;
+        gap:14px;
+        align-items:center;
+        flex-wrap:wrap;
+        margin-top:4px;
+    }
+    .contact-form-submit span{
+        color:#5d7283;
+        font-size:13px;
+        line-height:1.55;
+    }
+    .contact-channel-list{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+    .contact-channel-item{
+        position:relative;
+        overflow:hidden;
+        display:grid;
+        gap:10px;
+        min-height:172px;
+        align-content:start;
+        background:linear-gradient(180deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.06) 100%);
+        box-shadow:0 16px 34px rgba(3,12,22,.12);
+    }
+    .contact-channel-item::before{
+        content:"";
+        position:absolute;
+        inset:0 auto auto 0;
+        width:100%;
+        height:4px;
+        background:linear-gradient(90deg,#f97316 0%, #38bdf8 100%);
+        opacity:.95;
+    }
+    .contact-channel-item small{
+        display:inline-flex;
+        align-items:center;
+        gap:8px;
+        width:max-content;
+        padding:6px 10px;
+        border-radius:999px;
+        background:rgba(255,255,255,.12);
+        border:1px solid rgba(255,255,255,.12);
+        color:rgba(239,247,251,.82);
+        font-size:10px;
+        font-weight:800;
+        letter-spacing:.1em;
+        text-transform:uppercase;
+    }
+    .contact-channel-item strong{
+        font-size:20px;
+        line-height:1.02;
+    }
+    .contact-channel-item span{
+        margin-top:0;
+    }
+    .contact-channel-item em{
+        display:block;
+        margin-top:auto;
+        color:#fff;
+        font-style:normal;
+        font-size:12px;
+        font-weight:800;
+        letter-spacing:.04em;
+        text-transform:uppercase;
+    }
 
     details.faq-item{
         padding:20px 22px;
@@ -2038,6 +2210,8 @@ $formatLimitValue = static function (?int $value): string {
         .tablet-stage img{transform:none}
         .blog-showcase{padding:24px}
         .blog-published-head{align-items:flex-start}
+        .contact-channel-list{grid-template-columns:1fr}
+        .contact-form-submit .btn{width:100%}
         .image-zoom-modal{padding:18px}
         .image-zoom-dialog{padding:18px;border-radius:24px}
         .image-zoom-head{padding-right:42px}
@@ -2448,7 +2622,7 @@ $formatLimitValue = static function (?int $value): string {
                     <p>Use este espaco para contar sua percepcao sobre o sistema, sugerir melhorias e acompanhar feedbacks que ajudam a reforcar a confianca na Comanda360.</p>
                 </div>
 
-                <?php if (!empty($flashSuccess) || !empty($flashError)): ?>
+                <?php if ($landingFormContext === 'feedback' && (!empty($flashSuccess) || !empty($flashError))): ?>
                     <div class="flash-stack reveal is-visible">
                         <?php if (!empty($flashSuccess)): ?>
                             <div class="flash success"><?= htmlspecialchars((string) $flashSuccess) ?></div>
@@ -2553,16 +2727,78 @@ $formatLimitValue = static function (?int $value): string {
             <div class="container">
                 <div class="section-head reveal">
                     <span class="eyebrow">Contato</span>
-                    <h2>Capte leads com contexto comercial, nao apenas mensagens soltas.</h2>
-                    <p>O formulario abaixo registra interesse diretamente no ambiente do projeto e preserva dados de origem. Isso melhora resposta comercial, leitura de campanha e prioridade de follow-up.</p>
+                    <h2>Abra uma conversa comercial com a Comanda360 e acelere sua decisao.</h2>
+                    <p>Se a empresa precisa vender melhor, organizar atendimento, comandas e fechamento ou avaliar o plano certo, este e o canal para falar com o comercial da Comanda360.</p>
                 </div>
 
                 <div class="contact-grid">
-                    <article class="contact-card reveal">
-                        <h3>Solicitar contato comercial</h3>
-                        <p>Preencha o essencial. Nome, e-mail, empresa, plano de interesse e mensagem curta ja bastam para qualificar a abordagem inicial.</p>
+                    <aside class="contact-card contact-panel reveal">
+                        <span class="contact-panel-badge">Canal comercial Comanda360</span>
+                        <h3>Uma entrada mais direta para quem ja esta em momento de compra ou avaliacao.</h3>
+                        <p>Aqui o visitante nao envia uma mensagem generica. Ele entra em uma fila comercial preparada para retorno rapido, leitura do contexto e conducao mais objetiva da venda.</p>
 
-                        <form method="POST" action="<?= htmlspecialchars(base_url('/contact')) ?>" style="margin-top:20px">
+                        <div class="contact-panel-points">
+                            <div class="contact-panel-point">
+                                <strong>Mais velocidade no primeiro retorno</strong>
+                                <span>A equipe comercial recebe o contato com informacoes suficientes para responder com mais rapidez e menos troca inutil.</span>
+                            </div>
+                            <div class="contact-panel-point">
+                                <strong>Mais clareza para conduzir a venda</strong>
+                                <span>Empresa, telefone, plano de interesse e mensagem ajudam a entender o momento do lead antes da abordagem.</span>
+                            </div>
+                            <div class="contact-panel-point">
+                                <strong>Menos oportunidade perdida no caminho</strong>
+                                <span>O contato entra em acompanhamento administrativo, com status, observacoes e visibilidade do andamento comercial.</span>
+                            </div>
+                        </div>
+
+                        <div class="contact-channel-list">
+                            <div class="contact-channel-item">
+                                <small>Canal 01</small>
+                                <strong>E-mail comercial</strong>
+                                <span>Ideal para proposta, apresentacao da solucao, comparativo de plano e formalizacao da conversa.</span>
+                                <em>Proposta e apresentacao</em>
+                            </div>
+                            <div class="contact-channel-item">
+                                <small>Canal 02</small>
+                                <strong>Telefone</strong>
+                                <span>Melhor para acelerar entendimento, quebrar objecoes e conduzir a decisao com mais rapidez.</span>
+                                <em>Agilidade na abordagem</em>
+                            </div>
+                            <div class="contact-channel-item">
+                                <small>Canal 03</small>
+                                <strong>WhatsApp</strong>
+                                <span>Canal mais pratico para follow-up, continuidade da conversa e retomada de interesse comercial.</span>
+                                <em>Follow-up e continuidade</em>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <article class="contact-card contact-form-card reveal">
+                        <div class="contact-form-head">
+                            <div>
+                                <h3>Solicitar contato comercial</h3>
+                                <p>Preencha os dados principais para a equipe comercial entender o seu cenario e responder com mais assertividade.</p>
+                            </div>
+                            <span class="contact-form-badge">Campos obrigatorios</span>
+                        </div>
+
+                        <?php if ($landingFormContext === 'contact' && (!empty($flashSuccess) || !empty($flashError))): ?>
+                            <div class="flash-stack">
+                                <?php if (!empty($flashSuccess)): ?>
+                                    <div class="flash success"><?= htmlspecialchars((string) $flashSuccess) ?></div>
+                                <?php endif; ?>
+                                <?php if (!empty($flashError)): ?>
+                                    <div class="flash error"><?= htmlspecialchars((string) $flashError) ?></div>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <div class="contact-form-note">
+                            Este formulario entra direto na fila comercial da Comanda360. A equipe pode registrar o lead, definir status, anotar observacoes e seguir o retorno por e-mail, telefone ou WhatsApp.
+                        </div>
+
+                        <form method="POST" action="<?= htmlspecialchars(base_url('/contact')) ?>">
                             <?= form_security_fields('marketing.contact.store') ?>
                             <input type="hidden" name="source_url" value="<?= htmlspecialchars($currentUrl) ?>" data-source-url>
                             <input type="hidden" name="utm_source" value="">
@@ -2585,8 +2821,8 @@ $formatLimitValue = static function (?int $value): string {
                                     <input id="lead_company" name="company" type="text" placeholder="Nome da empresa">
                                 </div>
                                 <div class="field">
-                                    <label for="lead_phone">Telefone</label>
-                                    <input id="lead_phone" name="phone" type="text" placeholder="WhatsApp ou telefone">
+                                    <label for="lead_phone">Telefone / WhatsApp</label>
+                                    <input id="lead_phone" name="phone" type="text" required placeholder="WhatsApp ou telefone">
                                 </div>
                                 <div class="field">
                                     <label for="lead_plan_interest">Plano de interesse</label>
@@ -2608,33 +2844,16 @@ $formatLimitValue = static function (?int $value): string {
                                 </div>
                                 <div class="field full">
                                     <label for="lead_message">Mensagem</label>
-                                    <textarea id="lead_message" name="message" placeholder="Descreva rapidamente a operacao, o momento comercial e o que voce quer estruturar."></textarea>
+                                    <textarea id="lead_message" name="message" required placeholder="Descreva rapidamente a operacao, o momento comercial e o que voce quer estruturar com a Comanda360."></textarea>
                                 </div>
                             </div>
 
-                            <button class="btn btn-primary" type="submit" style="margin-top:18px">Registrar interesse</button>
+                            <div class="contact-form-submit">
+                                <span>Obrigatorios: nome, e-mail, telefone e mensagem. Os demais campos ajudam a equipe a responder com mais contexto comercial.</span>
+                                <button class="btn btn-primary" type="submit">Quero falar com o comercial</button>
+                            </div>
                         </form>
                     </article>
-
-                    <aside class="contact-card is-dark reveal">
-                        <h3>O que essa pagina ja sustenta</h3>
-                        <p>Mais do que apresentacao. Ela sustenta descoberta, avaliacao, comparacao e entrada comercial com narrativa coerente para a Comanda360.</p>
-
-                        <div class="contact-pillars">
-                            <div class="contact-pillar">
-                                <strong>Publicidade digital</strong>
-                                <span>Estrutura pronta para anuncios, campanhas sazonais e paginas com CTA forte por secao.</span>
-                            </div>
-                            <div class="contact-pillar">
-                                <strong>SEO e indexacao</strong>
-                                <span>Conteudo semantico, FAQ e termos comerciais relevantes para ampliar leitura do Google.</span>
-                            </div>
-                            <div class="contact-pillar">
-                                <strong>Operacao comercial</strong>
-                                <span>Planos ativos, acesso a plataforma, fluxo de assinatura e captura de lead no mesmo ambiente.</span>
-                            </div>
-                        </div>
-                    </aside>
                 </div>
             </div>
         </section>

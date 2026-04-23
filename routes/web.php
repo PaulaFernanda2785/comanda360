@@ -22,6 +22,7 @@ use App\Controllers\Admin\DeliveryController;
 use App\Controllers\Admin\StockController;
 use App\Controllers\Saas\DashboardController as SaasDashboardController;
 use App\Controllers\Saas\CompanyController as SaasCompanyController;
+use App\Controllers\Saas\PublicContactController as SaasPublicContactController;
 use App\Controllers\Saas\PlanController as SaasPlanController;
 use App\Controllers\Saas\PublicInteractionController as SaasPublicInteractionController;
 use App\Controllers\Saas\SupportController as SaasSupportController;
@@ -169,6 +170,9 @@ $router->post('/admin/cash-registers/open', [CashRegisterController::class, 'ope
 $router->post('/admin/cash-registers/close', [CashRegisterController::class, 'close'], $companyAccess('cash_registers.close'));
 
 $router->get('/saas/dashboard', [SaasDashboardController::class, 'index'], $saasAccess('dashboard.view'));
+$router->get('/saas/public-contacts', [SaasPublicContactController::class, 'index'], $saasAccess('support.view'));
+$router->post('/saas/public-contacts/update', [SaasPublicContactController::class, 'update'], $saasAccess('support.manage'));
+$router->post('/saas/public-contacts/delete', [SaasPublicContactController::class, 'delete'], $saasAccess('support.manage'));
 $router->get('/saas/public-interactions', [SaasPublicInteractionController::class, 'index'], $saasAccess('support.view'));
 $router->post('/saas/public-interactions/update', [SaasPublicInteractionController::class, 'update'], $saasAccess('support.manage'));
 $router->post('/saas/public-interactions/delete', [SaasPublicInteractionController::class, 'delete'], $saasAccess('support.manage'));

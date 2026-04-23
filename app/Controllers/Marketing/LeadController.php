@@ -17,7 +17,7 @@ final class LeadController extends Controller
 
     public function store(Request $request): Response
     {
-        $redirectTo = '/#contato';
+        $redirectTo = '/?landing_form=contact#contato';
         $guard = $this->guardSingleSubmit($request, 'marketing.contact.store', $redirectTo);
         if ($guard !== null) {
             return $guard;
@@ -25,7 +25,7 @@ final class LeadController extends Controller
 
         try {
             $this->service->store($request->all(), $request->server);
-            return $this->backWithSuccess('Contato registrado. Agora o proximo passo e responder esse lead com velocidade comercial.', $redirectTo);
+            return $this->backWithSuccess('Contato comercial recebido. A equipe da Comanda360 pode retornar por e-mail, telefone ou WhatsApp.', $redirectTo);
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), $redirectTo);
         }

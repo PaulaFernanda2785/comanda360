@@ -276,6 +276,13 @@ final class AppShellService
                 'permission' => 'dashboard.view',
             ],
             [
+                'href' => '/saas/public-contacts',
+                'label' => 'Contatos',
+                'description' => 'Leads comerciais da pagina publica',
+                'permission' => 'support.view',
+                'match' => ['/saas/public-contacts'],
+            ],
+            [
                 'href' => '/saas/public-interactions',
                 'label' => 'Interações',
                 'description' => 'Moderação da página pública',

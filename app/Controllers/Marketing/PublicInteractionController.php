@@ -17,7 +17,7 @@ final class PublicInteractionController extends Controller
 
     public function store(Request $request): Response
     {
-        $redirectTo = '/#blog';
+        $redirectTo = '/?landing_form=feedback#blog';
         $guard = $this->guardSingleSubmit($request, 'marketing.public_interactions.store', $redirectTo);
         if ($guard !== null) {
             return $guard;
@@ -25,7 +25,7 @@ final class PublicInteractionController extends Controller
 
         try {
             $this->service->store($request->all(), $request->server);
-            return $this->backWithSuccess('Mensagem recebida. Agora ela entra em moderacao antes de aparecer publicamente na pagina da Comanda360.', $redirectTo);
+            return $this->backWithSuccess('Mensagem recebida. Obrigado por contribuir com o feedback da Comanda360.', $redirectTo);
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), $redirectTo);
         }

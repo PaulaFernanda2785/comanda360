@@ -4,63 +4,69 @@ declare(strict_types=1);
 namespace App\Services\Marketing;
 
 use App\Exceptions\ValidationException;
+use App\Repositories\PublicContactRepository;
 
 final class LeadCaptureService
 {
+    private const MAX_NAME_LENGTH = 120;
+    private const MAX_EMAIL_LENGTH = 160;
+    private const MAX_COMPANY_LENGTH = 160;
+    private const MAX_PHONE_LENGTH = 40;
+    private const MAX_PLAN_LENGTH = 120;
+    private const MAX_SOURCE_URL_LENGTH = 255;
+    private const MAX_USER_AGENT_LENGTH = 255;
+    private const MAX_UTM_LENGTH = 160;
+    private const MAX_MESSAGE_LENGTH = 2000;
+
+    public function __construct(
+        private readonly PublicContactRepository $repository = new PublicContactRepository()
+    ) {}
+
     public function store(array $input, array $server = []): void
     {
-        $name = $this->requireText($input['name'] ?? '', 'Informe seu nome.');
+        $name = $this->requireText($input['name'] ?? '', 'Informe seu nome.', self::MAX_NAME_LENGTH);
         $email = $this->normalizeEmail($input['email'] ?? '');
-        $company = $this->nullableText($input['company'] ?? null);
-        $phone = $this->nullableText($input['phone'] ?? null);
-        $message = $this->nullableText($input['message'] ?? null);
-        $planInterest = $this->nullableText($input['plan_interest'] ?? null);
+        $company = $this->nullableText($input['company'] ?? null, self::MAX_COMPANY_LENGTH);
+        $phone = $this->requireText($input['phone'] ?? '', 'Informe um telefone ou WhatsApp para retorno.', self::MAX_PHONE_LENGTH);
+        $message = $this->requireText($input['message'] ?? '', 'Escreva sua mensagem antes de enviar.', self::MAX_MESSAGE_LENGTH);
+        $planInterest = $this->nullableText($input['plan_interest'] ?? null, self::MAX_PLAN_LENGTH);
         $billingCycle = $this->normalizeBillingCycle($input['billing_cycle_interest'] ?? null);
 
-        $payload = [
-            'created_at' => date('c'),
-            'name' => $name,
-            'email' => $email,
-            'company' => $company,
+        $sourceUrl = $this->nullableText($input['source_url'] ?? null, self::MAX_SOURCE_URL_LENGTH);
+        $submittedIp = $this->nullableText($server['REMOTE_ADDR'] ?? null, 45);
+        $userAgent = $this->nullableText($server['HTTP_USER_AGENT'] ?? null, self::MAX_USER_AGENT_LENGTH);
+
+        $this->repository->create([
+            'contact_name' => $name,
+            'contact_email' => $email,
+            'company_name' => $company,
             'phone' => $phone,
-            'message' => $message,
             'plan_interest' => $planInterest,
             'billing_cycle_interest' => $billingCycle,
-            'source_url' => $this->nullableText($input['source_url'] ?? null),
-            'utm_source' => $this->nullableText($input['utm_source'] ?? null),
-            'utm_medium' => $this->nullableText($input['utm_medium'] ?? null),
-            'utm_campaign' => $this->nullableText($input['utm_campaign'] ?? null),
-            'utm_term' => $this->nullableText($input['utm_term'] ?? null),
-            'utm_content' => $this->nullableText($input['utm_content'] ?? null),
-            'ip_address' => $this->nullableText($server['REMOTE_ADDR'] ?? null),
-            'user_agent' => $this->nullableText($server['HTTP_USER_AGENT'] ?? null),
-        ];
-
-        $encoded = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        if ($encoded === false) {
-            throw new ValidationException('Nao foi possivel registrar o contato agora.');
-        }
-
-        $dir = BASE_PATH . '/storage/marketing_leads';
-        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
-            throw new ValidationException('Nao foi possivel preparar o armazenamento de leads.');
-        }
-
-        $file = $dir . '/' . date('Y-m') . '.jsonl';
-        $result = @file_put_contents($file, $encoded . PHP_EOL, FILE_APPEND | LOCK_EX);
-        if ($result === false) {
-            throw new ValidationException('Nao foi possivel salvar o contato agora.');
-        }
+            'message' => $message,
+            'source_page' => $sourceUrl,
+            'utm_source' => $this->nullableText($input['utm_source'] ?? null, self::MAX_UTM_LENGTH),
+            'utm_medium' => $this->nullableText($input['utm_medium'] ?? null, self::MAX_UTM_LENGTH),
+            'utm_campaign' => $this->nullableText($input['utm_campaign'] ?? null, self::MAX_UTM_LENGTH),
+            'utm_term' => $this->nullableText($input['utm_term'] ?? null, self::MAX_UTM_LENGTH),
+            'utm_content' => $this->nullableText($input['utm_content'] ?? null, self::MAX_UTM_LENGTH),
+            'submitted_ip' => $submittedIp,
+            'user_agent' => $userAgent,
+        ]);
     }
 
-    private function requireText(mixed $value, string $message): string
+    private function requireText(mixed $value, string $message, int $maxLength): string
     {
         $normalized = trim((string) ($value ?? ''));
         if ($normalized === '') {
             throw new ValidationException($message);
         }
 
-        return substr($normalized, 0, 120);
+        if (strlen($normalized) > $maxLength) {
+            return substr($normalized, 0, $maxLength);
+        }
+
+        return $normalized;
     }
 
     private function normalizeEmail(mixed $value): string
@@ -70,7 +76,11 @@ final class LeadCaptureService
             throw new ValidationException('Informe um e-mail valido.');
         }
 
-        return substr($email, 0, 160);
+        if (strlen($email) > self::MAX_EMAIL_LENGTH) {
+            throw new ValidationException('Informe um e-mail valido.');
+        }
+
+        return $email;
     }
 
     private function normalizeBillingCycle(mixed $value): ?string
@@ -87,13 +97,17 @@ final class LeadCaptureService
         return $normalized;
     }
 
-    private function nullableText(mixed $value): ?string
+    private function nullableText(mixed $value, int $maxLength): ?string
     {
         $normalized = trim((string) ($value ?? ''));
         if ($normalized === '') {
             return null;
         }
 
-        return substr($normalized, 0, 2000);
+        if (strlen($normalized) > $maxLength) {
+            return substr($normalized, 0, $maxLength);
+        }
+
+        return $normalized;
     }
 }

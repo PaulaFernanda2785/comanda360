@@ -1400,4 +1400,47 @@ CREATE INDEX idx_public_interactions_status ON public_interactions(status);
 CREATE INDEX idx_public_interactions_published_at ON public_interactions(published_at);
 CREATE INDEX idx_public_interactions_created_at ON public_interactions(created_at);
 
+CREATE TABLE IF NOT EXISTS public_contact_messages (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT 'Identificador do contato comercial enviado pela pagina publica',
+    contact_name VARCHAR(120) NOT NULL COMMENT 'Nome informado pelo visitante',
+    contact_email VARCHAR(160) NOT NULL COMMENT 'E-mail comercial informado pelo visitante',
+    company_name VARCHAR(160) NULL COMMENT 'Empresa informada no formulario publico',
+    phone VARCHAR(40) NOT NULL COMMENT 'Telefone ou WhatsApp para retorno',
+    plan_interest VARCHAR(120) NULL COMMENT 'Plano de interesse informado pelo visitante',
+    billing_cycle_interest VARCHAR(20) NULL COMMENT 'Ciclo comercial de interesse',
+    message TEXT NOT NULL COMMENT 'Mensagem comercial enviada pelo visitante',
+    status VARCHAR(20) NOT NULL DEFAULT 'new' COMMENT 'Status comercial do lead',
+    response_channel VARCHAR(20) NULL COMMENT 'Canal usado ou planejado para retorno',
+    response_notes TEXT NULL COMMENT 'Observacoes da equipe comercial',
+    source_page VARCHAR(255) NULL COMMENT 'URL da pagina publica de origem',
+    utm_source VARCHAR(160) NULL COMMENT 'UTM source de origem',
+    utm_medium VARCHAR(160) NULL COMMENT 'UTM medium de origem',
+    utm_campaign VARCHAR(160) NULL COMMENT 'UTM campaign de origem',
+    utm_term VARCHAR(160) NULL COMMENT 'UTM term de origem',
+    utm_content VARCHAR(160) NULL COMMENT 'UTM content de origem',
+    submitted_ip VARCHAR(45) NULL COMMENT 'IP de origem do envio',
+    user_agent VARCHAR(255) NULL COMMENT 'User agent capturado no envio',
+    responded_by_user_id BIGINT UNSIGNED NULL COMMENT 'Usuario SaaS que conduziu o retorno comercial',
+    responded_at DATETIME NULL DEFAULT NULL COMMENT 'Data/hora do ultimo retorno comercial registrado',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Data/hora do envio',
+    updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Data/hora da ultima atualizacao',
+    CONSTRAINT fk_public_contact_messages_responded_by_user
+        FOREIGN KEY (responded_by_user_id) REFERENCES users(id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+    CONSTRAINT chk_public_contact_messages_status CHECK (
+        status IN ('new', 'contacted', 'qualified', 'converted', 'archived')
+    ),
+    CONSTRAINT chk_public_contact_messages_channel CHECK (
+        response_channel IS NULL OR response_channel IN ('email', 'phone', 'whatsapp')
+    ),
+    CONSTRAINT chk_public_contact_messages_cycle CHECK (
+        billing_cycle_interest IS NULL OR billing_cycle_interest IN ('mensal', 'anual')
+    )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Contatos comerciais enviados pela landing publica';
+
+CREATE INDEX idx_public_contact_messages_status ON public_contact_messages(status);
+CREATE INDEX idx_public_contact_messages_channel ON public_contact_messages(response_channel);
+CREATE INDEX idx_public_contact_messages_created_at ON public_contact_messages(created_at);
+
 SET foreign_key_checks = 1;
