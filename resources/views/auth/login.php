@@ -20,6 +20,7 @@ $faqItems = is_array($landingPage['faq'] ?? null) ? $landingPage['faq'] : [];
 $logoUrl = public_logo_url();
 $heroPanelImageUrl = public_embedded_image_url('img/painel-descktop.png');
 $aboutPanelImageUrl = public_embedded_image_url('img/painel-tablet.png');
+$featuresPanelImageUrl = public_embedded_image_url('img/painel-tablet.png');
 $currentUrl = app_url((string) ($_SERVER['REQUEST_URI'] ?? '/'));
 
 $formatMoney = static function (?float $amount): string {
@@ -150,7 +151,8 @@ $formatLimitValue = static function (?int $value): string {
     .section-head p{margin:0;font-size:18px;line-height:1.65;color:var(--muted)}
     #sobre .section-head h2,
     #problemas .section-head h2,
-    #solucoes .section-head h2{
+    #solucoes .section-head h2,
+    #funcionalidades .section-head h2{
         font-size:clamp(24px,3vw,38px);
         line-height:1.08;
     }
@@ -455,7 +457,7 @@ $formatLimitValue = static function (?int $value): string {
     .problems-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-content:start}
     .solutions-layout{display:grid;grid-template-columns:minmax(300px,.84fr) minmax(0,1.16fr);gap:20px;align-items:stretch}
     .solutions-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-content:start}
-    .feature-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .feature-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
     .plans-grid{grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch}
     .blog-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
     .contact-grid{grid-template-columns:minmax(0,1.05fr) minmax(320px,.95fr)}
@@ -999,6 +1001,208 @@ $formatLimitValue = static function (?int $value): string {
     .blog-category{background:#edf2ff;color:#21358a}
     .feature-chip{background:#eef4fb;color:#19344f}
     .plan-badge{background:#fff4d4;color:#8b5c00;white-space:nowrap}
+    .features-showcase{
+        display:grid;
+        gap:20px;
+    }
+    .features-hero{
+        position:relative;
+        display:grid;
+        grid-template-columns:minmax(0,.92fr) minmax(320px,1.08fr);
+        gap:24px;
+        padding:30px;
+        border-radius:30px;
+        overflow:hidden;
+        color:#f7fbff;
+        background:
+            radial-gradient(circle at top left, rgba(14,165,164,.22) 0%, rgba(14,165,164,0) 34%),
+            radial-gradient(circle at bottom right, rgba(255,160,64,.22) 0%, rgba(255,160,64,0) 38%),
+            linear-gradient(160deg,#071728 0%, #0b3146 52%, #0f5060 100%);
+        border:1px solid rgba(255,255,255,.08);
+        box-shadow:0 36px 72px rgba(4,17,29,.24);
+    }
+    .features-hero::before{
+        content:"";
+        position:absolute;
+        inset:0;
+        border-radius:inherit;
+        background:linear-gradient(180deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,0) 22%);
+        pointer-events:none;
+    }
+    .features-hero > *{position:relative;z-index:1}
+    .features-hero-copy{
+        display:grid;
+        gap:18px;
+        align-content:start;
+    }
+    .features-hero-badge{
+        display:inline-flex;
+        align-items:center;
+        gap:8px;
+        width:max-content;
+        padding:9px 14px;
+        border-radius:999px;
+        background:rgba(255,255,255,.1);
+        border:1px solid rgba(255,255,255,.14);
+        color:#f8fbff;
+        font-size:12px;
+        font-weight:800;
+        letter-spacing:.08em;
+        text-transform:uppercase;
+    }
+    .features-hero-badge::before{
+        content:"";
+        width:8px;
+        height:8px;
+        border-radius:999px;
+        background:linear-gradient(135deg,var(--secondary),#6fe4cf);
+        box-shadow:0 0 0 4px rgba(111,228,207,.12);
+    }
+    .features-hero-copy h3{
+        margin:0;
+        max-width:16ch;
+        font:700 clamp(20px,2.2vw,30px)/1.06 "Space Grotesk","Manrope",sans-serif;
+        letter-spacing:-.05em;
+        color:#fff;
+    }
+    .features-hero-copy p{
+        margin:0;
+        max-width:54ch;
+        color:rgba(247,251,255,.8);
+        line-height:1.75;
+        font-size:16px;
+    }
+    .features-hero-points{
+        display:grid;
+        grid-template-columns:repeat(3,minmax(0,1fr));
+        gap:12px;
+    }
+    .features-hero-point{
+        display:grid;
+        gap:6px;
+        padding:16px 18px;
+        border-radius:22px;
+        background:rgba(255,255,255,.09);
+        border:1px solid rgba(255,255,255,.12);
+        backdrop-filter:blur(14px);
+    }
+    .features-hero-point strong{
+        font:700 17px/1.15 "Space Grotesk","Manrope",sans-serif;
+        color:#fff;
+    }
+    .features-hero-point span{
+        color:rgba(247,251,255,.78);
+        line-height:1.6;
+        font-size:13px;
+    }
+    .features-hero-visual{
+        position:relative;
+        display:grid;
+        place-items:center;
+        min-height:100%;
+        padding:12px 12px 0;
+    }
+    .features-hero-visual::before{
+        content:"";
+        position:absolute;
+        width:82%;
+        height:64%;
+        border-radius:999px;
+        background:radial-gradient(circle, rgba(255,122,24,.28) 0%, rgba(255,122,24,0) 74%);
+        filter:blur(28px);
+        z-index:0;
+    }
+    .features-hero-visual img{
+        position:relative;
+        z-index:1;
+        width:min(100%, 560px);
+        margin:0 auto;
+        transform:none;
+        filter:drop-shadow(0 26px 42px rgba(1,10,23,.34));
+    }
+    .feature-card{
+        position:relative;
+        display:grid;
+        gap:18px;
+        overflow:hidden;
+        min-height:100%;
+        padding-top:24px;
+        background:linear-gradient(180deg,#f2f8ff 0%, #ffffff 100%);
+        border-color:rgba(11,75,83,.12);
+        box-shadow:0 24px 52px rgba(8,27,46,.09);
+    }
+    .feature-card::before{
+        content:"";
+        position:absolute;
+        inset:0 auto auto 0;
+        width:100%;
+        height:4px;
+        background:linear-gradient(90deg,#0b4b53 0%, #0ea5a4 56%, rgba(14,165,164,0) 100%);
+    }
+    .feature-card-head{
+        display:flex;
+        align-items:center;
+        gap:12px;
+        flex-wrap:wrap;
+    }
+    .feature-step{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        width:42px;
+        height:42px;
+        border-radius:14px;
+        background:#081b2e;
+        color:#fff;
+        font-weight:800;
+    }
+    .feature-card-copy{
+        display:grid;
+        gap:12px;
+    }
+    .feature-card h3{
+        margin:0;
+        max-width:16ch;
+        font-size:20px;
+        line-height:1.14;
+    }
+    .feature-card p{
+        margin:0;
+        color:#56697c;
+        font-size:15px;
+        line-height:1.72;
+    }
+    .feature-media{
+        position:relative;
+        margin:0;
+        padding:20px 20px 16px;
+        min-height:240px;
+        border-radius:24px;
+        background:
+            radial-gradient(circle at top left, rgba(14,165,164,.12) 0%, rgba(14,165,164,0) 38%),
+            linear-gradient(180deg,#f8fbff 0%, #eaf3fb 100%);
+        border:1px solid rgba(8,27,46,.08);
+        overflow:hidden;
+    }
+    .feature-media::after{
+        content:"";
+        position:absolute;
+        inset:auto -28px -38px auto;
+        width:140px;
+        height:140px;
+        border-radius:999px;
+        background:radial-gradient(circle, rgba(255,122,24,.18) 0%, rgba(255,122,24,0) 72%);
+        pointer-events:none;
+    }
+    .feature-media img{
+        position:relative;
+        z-index:1;
+        width:100%;
+        height:260px;
+        object-fit:contain;
+        object-position:center bottom;
+        filter:drop-shadow(0 18px 28px rgba(8,27,46,.16));
+    }
 
     .feature-card ul,
     .plan-features,
@@ -1027,6 +1231,29 @@ $formatLimitValue = static function (?int $value): string {
         margin-top:7px;
         border-radius:999px;
         background:linear-gradient(135deg,var(--primary),var(--secondary));
+        flex-shrink:0;
+    }
+    .feature-result{
+        display:flex;
+        align-items:flex-start;
+        gap:10px;
+        padding:14px 16px;
+        border-radius:18px;
+        background:#f7fbff;
+        border:1px solid rgba(8,27,46,.08);
+        color:#17314a;
+        font-size:14px;
+        font-weight:700;
+        line-height:1.6;
+    }
+    .feature-result::before{
+        content:"";
+        width:10px;
+        height:10px;
+        margin-top:6px;
+        border-radius:999px;
+        background:linear-gradient(135deg,var(--secondary),var(--accent));
+        box-shadow:0 0 0 5px rgba(14,165,164,.10);
         flex-shrink:0;
     }
     .workflow{
@@ -1342,6 +1569,7 @@ $formatLimitValue = static function (?int $value): string {
         .solutions-layout,
         .contact-grid,
         .footer-grid{grid-template-columns:1fr}
+        .features-hero{grid-template-columns:1fr}
         .about-highlights,
         .about-modules{grid-template-columns:repeat(2,minmax(0,1fr))}
         .problems-grid,
@@ -1405,6 +1633,8 @@ $formatLimitValue = static function (?int $value): string {
         .about-panel{padding:24px}
         .problems-panel{padding:24px}
         .solutions-panel{padding:24px}
+        .features-hero{padding:24px}
+        .feature-media{padding:18px 18px 14px}
         .content-card,
         .feature-card,
         .problem-card,
@@ -1417,6 +1647,7 @@ $formatLimitValue = static function (?int $value): string {
         .hero-metrics,
         .about-highlights,
         .about-modules,
+        .features-hero-points,
         .problems-grid,
         .solutions-grid,
         .feature-grid,
@@ -1432,6 +1663,7 @@ $formatLimitValue = static function (?int $value): string {
         .hero-copy h1{font-size:30px}
         .hero-copy p{font-size:16px}
         .hero-actions .btn{width:100%}
+        .features-hero-visual img{transform:none}
         .about-floating-tag{
             position:static;
             max-width:none;
@@ -1673,23 +1905,73 @@ $formatLimitValue = static function (?int $value): string {
             <div class="container">
                 <div class="section-head reveal">
                     <span class="eyebrow">Funcionalidades</span>
-                    <h2>Funcionalidade so tem valor quando conversa com receita, operacao e crescimento.</h2>
-                    <p>Por isso a apresentacao foi organizada em blocos de negocio. O visitante entende rapidamente o que ajuda a vender, o que ajuda a operar e o que ajuda a receber.</p>
+                    <h2>Da entrada do cliente ao fechamento, a Comanda360 organiza a rotina em etapas claras.</h2>
+                    <p>Veja como a Comanda360 ajuda a acelerar atendimento, vender com mais clareza, fechar com menos erro e dar mais controle para a empresa no dia a dia.</p>
                 </div>
 
-                <div class="feature-grid">
-                    <?php foreach ($featureGroups as $group): ?>
-                        <?php if (!is_array($group)): continue; endif; ?>
-                        <article class="feature-card reveal">
-                            <span class="feature-chip"><?= htmlspecialchars((string) ($group['title'] ?? 'Grupo')) ?></span>
-                            <h3 style="margin-top:18px"><?= htmlspecialchars((string) ($group['title'] ?? 'Funcionalidades')) ?></h3>
-                            <ul>
-                                <?php foreach ((array) ($group['items'] ?? []) as $item): ?>
-                                    <li><?= htmlspecialchars((string) $item) ?></li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </article>
-                    <?php endforeach; ?>
+                <div class="features-showcase">
+                    <article class="features-hero reveal">
+                        <div class="features-hero-copy">
+                            <span class="features-hero-badge">Fluxo funcional Comanda360</span>
+                            <h3>Uma jornada pensada para vender mais, atender melhor e fechar com mais seguranca.</h3>
+                            <p>A Comanda360 conecta o que normalmente fica solto na rotina da empresa: entrada do cliente, escolha do pedido, registro de consumo, fechamento financeiro e leitura gerencial da operacao.</p>
+
+                            <div class="features-hero-points">
+                                <div class="features-hero-point">
+                                    <strong>Cliente</strong>
+                                    <span>QR Code, cardapio e pedido no celular com mais autonomia.</span>
+                                </div>
+                                <div class="features-hero-point">
+                                    <strong>Equipe</strong>
+                                    <span>Comandas, caixa e atendimento em um fluxo mais claro para a rotina.</span>
+                                </div>
+                                <div class="features-hero-point">
+                                    <strong>Gestao</strong>
+                                    <span>Indicadores e visibilidade para decidir com mais base real.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="features-hero-visual">
+                            <img src="<?= htmlspecialchars($featuresPanelImageUrl) ?>" alt="Painel principal da Comanda360">
+                        </div>
+                    </article>
+
+                    <div class="feature-grid">
+                        <?php foreach ($featureGroups as $group): ?>
+                            <?php if (!is_array($group)): continue; endif; ?>
+                            <article class="feature-card reveal">
+                                <div class="feature-card-head">
+                                    <span class="feature-step"><?= htmlspecialchars((string) ($group['step'] ?? '--')) ?></span>
+                                    <span class="feature-chip"><?= htmlspecialchars((string) ($group['eyebrow'] ?? ($group['title'] ?? 'Grupo'))) ?></span>
+                                </div>
+
+                                <div class="feature-card-copy">
+                                    <h3><?= htmlspecialchars((string) ($group['title'] ?? 'Funcionalidade')) ?></h3>
+                                    <p><?= htmlspecialchars((string) ($group['description'] ?? '')) ?></p>
+                                </div>
+
+                                <?php $featureImage = trim((string) ($group['image'] ?? '')); ?>
+                                <?php $featureImageUrl = $featureImage !== '' ? public_embedded_image_url($featureImage) : ''; ?>
+                                <?php if ($featureImageUrl !== ''): ?>
+                                    <div class="feature-media">
+                                        <img src="<?= htmlspecialchars($featureImageUrl) ?>" alt="<?= htmlspecialchars((string) ($group['image_alt'] ?? ($group['title'] ?? 'Funcionalidade Comanda360'))) ?>">
+                                    </div>
+                                <?php endif; ?>
+
+                                <ul>
+                                    <?php foreach ((array) ($group['items'] ?? []) as $item): ?>
+                                        <li><?= htmlspecialchars((string) $item) ?></li>
+                                    <?php endforeach; ?>
+                                </ul>
+
+                                <?php $featureResult = trim((string) ($group['result'] ?? '')); ?>
+                                <?php if ($featureResult !== ''): ?>
+                                    <div class="feature-result"><?= htmlspecialchars($featureResult) ?></div>
+                                <?php endif; ?>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             </div>
         </section>
