@@ -283,8 +283,8 @@ final class LandingPageService
             ['href' => '#funcionalidades', 'label' => 'Funcionalidades'],
             ['href' => '#planos', 'label' => 'Planos'],
             ['href' => '#blog', 'label' => 'Blog'],
-            ['href' => '#faq', 'label' => 'FAQ'],
             ['href' => '#contato', 'label' => 'Contato'],
+            ['href' => '#faq', 'label' => 'FAQ'],
         ];
     }
 
