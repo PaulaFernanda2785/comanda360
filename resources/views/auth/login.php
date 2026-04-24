@@ -2997,7 +2997,7 @@ $formatLimitValue = static function (?int $value): string {
                             <img src="<?= htmlspecialchars($logoUrl) ?>" alt="MesiMenu">
                         </span>
                     </a>
-                    <p>Landing publica desenhada para atrair novas empresas, sustentar indexacao e transformar visitas em oportunidades de assinatura para a MesiMenu.</p>
+                    <p>Venda mais com um cardapio digital moderno, pedidos organizados e uma experiencia simples para seus clientes do primeiro acesso ao pagamento.</p>
                 </div>
 
                 <div>
@@ -3030,8 +3030,8 @@ $formatLimitValue = static function (?int $value): string {
             </div>
 
             <div class="footer-bottom">
-                <span><?= htmlspecialchars((string) ($seo['title'] ?? 'MesiMenu')) ?></span>
-                <span>Pagina publica pensada para atrair novas empresas interessadas em contratar a MesiMenu.</span>
+                <span>Todos os direitos reservados.</span>
+                <span>&copy; 2026 mesimenu.com.br.</span>
             </div>
         </div>
     </footer>

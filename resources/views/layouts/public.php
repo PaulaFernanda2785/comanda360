@@ -19,7 +19,7 @@ $structuredData = is_array($seo['structured_data'] ?? null) ? $seo['structured_d
     <meta name="robots" content="<?= htmlspecialchars($robots) ?>">
     <meta name="theme-color" content="#05131f">
     <link rel="canonical" href="<?= htmlspecialchars($canonical) ?>">
-    <link rel="icon" type="image/png" href="<?= htmlspecialchars(asset_url('/img/logo-mesimenu.png')) ?>">
+    <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars(asset_url('/img/logo-mesimenu.ico')) ?>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">

@@ -73,8 +73,8 @@ $routeMatches = static function (string $path, array $routes): bool {
     <meta charset="UTF-8">
     <title><?= htmlspecialchars($title ?? 'SaaS') ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/png" href="<?= htmlspecialchars(base_url('/img/logo-mesimenu.png')) ?>">
-    <link rel="shortcut icon" href="<?= htmlspecialchars(base_url('/img/logo-mesimenu.png')) ?>">
+    <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars(base_url('/img/logo-mesimenu.ico')) ?>">
+    <link rel="shortcut icon" href="<?= htmlspecialchars(base_url('/img/logo-mesimenu.ico')) ?>">
     <style>
         :root{
             --theme-primary:#1d4ed8;

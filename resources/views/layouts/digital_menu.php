@@ -25,7 +25,7 @@ $footerText = trim((string) ($theme['footer_text'] ?? 'MesiMenu - Atendimento di
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($title ?? 'Menu digital') ?></title>
-    <link rel="icon" type="image/png" href="<?= htmlspecialchars(base_url('/img/logo-mesimenu.png')) ?>">
+    <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars(base_url('/img/logo-mesimenu.ico')) ?>">
     <style>
         :root{
             --dm-primary: <?= htmlspecialchars((string) ($theme['primary_color'] ?? '#1d4ed8')) ?>;

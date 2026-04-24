@@ -65,10 +65,6 @@ $startMarker
         AllowOverride All
         Require all granted
     </Directory>
-    RewriteEngine On
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^ /index.php [L]
 </VirtualHost>
 $endMarker
 "@
