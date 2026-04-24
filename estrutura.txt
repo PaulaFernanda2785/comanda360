@@ -1,4 +1,4 @@
-comanda360/
+mesimenu/
     README.md
     REVISAO_BANCO_COMANDA360.txt
     estrutura.txt

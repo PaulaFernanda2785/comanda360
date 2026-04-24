@@ -19,6 +19,7 @@ Renomear o sistema de Comanda360 para MesiMenu sem quebrar o que ja funciona. A 
 
 - Stack: PHP puro com arquitetura MVC, MySQL, Apache/WAMP, Node apenas para geracao de QR Code.
 - Repositorio local original: `d:/wamp64/www/comanda360`.
+- Repositorio local final: `d:/wamp64/www/mesimenu`.
 - Branch: `main`, acompanhando `origin/main`.
 - Git esta limpo, exceto o novo arquivo `public/img/logo-mesimenu.png`.
 - Remote original: `https://github.com/PaulaFernanda2785/comanda360.git`.
@@ -144,20 +145,27 @@ Risco:
 
 ### 6. Scripts WAMP e host local
 
+Estado atual:
+
+- `mesimenu.local` e `www.mesimenu.local` sao os hosts locais ativos.
+- `D:/wamp64/www/mesimenu` e uma pasta fisica independente, nao uma junction para `comanda360`.
+- O VirtualHost legado de `comanda360.local` foi removido do Apache.
+- O bloco SSL legado de `comanda360.local` foi removido do Apache.
+- As entradas `comanda360.local` e `www.comanda360.local` foram removidas do `hosts`.
+- O servico dedicado `comanda360apache64` e a pasta `conf/comanda360` foram removidos.
+- Os scripts e a documentacao operacional antigos de `comanda360.local` foram removidos para evitar recriacao acidental do host legado.
+
 Arquivos principais:
 
-- `scripts/fix_wamp_hosts_comanda360.ps1`
-- `scripts/fix_wamp_hosts_comanda360.cmd`
-- `scripts/install_comanda360_dedicated_service.ps1`
-- `scripts/install_comanda360_dedicated_service.cmd`
-- `scripts/start_comanda360_dedicated_instance.ps1`
-- `docs/comanda360_wamp_operacao.md`
+- `scripts/fix_wamp_hosts_mesimenu.ps1`
+- `scripts/fix_wamp_hosts_mesimenu.cmd`
+- `docs/mesimenu_wamp_operacao.md`
 
 Acao:
 
-- Criar scripts equivalentes para `mesimenu.local`.
-- Nao remover os scripts antigos antes de confirmar que o WAMP usa o novo host.
-- Atualizar documentacao operacional.
+- Manter somente scripts equivalentes para `mesimenu.local`.
+- Validar Apache/WAMP sempre com `http://mesimenu.local`.
+- Atualizar documentacao operacional quando houver mudanca no WAMP.
 
 Risco:
 
@@ -187,13 +195,13 @@ Risco:
 
 Estado atual:
 
-- Caminho local: `d:/wamp64/www/comanda360`.
+- Caminho local final: `d:/wamp64/www/mesimenu`.
+- A pasta `d:/wamp64/www/comanda360` foi removida apos a copia independente para `mesimenu`.
 
 Acao:
 
-- Etapa final, depois de validar app e WAMP: renomear pasta para `d:/wamp64/www/mesimenu`.
-- Atualizar VirtualHost/DocumentRoot para `D:/wamp64/www/mesimenu/public`.
-- Validar `APP_URL`, paths absolutos em scripts e documentos.
+- Manter VirtualHost/DocumentRoot em `D:/wamp64/www/mesimenu/public`.
+- Validar `APP_URL`, paths absolutos em scripts e documentos quando houver nova alteracao operacional.
 
 Risco:
 
@@ -258,6 +266,7 @@ Risco:
 ### Fase 5 - Configuracao local e scripts
 
 - Criar scripts WAMP para `mesimenu.local`. Concluido: `scripts/fix_wamp_hosts_mesimenu.ps1` e `scripts/fix_wamp_hosts_mesimenu.cmd`.
+- Remover scripts operacionais antigos de `comanda360.local`. Concluido.
 - Atualizar `.env.example`. Concluido para `APP_URL`, `SESSION_NAME`, `DB_DATABASE` e arquivos SQL MesiMenu.
 - Ajustar `.env` local somente quando o host estiver configurado.
 - Validar Apache/WAMP com `http://mesimenu.local`.
