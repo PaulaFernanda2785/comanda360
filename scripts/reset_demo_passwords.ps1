@@ -101,7 +101,7 @@ function Resolve-MysqlExe {
 $envMap = Read-EnvFile -Path $EnvFile
 
 $DbHost = Resolve-Setting -Current $DbHost -EnvMap $envMap -EnvKey 'DB_HOST' -Default '127.0.0.1'
-$DbName = Resolve-Setting -Current $DbName -EnvMap $envMap -EnvKey 'DB_DATABASE' -Default 'comanda360'
+$DbName = Resolve-Setting -Current $DbName -EnvMap $envMap -EnvKey 'DB_DATABASE' -Default 'mesimenu'
 $DbUser = Resolve-Setting -Current $DbUser -EnvMap $envMap -EnvKey 'DB_USERNAME'
 $DbPass = Resolve-Setting -Current $DbPass -EnvMap $envMap -EnvKey 'DB_PASSWORD'
 

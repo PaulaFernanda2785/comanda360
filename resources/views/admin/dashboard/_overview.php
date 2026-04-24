@@ -146,7 +146,7 @@ $donutBackground = $donutStops !== [] ? implode(', ', $donutStops) : '#e2e8f0 0%
     <?php if (!$reportViews['ready']): ?>
         <div class="card" style="border:1px solid #fecaca;background:#fff1f2">
             <h3 style="margin-top:0;color:#9f1239">Views de relatório ausentes no banco</h3>
-            <p class="ticket-note">Execute `basedados/schema_views_relatorios_comanda360.sql` para liberar o painel.</p>
+            <p class="ticket-note">Execute `basedados/schema_views_relatorios_mesimenu.sql` para liberar o painel.</p>
             <p class="ticket-note"><strong>Views faltantes:</strong> <?= htmlspecialchars(implode(', ', is_array($reportViews['missing'] ?? null) ? $reportViews['missing'] : [])) ?></p>
         </div>
     <?php endif; ?>

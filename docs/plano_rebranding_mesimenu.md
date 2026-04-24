@@ -257,14 +257,14 @@ Risco:
 
 ### Fase 5 - Configuracao local e scripts
 
-- Criar scripts WAMP para `mesimenu.local`.
-- Atualizar `.env.example`.
+- Criar scripts WAMP para `mesimenu.local`. Concluido: `scripts/fix_wamp_hosts_mesimenu.ps1` e `scripts/fix_wamp_hosts_mesimenu.cmd`.
+- Atualizar `.env.example`. Concluido para `APP_URL`, `SESSION_NAME`, `DB_DATABASE` e arquivos SQL MesiMenu.
 - Ajustar `.env` local somente quando o host estiver configurado.
 - Validar Apache/WAMP com `http://mesimenu.local`.
 
 ### Fase 6 - Banco
 
-- Criar arquivos SQL novos com nome MesiMenu.
+- Criar arquivos SQL novos com nome MesiMenu. Concluido em `basedados/*_mesimenu.sql`.
 - Validar importacao em banco `mesimenu`.
 - Trocar `DB_DATABASE` somente depois de importar e validar.
 - Manter plano de rollback para `comanda360`.

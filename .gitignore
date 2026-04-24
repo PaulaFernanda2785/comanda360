@@ -12,6 +12,7 @@ storage/logs/*
 storage/cache/*
 storage/sessions/*
 storage/tmp/*
+storage/backups/*
 storage/*.log
 
 # Dependency/build artifacts

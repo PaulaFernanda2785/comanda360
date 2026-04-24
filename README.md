@@ -34,4 +34,4 @@ Projeto base do MesiMenu em PHP puro com arquitetura MVC modular.
 - O script consulta o gateway, atualiza o status local da assinatura e reprocessa o financeiro da empresa.
 
 ## Usuário demo esperado
-Use os registros que foram preparados no `seed_demo_comanda360.sql` enquanto a migracao do banco para MesiMenu nao for concluida.
+Use os registros que foram preparados no `seed_demo_mesimenu.sql`.
