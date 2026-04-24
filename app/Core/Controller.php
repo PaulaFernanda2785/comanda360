@@ -66,4 +66,25 @@ abstract class Controller
 
         return $this->backWithError((string) ($result['message'] ?? 'Nao foi possivel validar a requisicao.'), $redirectTo);
     }
+
+    protected function guardPublicRateLimit(
+        Request $request,
+        string $scope,
+        int $maxAttempts,
+        int $windowSeconds,
+        string $redirectTo
+    ): ?Response {
+        $clientIp = trim((string) ($request->server['REMOTE_ADDR'] ?? 'unknown'));
+        $result = public_rate_limit_check($scope, $clientIp, $maxAttempts, $windowSeconds);
+        if (($result['ok'] ?? false) === true) {
+            return null;
+        }
+
+        $retryAfter = max(1, (int) ($result['retry_after'] ?? $windowSeconds));
+        $minutes = max(1, (int) ceil($retryAfter / 60));
+        return $this->backWithError(
+            'Muitas tentativas em pouco tempo. Aguarde ' . $minutes . ' minuto(s) antes de tentar novamente.',
+            $redirectTo
+        );
+    }
 }

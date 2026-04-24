@@ -21,6 +21,11 @@ final class PublicOnboardingService
     private const CONFIRMATION_SESSION_KEY = 'public_onboarding.confirmation';
     private const INITIAL_ADMIN_ROLE_SLUG = 'admin_establishment';
     private const ALLOWED_BILLING_CYCLES = ['mensal', 'anual'];
+    private const MAX_COMPANY_NAME_LENGTH = 160;
+    private const MAX_LEGAL_NAME_LENGTH = 180;
+    private const MAX_DOCUMENT_LENGTH = 40;
+    private const MAX_EMAIL_LENGTH = 160;
+    private const MAX_PHONE_LENGTH = 40;
 
     public function __construct(
         private readonly PlanRepository $plans = new PlanRepository(),
@@ -278,15 +283,14 @@ final class PublicOnboardingService
 
     private function normalizeSignupPayload(array $input, array $selection): array
     {
-        $name = trim((string) ($input['name'] ?? ''));
-        if ($name === '') {
-            throw new ValidationException('Informe o nome da empresa.');
-        }
-
-        $legalName = $this->nullableTrim($input['legal_name'] ?? null);
-        $documentNumber = $this->nullableTrim($input['document_number'] ?? null);
+        $name = $this->requireTrim($input['name'] ?? '', 'Informe o nome da empresa.', self::MAX_COMPANY_NAME_LENGTH);
+        $legalName = $this->nullableTrim($input['legal_name'] ?? null, self::MAX_LEGAL_NAME_LENGTH);
+        $documentNumber = $this->nullableTrim($input['document_number'] ?? null, self::MAX_DOCUMENT_LENGTH);
         $email = strtolower(trim((string) ($input['email'] ?? '')));
         if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            throw new ValidationException('Informe um e-mail válido para o acesso inicial da empresa.');
+        }
+        if (strlen($email) > self::MAX_EMAIL_LENGTH) {
             throw new ValidationException('Informe um e-mail válido para o acesso inicial da empresa.');
         }
 
@@ -304,8 +308,8 @@ final class PublicOnboardingService
             throw new ValidationException('A confirmação da senha inicial não confere.');
         }
 
-        $phone = $this->nullableTrim($input['phone'] ?? null);
-        $whatsapp = $this->nullableTrim($input['whatsapp'] ?? null);
+        $phone = $this->nullableTrim($input['phone'] ?? null, self::MAX_PHONE_LENGTH);
+        $whatsapp = $this->nullableTrim($input['whatsapp'] ?? null, self::MAX_PHONE_LENGTH);
         $slugInput = trim((string) ($input['slug'] ?? ''));
         $slug = $this->buildUniqueSlug($slugInput !== '' ? $slugInput : $name);
         $startsAt = date('Y-m-d 00:00:00');
@@ -530,9 +534,27 @@ final class PublicOnboardingService
         return trim($slug, '-');
     }
 
-    private function nullableTrim(mixed $value): ?string
+    private function requireTrim(mixed $value, string $message, int $maxLength): string
     {
         $normalized = trim((string) ($value ?? ''));
+        if ($normalized === '') {
+            throw new ValidationException($message);
+        }
+
+        if (strlen($normalized) > $maxLength) {
+            throw new ValidationException('O campo excede o limite de ' . $maxLength . ' caracteres.');
+        }
+
+        return $normalized;
+    }
+
+    private function nullableTrim(mixed $value, int $maxLength = 255): ?string
+    {
+        $normalized = trim((string) ($value ?? ''));
+        if (strlen($normalized) > $maxLength) {
+            throw new ValidationException('O campo excede o limite de ' . $maxLength . ' caracteres.');
+        }
+
         return $normalized !== '' ? $normalized : null;
     }
 

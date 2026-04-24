@@ -54,6 +54,16 @@ final class DigitalMenuController extends Controller
         if ($guard !== null) {
             return $guard;
         }
+        $rateLimit = $this->guardPublicRateLimit(
+            $request,
+            'digital_menu.command.open.' . $this->tableRateKey($request),
+            12,
+            3600,
+            $redirectTo
+        );
+        if ($rateLimit !== null) {
+            return $rateLimit;
+        }
 
         try {
             $this->service->openCommand($request->all());
@@ -102,6 +112,16 @@ final class DigitalMenuController extends Controller
         if ($guard !== null) {
             return $guard;
         }
+        $rateLimit = $this->guardPublicRateLimit(
+            $request,
+            'digital_menu.order.store.' . $this->tableRateKey($request),
+            30,
+            600,
+            $redirectTo
+        );
+        if ($rateLimit !== null) {
+            return $rateLimit;
+        }
 
         try {
             $orderId = $this->service->createOrder($request->all());
@@ -142,5 +162,14 @@ final class DigitalMenuController extends Controller
         }
 
         return base_url('/menu-digital?' . http_build_query($params));
+    }
+
+    private function tableRateKey(Request $request): string
+    {
+        return hash('sha256', implode('|', [
+            trim((string) ($request->input('empresa', ''))),
+            (string) ((int) ($request->input('mesa', 0))),
+            trim((string) ($request->input('token', ''))),
+        ]));
     }
 }

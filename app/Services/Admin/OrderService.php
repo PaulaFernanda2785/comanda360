@@ -20,6 +20,10 @@ use Throwable;
 
 final class OrderService
 {
+    private const MAX_ITEMS_PER_ORDER = 80;
+    private const MAX_QUANTITY_PER_ITEM = 99;
+    private const MAX_ADDITIONAL_UNITS_PER_ITEM = 99;
+
     public function __construct(
         private readonly OrderRepository $orders = new OrderRepository(),
         private readonly OrderItemRepository $orderItems = new OrderItemRepository(),
@@ -699,6 +703,9 @@ final class OrderService
         $items = [];
         $subtotal = 0.0;
         $totalRows = count($productIds);
+        if ($totalRows > self::MAX_ITEMS_PER_ORDER) {
+            throw new ValidationException('O pedido excede o limite de ' . self::MAX_ITEMS_PER_ORDER . ' itens por envio.');
+        }
 
         for ($index = 0; $index < $totalRows; $index++) {
             $rawProductId = $productIds[$index] ?? '';
@@ -720,6 +727,9 @@ final class OrderService
 
             if ($quantity < 1) {
                 throw new ValidationException('A quantidade do item da linha ' . $rowNumber . ' deve ser maior ou igual a 1.');
+            }
+            if ($quantity > self::MAX_QUANTITY_PER_ITEM) {
+                throw new ValidationException('A quantidade do item da linha ' . $rowNumber . ' excede o limite permitido.');
             }
 
             $product = $this->products->findByIdForCompany($companyId, $productId);
@@ -748,6 +758,9 @@ final class OrderService
                 $minSelection = $additionalConfig['min_selection'] ?? null;
                 $isRequired = (bool) ($additionalConfig['is_required'] ?? false);
                 $selectedCount = array_sum($selectedAdditionalQuantities);
+                if ($selectedCount > self::MAX_ADDITIONAL_UNITS_PER_ITEM) {
+                    throw new ValidationException('A linha ' . $rowNumber . ' excedeu o limite de unidades adicionais permitidas.');
+                }
 
                 if ($maxSelection !== null && $selectedCount > $maxSelection) {
                     throw new ValidationException('A linha ' . $rowNumber . ' excedeu o limite maximo de unidades adicionais permitidas para o produto.');

@@ -22,6 +22,10 @@ final class LeadController extends Controller
         if ($guard !== null) {
             return $guard;
         }
+        $rateLimit = $this->guardPublicRateLimit($request, 'marketing.contact.store', 10, 600, $redirectTo);
+        if ($rateLimit !== null) {
+            return $rateLimit;
+        }
 
         try {
             $this->service->store($request->all(), $request->server);

@@ -403,6 +403,51 @@ if (!function_exists('validate_form_submission')) {
     }
 }
 
+if (!function_exists('public_rate_limit_check')) {
+    function public_rate_limit_check(string $scope, string $identifier, int $maxAttempts, int $windowSeconds): array
+    {
+        $scope = preg_replace('/[^a-z0-9_.:-]+/i', '_', trim($scope)) ?: 'public';
+        $identifier = trim($identifier) !== '' ? trim($identifier) : 'unknown';
+        $maxAttempts = max(1, $maxAttempts);
+        $windowSeconds = max(30, $windowSeconds);
+        $now = time();
+        $dir = BASE_PATH . '/storage/cache/public_rate_limits';
+
+        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+            return ['ok' => true, 'retry_after' => 0];
+        }
+
+        $path = $dir . '/' . hash('sha256', $scope . '|' . $identifier) . '.json';
+        $attempts = [];
+        if (is_file($path)) {
+            $json = @file_get_contents($path);
+            $decoded = is_string($json) ? json_decode($json, true) : null;
+            if (is_array($decoded['attempts'] ?? null)) {
+                $attempts = array_values(array_filter(
+                    $decoded['attempts'],
+                    static fn (mixed $value): bool => is_int($value) && ($now - $value) < $windowSeconds
+                ));
+            }
+        }
+
+        if (count($attempts) >= $maxAttempts) {
+            $oldest = min($attempts);
+            return [
+                'ok' => false,
+                'retry_after' => max(1, $windowSeconds - ($now - $oldest)),
+            ];
+        }
+
+        $attempts[] = $now;
+        $payload = json_encode(['attempts' => $attempts], JSON_UNESCAPED_SLASHES);
+        if ($payload !== false) {
+            @file_put_contents($path, $payload, LOCK_EX);
+        }
+
+        return ['ok' => true, 'retry_after' => 0];
+    }
+}
+
 if (!function_exists('status_label')) {
     function status_label(string $context, mixed $value): string
     {

@@ -37,6 +37,10 @@ final class PublicOnboardingController extends Controller
                 return $this->backWithError($e->getMessage(), '/#planos');
             }
         }
+        $rateLimit = $this->guardPublicRateLimit($request, 'marketing.public.signup', 6, 3600, '/#planos');
+        if ($rateLimit !== null) {
+            return $rateLimit;
+        }
 
         try {
             $this->service->registerCompany($request->all());
@@ -72,6 +76,10 @@ final class PublicOnboardingController extends Controller
         if ($guard !== null) {
             return $guard;
         }
+        $rateLimit = $this->guardPublicRateLimit($request, 'marketing.public.payment.pix', 12, 600, '/cadastro/pagamento');
+        if ($rateLimit !== null) {
+            return $rateLimit;
+        }
 
         try {
             $this->service->generatePixCharge();
@@ -86,6 +94,10 @@ final class PublicOnboardingController extends Controller
         $guard = $this->guardSingleSubmit($request, 'marketing.public.payment.card', '/cadastro/pagamento');
         if ($guard !== null) {
             return $guard;
+        }
+        $rateLimit = $this->guardPublicRateLimit($request, 'marketing.public.payment.card', 12, 600, '/cadastro/pagamento');
+        if ($rateLimit !== null) {
+            return $rateLimit;
         }
 
         try {

@@ -1,12 +1,10 @@
 RewriteEngine On
 
-# Hostinger/ModSecurity can block webhook POST tests from Mercado Pago with 403
-<IfModule mod_security.c>
-SecFilterEngine Off
-SecFilterScanPOST Off
-</IfModule>
+# Hostinger/ModSecurity can block Mercado Pago webhook POSTs with 403.
+# Keep any relaxation scoped to the webhook route instead of disabling it site-wide.
 <IfModule mod_security2.c>
-SecRuleEngine Off
+SecRule REQUEST_URI "@beginsWith /webhooks/mercado-pago" "id:1000001,phase:1,pass,nolog,ctl:ruleEngine=Off"
+SecRule REQUEST_URI "@beginsWith /webhooks/mercado-pago" "id:1000002,phase:2,pass,nolog,ctl:ruleEngine=Off"
 </IfModule>
 
 # Upload de imagens de produtos (WAMP/mod_php)

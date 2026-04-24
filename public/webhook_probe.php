@@ -1,9 +1,24 @@
 <?php
 declare(strict_types=1);
 
+if (!filter_var(getenv('WEBHOOK_PROBE_ENABLED') ?: 'false', FILTER_VALIDATE_BOOLEAN)) {
+    http_response_code(404);
+    header('Content-Type: application/json; charset=UTF-8');
+    echo json_encode(['ok' => false, 'message' => 'not found'], JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 $logDir = __DIR__ . '/../storage/logs';
 if (!is_dir($logDir)) {
     @mkdir($logDir, 0755, true);
+}
+
+$contentLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+if ($contentLength > 32768) {
+    http_response_code(413);
+    header('Content-Type: application/json; charset=UTF-8');
+    echo json_encode(['ok' => false, 'message' => 'payload too large'], JSON_UNESCAPED_SLASHES);
+    exit;
 }
 
 $rawBody = file_get_contents('php://input');
@@ -24,7 +39,7 @@ $line = json_encode([
     'uri' => $_SERVER['REQUEST_URI'] ?? '',
     'get' => $_GET,
     'post' => $_POST,
-    'raw' => is_string($rawBody) ? $rawBody : '',
+    'raw' => is_string($rawBody) ? substr($rawBody, 0, 4000) : '',
     'headers' => $headers,
 ], JSON_UNESCAPED_SLASHES);
 

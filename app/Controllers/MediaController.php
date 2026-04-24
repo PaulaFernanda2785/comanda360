@@ -13,6 +13,13 @@ use RuntimeException;
 
 final class MediaController extends Controller
 {
+    private const PUBLIC_IMAGE_MIME_TYPES = [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+    ];
+
     public function __construct(
         private readonly DashboardRepository $dashboard = new DashboardRepository(),
         private readonly SupportAttachmentService $supportAttachments = new SupportAttachmentService()
@@ -21,80 +28,13 @@ final class MediaController extends Controller
     public function company(Request $request): Response
     {
         $rawPath = trim((string) $request->input('path', ''));
-        if ($rawPath === '') {
-            return Response::make('Imagem nao informada.', 404, ['Content-Type' => 'text/plain; charset=UTF-8']);
-        }
-
-        $relativePath = str_replace('\\', '/', ltrim($rawPath, '/'));
-        if (str_starts_with($relativePath, 'public/')) {
-            $relativePath = ltrim(substr($relativePath, strlen('public/')), '/');
-        }
-
-        $isAllowedPath = str_starts_with($relativePath, 'uploads/company/');
-        $hasTraversal = str_contains($relativePath, '../') || str_contains($relativePath, '..\\');
-        if (!$isAllowedPath || $hasTraversal) {
-            return Response::make('Caminho de imagem invalido.', 400, ['Content-Type' => 'text/plain; charset=UTF-8']);
-        }
-
-        $absolutePath = BASE_PATH . '/public/' . $relativePath;
-        if (!is_file($absolutePath) || !is_readable($absolutePath)) {
-            return Response::make('Imagem nao encontrada.', 404, ['Content-Type' => 'text/plain; charset=UTF-8']);
-        }
-
-        $mime = @mime_content_type($absolutePath);
-        if (!is_string($mime) || $mime === '') {
-            $mime = 'application/octet-stream';
-        }
-
-        $content = file_get_contents($absolutePath);
-        if ($content === false) {
-            return Response::make('Falha ao ler imagem.', 500, ['Content-Type' => 'text/plain; charset=UTF-8']);
-        }
-
-        return Response::make($content, 200, [
-            'Content-Type' => $mime,
-            'Cache-Control' => 'public, max-age=31536000',
-        ]);
+        return $this->servePublicImage($rawPath, ['#^uploads/company/#']);
     }
 
     public function product(Request $request): Response
     {
         $rawPath = trim((string) $request->input('path', ''));
-        if ($rawPath === '') {
-            return Response::make('Imagem nao informada.', 404, ['Content-Type' => 'text/plain; charset=UTF-8']);
-        }
-
-        $relativePath = str_replace('\\', '/', ltrim($rawPath, '/'));
-        if (str_starts_with($relativePath, 'public/')) {
-            $relativePath = ltrim(substr($relativePath, strlen('public/')), '/');
-        }
-
-        $isAllowedPath = str_starts_with($relativePath, 'uploads/products/')
-            || preg_match('#^uploads/company/\d+/products/#', $relativePath) === 1;
-        $hasTraversal = str_contains($relativePath, '../') || str_contains($relativePath, '..\\');
-        if (!$isAllowedPath || $hasTraversal) {
-            return Response::make('Caminho de imagem invalido.', 400, ['Content-Type' => 'text/plain; charset=UTF-8']);
-        }
-
-        $absolutePath = BASE_PATH . '/public/' . $relativePath;
-        if (!is_file($absolutePath) || !is_readable($absolutePath)) {
-            return Response::make('Imagem nao encontrada.', 404, ['Content-Type' => 'text/plain; charset=UTF-8']);
-        }
-
-        $mime = @mime_content_type($absolutePath);
-        if (!is_string($mime) || $mime === '') {
-            $mime = 'application/octet-stream';
-        }
-
-        $content = file_get_contents($absolutePath);
-        if ($content === false) {
-            return Response::make('Falha ao ler imagem.', 500, ['Content-Type' => 'text/plain; charset=UTF-8']);
-        }
-
-        return Response::make($content, 200, [
-            'Content-Type' => $mime,
-            'Cache-Control' => 'public, max-age=31536000',
-        ]);
+        return $this->servePublicImage($rawPath, ['#^uploads/products/#', '#^uploads/company/\d+/products/#']);
     }
 
     public function tableQr(Request $request): Response
@@ -103,14 +43,25 @@ final class MediaController extends Controller
         if ($rawData === '') {
             return Response::make('Dados do QR nao informados.', 400, ['Content-Type' => 'text/plain; charset=UTF-8']);
         }
-        $isLegacyPayload = str_starts_with($rawData, 'comanda360:');
-        $isMesiMenuPayload = str_starts_with($rawData, 'mesimenu:');
-        $isUrlPayload = preg_match('#^https?://#i', $rawData) === 1;
-        if (!$isLegacyPayload && !$isMesiMenuPayload && !$isUrlPayload) {
-            return Response::make('Formato de payload QR invalido.', 400, ['Content-Type' => 'text/plain; charset=UTF-8']);
-        }
         if (strlen($rawData) > 600) {
             return Response::make('Dados do QR excedem o limite permitido.', 400, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        $rateLimit = public_rate_limit_check(
+            'media.table_qr',
+            trim((string) ($request->server['REMOTE_ADDR'] ?? 'unknown')),
+            120,
+            600
+        );
+        if (($rateLimit['ok'] ?? false) !== true) {
+            return Response::make('Muitas tentativas de geração de QR. Aguarde antes de tentar novamente.', 429, [
+                'Content-Type' => 'text/plain; charset=UTF-8',
+                'Retry-After' => (string) max(1, (int) ($rateLimit['retry_after'] ?? 60)),
+            ]);
+        }
+
+        if (!$this->isAllowedQrPayload($rawData)) {
+            return Response::make('Formato de payload QR invalido.', 400, ['Content-Type' => 'text/plain; charset=UTF-8']);
         }
 
         $size = (int) $request->input('size', 760);
@@ -258,6 +209,94 @@ final class MediaController extends Controller
         }
 
         return $svgContent;
+    }
+
+    private function servePublicImage(string $rawPath, array $allowedPatterns): Response
+    {
+        if ($rawPath === '') {
+            return Response::make('Imagem não informada.', 404, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        $relativePath = str_replace('\\', '/', ltrim($rawPath, '/'));
+        if (str_contains($relativePath, "\0")) {
+            return Response::make('Caminho de imagem inválido.', 400, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        if (str_starts_with($relativePath, 'public/')) {
+            $relativePath = ltrim(substr($relativePath, strlen('public/')), '/');
+        }
+
+        $hasAllowedPath = false;
+        foreach ($allowedPatterns as $pattern) {
+            if (preg_match($pattern, $relativePath) === 1) {
+                $hasAllowedPath = true;
+                break;
+            }
+        }
+
+        if (!$hasAllowedPath) {
+            return Response::make('Caminho de imagem inválido.', 400, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        if (str_contains($relativePath, '../') || str_contains($relativePath, '..\\')) {
+            return Response::make('Caminho de imagem inválido.', 400, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        $publicRoot = realpath(BASE_PATH . '/public');
+        $absolutePath = realpath(BASE_PATH . '/public/' . $relativePath);
+        if (!is_string($publicRoot) || !is_string($absolutePath) || !str_starts_with(str_replace('\\', '/', $absolutePath), rtrim(str_replace('\\', '/', $publicRoot), '/') . '/')) {
+            return Response::make('Caminho de imagem inválido.', 400, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        if (!is_file($absolutePath) || !is_readable($absolutePath)) {
+            return Response::make('Imagem não encontrada.', 404, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        $mime = @mime_content_type($absolutePath);
+        if (!is_string($mime) || !in_array(strtolower($mime), self::PUBLIC_IMAGE_MIME_TYPES, true)) {
+            return Response::make('Tipo de imagem não permitido.', 415, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        $content = file_get_contents($absolutePath);
+        if ($content === false) {
+            return Response::make('Falha ao ler imagem.', 500, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        return Response::make($content, 200, [
+            'Content-Type' => $mime,
+            'Cache-Control' => 'public, max-age=31536000',
+        ]);
+    }
+
+    private function isAllowedQrPayload(string $payload): bool
+    {
+        if (str_starts_with($payload, 'comanda360:') || str_starts_with($payload, 'mesimenu:')) {
+            return true;
+        }
+
+        if (preg_match('#^https?://#i', $payload) !== 1) {
+            return false;
+        }
+
+        $payloadHost = strtolower((string) parse_url($payload, PHP_URL_HOST));
+        $payloadPath = (string) parse_url($payload, PHP_URL_PATH);
+        if ($payloadHost === '' || !str_contains($payloadPath, '/menu-digital')) {
+            return false;
+        }
+
+        $allowedHosts = [];
+        foreach ([app_url('/'), public_app_url('/')] as $baseUrl) {
+            $host = strtolower((string) parse_url($baseUrl, PHP_URL_HOST));
+            if ($host !== '') {
+                $allowedHosts[] = $host;
+            }
+        }
+        $requestHost = strtolower(trim((string) ($_SERVER['HTTP_HOST'] ?? '')));
+        if ($requestHost !== '') {
+            $allowedHosts[] = preg_replace('/:\d+$/', '', $requestHost) ?? $requestHost;
+        }
+
+        return in_array($payloadHost, array_unique($allowedHosts), true);
     }
 
     private function buildFailureSvg(string $title): string

@@ -11,13 +11,34 @@ use App\Services\Admin\SubscriptionGatewayService;
 
 final class WebhookController extends Controller
 {
+    private const MAX_WEBHOOK_BODY_BYTES = 131072;
+
     public function __construct(
         private readonly SubscriptionGatewayService $gatewayService = new SubscriptionGatewayService()
     ) {}
 
     public function mercadoPago(Request $request): Response
     {
+        $contentLength = (int) ($request->server['CONTENT_LENGTH'] ?? 0);
+        if ($contentLength > self::MAX_WEBHOOK_BODY_BYTES) {
+            return Response::make(json_encode([
+                'ok' => false,
+                'message' => 'Payload excede o limite permitido.',
+            ], JSON_UNESCAPED_SLASHES) ?: '{"ok":false}', 413, [
+                'Content-Type' => 'application/json; charset=UTF-8',
+            ]);
+        }
+
         $rawBody = file_get_contents('php://input');
+        if (is_string($rawBody) && strlen($rawBody) > self::MAX_WEBHOOK_BODY_BYTES) {
+            return Response::make(json_encode([
+                'ok' => false,
+                'message' => 'Payload excede o limite permitido.',
+            ], JSON_UNESCAPED_SLASHES) ?: '{"ok":false}', 413, [
+                'Content-Type' => 'application/json; charset=UTF-8',
+            ]);
+        }
+
         $body = json_decode(is_string($rawBody) ? $rawBody : '', true);
         $payload = is_array($body) ? $body : [];
         $merged = $request->query;
@@ -72,7 +93,7 @@ final class WebhookController extends Controller
             'method' => $request->method,
             'uri' => $request->uri,
             'query' => $request->query,
-            'payload' => $payload,
+            'payload' => $this->truncateForLog($payload),
             'merged' => $merged,
             'headers' => [
                 'x_signature' => (string) ($request->server['HTTP_X_SIGNATURE'] ?? ''),
@@ -87,5 +108,23 @@ final class WebhookController extends Controller
         }
 
         file_put_contents($dir . '/mercado_pago_webhook.log', $line . PHP_EOL, FILE_APPEND | LOCK_EX);
+    }
+
+    private function truncateForLog(mixed $value): mixed
+    {
+        if (is_string($value)) {
+            return strlen($value) > 2000 ? substr($value, 0, 2000) . '...[truncated]' : $value;
+        }
+
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        $normalized = [];
+        foreach ($value as $key => $item) {
+            $normalized[$key] = $this->truncateForLog($item);
+        }
+
+        return $normalized;
     }
 }
