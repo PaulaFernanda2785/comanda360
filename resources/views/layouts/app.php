@@ -706,6 +706,23 @@ $routeMatches = static function (string $path, array $routes): bool {
             control.value = 'Processando...';
         }
     };
+    const preserveSubmitterValue = (form, submitter) => {
+        if (!(submitter instanceof HTMLButtonElement || submitter instanceof HTMLInputElement)) {
+            return;
+        }
+
+        const name = submitter.getAttribute('name') || '';
+        if (name === '' || submitter.disabled) {
+            return;
+        }
+
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = name;
+        hidden.value = submitter.getAttribute('value') ?? submitter.value ?? '';
+        hidden.dataset.submitterValue = '1';
+        form.appendChild(hidden);
+    };
 
     document.addEventListener('submit', (event) => {
         const form = event.target;
@@ -731,12 +748,14 @@ $routeMatches = static function (string $path, array $routes): bool {
 
         form.dataset.submitting = '1';
 
+        const submitter = event.submitter instanceof HTMLElement ? event.submitter : null;
+        preserveSubmitterValue(form, submitter);
+
         const controls = findSubmitControls(form);
         controls.forEach((control) => {
             control.disabled = true;
         });
 
-        const submitter = event.submitter instanceof HTMLElement ? event.submitter : null;
         const preferred = submitter && (submitter instanceof HTMLButtonElement || submitter instanceof HTMLInputElement)
             ? submitter
             : (controls[0] ?? null);
