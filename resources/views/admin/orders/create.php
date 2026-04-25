@@ -55,7 +55,7 @@ $canCreateOrder = $totalProducts > 0;
     .items-headline p{margin:5px 0 0;color:#64748b;font-size:13px;line-height:1.5;max-width:760px}
     .items-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:14px;background:#eff6ff;border:1px solid #bfdbfe}
     .items-toolbar-copy{font-size:12px;color:#1e3a8a;line-height:1.5}
-    .items-table-wrap{border:1px solid #dbe3ee;border-radius:16px;overflow:auto;background:#f8fafc}
+    .items-table-wrap{border:1px solid #dbe3ee;border-radius:16px;overflow-x:auto;overflow-y:visible;background:#f8fafc}
     .items-table{width:100%;min-width:1140px;border-collapse:separate;border-spacing:0;margin:0;table-layout:auto}
     .items-table th{background:#e2e8f0;color:#334155;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
     .items-table th,.items-table td{border-bottom:1px solid #e2e8f0;padding:10px;vertical-align:top}
@@ -85,8 +85,8 @@ $canCreateOrder = $totalProducts > 0;
     .additional-card input{position:absolute;opacity:0;pointer-events:none}
     .additional-card-name{font-size:12px;color:#0f172a;font-weight:600;line-height:1.25;word-break:break-word}
     .additional-card-price{font-size:11px;color:#475569}
-    .additional-card-controls{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px}
-    .additional-toggle{border:1px solid #93c5fd;background:#fff;color:#1d4ed8;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer}
+    .additional-card-controls{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px;flex-wrap:wrap}
+    .additional-toggle{border:1px solid #93c5fd;background:#fff;color:#1d4ed8;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
     .additional-card.is-selected .additional-toggle{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
     .additional-qty{display:inline-flex;align-items:center;gap:6px}
     .additional-qty button{width:24px;height:24px;border-radius:999px;border:1px solid #93c5fd;background:#fff;color:#1d4ed8;font-weight:700;cursor:pointer}
@@ -94,6 +94,7 @@ $canCreateOrder = $totalProducts > 0;
     .additional-qty strong{min-width:18px;text-align:center;font-size:12px;color:#0f172a}
     .additionals-placeholder{display:block;padding:8px 10px;border-radius:8px;background:#f8fafc;color:#64748b;font-size:12px}
     .line-total{display:inline-block;padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1e3a8a;font-size:12px;white-space:nowrap}
+    .remove-item{white-space:nowrap;min-width:96px}
     .summary-list{display:grid;gap:8px;margin-top:10px}
     .summary-item{border:1px solid #e2e8f0;border-radius:10px;padding:10px;background:#f8fafc}
     .summary-item strong{display:block;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
@@ -116,8 +117,8 @@ $canCreateOrder = $totalProducts > 0;
         .additionals-container{min-width:0}
         .items-table{min-width:0}
     }
-    @media (max-width:860px){
-        .items-table-wrap{border:none;background:transparent}
+    @media (max-width:1240px){
+        .items-table-wrap{border:none;background:transparent;overflow:visible}
         .items-table,
         .items-table tbody,
         .items-table tr,
@@ -125,13 +126,19 @@ $canCreateOrder = $totalProducts > 0;
         .items-table{display:grid;gap:10px}
         .items-table thead{display:none}
         .items-table tbody{display:grid;gap:10px}
-        .items-table tbody tr{border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;padding:12px}
+        .items-table tbody tr{border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc;padding:14px;box-shadow:0 8px 18px rgba(15,23,42,.05)}
         .items-table th,
         .items-table td{border:0;padding:0}
-        .items-table td + td{margin-top:10px}
+        .items-table td + td{margin-top:12px}
         .items-table td::before{content:attr(data-label);display:block;margin-bottom:6px;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
         .items-table td[data-cell="line-total"] .line-total{display:inline-flex}
+        .items-table td[data-cell="action"] .btn{width:auto;min-width:120px}
+        .additionals-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
+    }
+    @media (max-width:560px){
+        .items-table tbody tr{padding:12px}
         .items-table td[data-cell="action"] .btn{width:100%}
+        .additional-card-controls{align-items:flex-start}
     }
     @media (max-width:560px){
         .kpi-grid{grid-template-columns:1fr}
@@ -350,12 +357,12 @@ $canCreateOrder = $totalProducts > 0;
                         <div class="items-table-wrap">
                             <table class="items-table" id="itemsTable">
                                 <colgroup>
-                                    <col style="width:27%">
-                                    <col style="width:8%">
-                                    <col style="width:34%">
-                                    <col style="width:17%">
-                                    <col style="width:8%">
-                                    <col style="width:6%">
+                                    <col style="width:25%">
+                                    <col style="width:7%">
+                                    <col style="width:33%">
+                                    <col style="width:16%">
+                                    <col style="width:10%">
+                                    <col style="width:9%">
                                 </colgroup>
                                 <thead>
                                     <tr>

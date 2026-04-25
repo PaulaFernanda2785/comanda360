@@ -262,7 +262,7 @@ $routeMatches = static function (string $path, array $routes): bool {
         .shell-user-chip strong{display:block;font-size:14px}
         .shell-user-chip span{font-size:12px;color:#cbd5e1}
 
-        main{padding:22px;overflow-y:auto;overflow-x:hidden;min-width:0}
+        main{padding:22px;overflow-y:auto;overflow-x:auto;min-width:0;width:100%;max-width:100%}
         .shell-footer{
             padding:10px 22px;
             background:
@@ -274,7 +274,7 @@ $routeMatches = static function (string $path, array $routes): bool {
             overflow-wrap:anywhere;
         }
 
-        .card{background:var(--surface);border-radius:12px;padding:24px;box-shadow:0 10px 28px rgba(15,23,42,.08);border:1px solid rgba(226,232,240,.9);min-width:0;max-width:100%}
+        .card{background:var(--surface);border-radius:12px;padding:24px;box-shadow:0 10px 28px rgba(15,23,42,.08);border:1px solid rgba(226,232,240,.9);min-width:0;max-width:100%;overflow-x:auto}
         .flash{padding:12px 14px;border-radius:8px;margin-bottom:16px}
         .flash.success{background:#dcfce7;color:#166534}
         .flash.error{background:#fee2e2;color:#991b1b}
@@ -291,6 +291,43 @@ $routeMatches = static function (string $path, array $routes): bool {
         label{display:block;font-weight:bold;margin-bottom:6px}
         .field{margin-bottom:14px;min-width:0}
         img,svg,canvas,video,iframe{max-width:100%}
+        main > *,
+        main section,
+        main article,
+        main form,
+        main fieldset,
+        .ops-page,
+        .dash-page,
+        .topbar,
+        [class$="-page"],
+        [class*="-page "],
+        [class$="-grid"],
+        [class*="-grid "],
+        [class$="-layout"],
+        [class*="-layout "],
+        [class$="-board"],
+        [class*="-board "],
+        [class$="-panel"],
+        [class*="-panel "],
+        [class$="-card"],
+        [class*="-card "]{
+            min-width:0;
+            max-width:100%;
+        }
+        main p,
+        main h1,
+        main h2,
+        main h3,
+        main h4,
+        main h5,
+        main h6,
+        main strong,
+        main small,
+        main span,
+        main a,
+        main button{
+            overflow-wrap:anywhere;
+        }
 
         .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#e2e8f0;color:#334155;font-size:12px}
         .badge.status-default{background:#e2e8f0;color:#334155}
@@ -472,6 +509,63 @@ $routeMatches = static function (string $path, array $routes): bool {
             main .ops-page > [class$="-kpi-grid"],
             main .ops-page > [class$="-kpis"]{grid-template-columns:repeat(3,minmax(120px,1fr))}
         }
+        @media (max-width:1180px){
+            main .ops-page [class$="-filter-grid"],
+            main .ops-page [class*="-filter-grid "],
+            main .dash-page [class$="-filter-grid"],
+            main .dash-page [class*="-filter-grid "]{
+                grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+            }
+            main .ops-page [class$="-board"],
+            main .ops-page [class*="-board "]{
+                grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)) !important;
+            }
+        }
+        @media (max-width:760px){
+            .topbar{
+                display:grid;
+                grid-template-columns:1fr;
+                align-items:stretch;
+            }
+            .topbar .btn,
+            .topbar button,
+            .topbar input[type="submit"],
+            .ops-hero-actions .btn,
+            main .ops-page .search-row .btn,
+            main .dash-page .search-row .btn{
+                width:100%;
+            }
+            main .ops-page .search-row,
+            main .dash-page .search-row,
+            main .ops-page [class$="-grid"],
+            main .ops-page [class*="-grid "],
+            main .ops-page [class$="-layout"],
+            main .ops-page [class*="-layout "],
+            main .ops-page [class$="-board"],
+            main .ops-page [class*="-board "],
+            main .dash-page [class$="-grid"],
+            main .dash-page [class*="-grid "],
+            main .dash-page [class$="-layout"],
+            main .dash-page [class*="-layout "],
+            main .dash-page [class$="-board"],
+            main .dash-page [class*="-board "],
+            main .ops-page [style*="grid-template-columns"],
+            main .dash-page [style*="grid-template-columns"]{
+                grid-template-columns:1fr !important;
+            }
+            main .ops-page [style*="grid-column"],
+            main .dash-page [style*="grid-column"]{
+                grid-column:1 / -1 !important;
+            }
+            main table{
+                min-width:640px;
+                table-layout:auto;
+            }
+            .badge{
+                white-space:normal;
+                line-height:1.3;
+            }
+        }
         @media (max-width:640px){
             .grid.two{grid-template-columns:1fr}
             .card{padding:18px}
@@ -481,6 +575,15 @@ $routeMatches = static function (string $path, array $routes): bool {
             main .ops-page > .kpi-grid,
             main .ops-page > [class$="-kpi-grid"],
             main .ops-page > [class$="-kpis"]{grid-template-columns:1fr}
+        }
+        @media (max-width:420px){
+            .shell-header{padding:12px 14px}
+            main{padding:10px}
+            .card{padding:14px;border-radius:10px}
+            .ops-hero{padding:14px;border-radius:14px}
+            .ops-hero h1{font-size:22px}
+            .nav-links{grid-template-columns:1fr}
+            .brand-headline{font-size:21px}
         }
     </style>
 </head>

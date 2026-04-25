@@ -5,6 +5,7 @@ namespace App\Services\Admin;
 
 use App\Exceptions\ValidationException;
 use App\Repositories\ProductRepository;
+use PDOException;
 
 final class ProductService
 {
@@ -117,8 +118,17 @@ final class ProductService
         $imageFile = $this->extractImageFileFromInput($input);
         $imagePath = $this->storeProductImage($companyId, $imageFile, $input);
         $data = $this->normalizeBaseProductInput($companyId, $input, $imagePath, null);
+        $this->releaseDeletedProductSlugForCreation($companyId, (string) $data['slug']);
 
-        return $this->products->create($data);
+        try {
+            return $this->products->create($data);
+        } catch (PDOException $e) {
+            if ($e->getCode() === '23000') {
+                throw new ValidationException('Ja existe um produto usando este slug. Altere o slug e tente novamente.');
+            }
+
+            throw $e;
+        }
     }
 
     public function findForEdit(int $companyId, int $productId): array
@@ -154,7 +164,17 @@ final class ProductService
         }
 
         $data = $this->normalizeBaseProductInput($companyId, $input, $imagePath, $productId);
-        $this->products->updateById($companyId, $productId, $data);
+        $this->releaseDeletedProductSlugForCreation($companyId, (string) $data['slug']);
+
+        try {
+            $this->products->updateById($companyId, $productId, $data);
+        } catch (PDOException $e) {
+            if ($e->getCode() === '23000') {
+                throw new ValidationException('Ja existe um produto usando este slug. Altere o slug e tente novamente.');
+            }
+
+            throw $e;
+        }
 
         $oldImagePath = $existing['image_path'] !== null ? (string) $existing['image_path'] : null;
         if ($oldImagePath !== null && $newUploadedImagePath !== null && $newUploadedImagePath !== $oldImagePath) {
@@ -527,6 +547,43 @@ final class ProductService
         $group = $this->products->findProductAdditionalGroup($companyId, $productId);
         $hasItems = $group !== null && $this->products->countAdditionalItemsByGroup($companyId, (int) $group['id']) > 0;
         $this->products->setHasAdditionals($companyId, $productId, $hasItems);
+    }
+
+    private function releaseDeletedProductSlugForCreation(int $companyId, string $slug): void
+    {
+        $deletedProduct = $this->products->findDeletedProductBySlug($companyId, $slug);
+        if ($deletedProduct === null) {
+            return;
+        }
+
+        $deletedProductId = (int) ($deletedProduct['id'] ?? 0);
+        if ($deletedProductId <= 0) {
+            return;
+        }
+
+        $this->products->archiveDeletedProductSlug(
+            $companyId,
+            $deletedProductId,
+            $this->archivedDeletedProductSlug($companyId, $slug, $deletedProductId)
+        );
+    }
+
+    private function archivedDeletedProductSlug(int $companyId, string $slug, int $productId): string
+    {
+        $attempt = 0;
+        do {
+            $suffix = '-excluido-' . $productId . ($attempt > 0 ? '-' . $attempt : '');
+            $base = substr($slug, 0, max(1, 150 - strlen($suffix)));
+            $candidate = rtrim($base, '-') . $suffix;
+            $owner = $this->products->findAnyProductBySlug($companyId, $candidate);
+            $attempt++;
+        } while ($owner !== null && (int) ($owner['id'] ?? 0) !== $productId && $attempt < 25);
+
+        if ($owner !== null && (int) ($owner['id'] ?? 0) !== $productId) {
+            throw new ValidationException('Nao foi possivel liberar o slug do produto excluido. Altere o slug e tente novamente.');
+        }
+
+        return $candidate;
     }
 
     private function normalizeBaseProductInput(int $companyId, array $input, ?string $imagePath, ?int $currentProductId): array

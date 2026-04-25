@@ -371,16 +371,23 @@ final class ProductRepository extends BaseRepository
 
     public function softDeleteById(int $companyId, int $productId): void
     {
+        $product = $this->findByIdForCompany($companyId, $productId);
+        if ($product === null) {
+            return;
+        }
+
         $stmt = $this->db()->prepare("
             UPDATE products
             SET deleted_at = NOW(),
                 is_active = 0,
+                slug = :archived_slug,
                 updated_at = NOW()
             WHERE company_id = :company_id
               AND id = :id
               AND deleted_at IS NULL
         ");
         $stmt->execute([
+            'archived_slug' => $this->deletedProductArchiveSlug($companyId, (string) ($product['slug'] ?? ''), $productId),
             'company_id' => $companyId,
             'id' => $productId,
         ]);
@@ -455,6 +462,75 @@ final class ProductRepository extends BaseRepository
 
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
+    }
+
+    public function findAnyProductBySlug(int $companyId, string $slug): ?array
+    {
+        $stmt = $this->db()->prepare("
+            SELECT id, company_id, slug, deleted_at
+            FROM products
+            WHERE company_id = :company_id
+              AND slug = :slug
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'slug' => $slug,
+        ]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public function findDeletedProductBySlug(int $companyId, string $slug): ?array
+    {
+        $stmt = $this->db()->prepare("
+            SELECT id, company_id, slug, deleted_at
+            FROM products
+            WHERE company_id = :company_id
+              AND slug = :slug
+              AND deleted_at IS NOT NULL
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'slug' => $slug,
+        ]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public function archiveDeletedProductSlug(int $companyId, int $productId, string $archivedSlug): void
+    {
+        $stmt = $this->db()->prepare("
+            UPDATE products
+            SET slug = :slug,
+                updated_at = NOW()
+            WHERE company_id = :company_id
+              AND id = :id
+              AND deleted_at IS NOT NULL
+        ");
+        $stmt->execute([
+            'slug' => $archivedSlug,
+            'company_id' => $companyId,
+            'id' => $productId,
+        ]);
+    }
+
+    private function deletedProductArchiveSlug(int $companyId, string $slug, int $productId): string
+    {
+        $baseSlug = trim($slug) !== '' ? trim($slug) : 'produto';
+        $attempt = 0;
+        do {
+            $suffix = '-excluido-' . $productId . ($attempt > 0 ? '-' . $attempt : '');
+            $base = substr($baseSlug, 0, max(1, 150 - strlen($suffix)));
+            $candidate = rtrim($base, '-') . $suffix;
+            $owner = $this->findAnyProductBySlug($companyId, $candidate);
+            $attempt++;
+        } while ($owner !== null && (int) ($owner['id'] ?? 0) !== $productId && $attempt < 25);
+
+        return $candidate;
     }
 
     public function findProductAdditionalGroup(int $companyId, int $productId): ?array
