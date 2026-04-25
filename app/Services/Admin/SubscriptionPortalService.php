@@ -298,9 +298,9 @@ final class SubscriptionPortalService
         $this->synchronizeByCompany($companyId);
     }
 
-    public function generateRecurringGatewayCheckout(int $companyId): void
+    public function generateRecurringGatewayCheckout(int $companyId, ?string $backUrl = null): string
     {
-        $this->gatewayService->createRecurringCheckout($companyId);
+        return $this->gatewayService->createRecurringCheckout($companyId, $backUrl);
     }
 
     public function refreshGatewayStatus(int $companyId): void

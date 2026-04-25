@@ -445,8 +445,12 @@ final class DashboardController extends Controller
         $companyId = (int) ($user['company_id'] ?? 0);
 
         try {
-            $this->subscriptionService->generateRecurringGatewayCheckout($companyId);
-            return $this->backWithSuccess('Link de assinatura preparado. Abra o link, conclua a autorizacao no Mercado Pago e depois clique em atualizar status.', $redirectTo);
+            $checkoutUrl = $this->subscriptionService->generateRecurringGatewayCheckout($companyId, app_url($redirectTo));
+            if (trim($checkoutUrl) === '') {
+                return $this->backWithError('Nao foi possivel gerar o checkout do cartao neste momento.', $redirectTo);
+            }
+
+            return $this->redirect($checkoutUrl);
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), $redirectTo);
         }

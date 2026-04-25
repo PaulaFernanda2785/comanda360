@@ -13,6 +13,8 @@ $subscriptionPlanMigrationBlockers = is_array($subscriptionPlanMigration['blocke
 $subscriptionPlanMigrationNotes = is_array($subscriptionPlanMigration['notes'] ?? null) ? $subscriptionPlanMigration['notes'] : [];
 $subscriptionCanSelfMigrate = !empty($subscriptionPlanMigration['can_self_migrate']);
 $subscriptionBillingAccess = is_array($subscriptionModule['billing_access'] ?? null) ? $subscriptionModule['billing_access'] : [];
+$subscriptionGateway = is_array($subscriptionModule['gateway'] ?? null) ? $subscriptionModule['gateway'] : [];
+$subscriptionGatewayConfigured = !empty($subscriptionGateway['configured']);
 
 $currentSubscriptionQuery = is_array($_GET ?? null) ? $_GET : [];
 $currentSubscriptionQuery['section'] = 'subscription';
@@ -62,6 +64,24 @@ $historyMethod = trim((string) ($subscriptionHistoryFilters['method'] ?? ''));
 $historyPage = max(1, (int) ($subscriptionHistoryPagination['page'] ?? 1));
 $historyLastPage = max(1, (int) ($subscriptionHistoryPagination['last_page'] ?? 1));
 $historyPages = is_array($subscriptionHistoryPagination['pages'] ?? null) ? $subscriptionHistoryPagination['pages'] : [1];
+$subscriptionGatewayCheckoutUrl = trim((string) ($subscription['gateway_checkout_url'] ?? ''));
+$subscriptionGatewayStatus = strtolower(trim((string) ($subscription['gateway_status'] ?? '')));
+$subscriptionAutoChargeEnabled = !empty($subscription['auto_charge_enabled']);
+$subscriptionPreferredPaymentMethod = (string) ($subscription['preferred_payment_method'] ?? '');
+$subscriptionUsesAutoCard = $subscriptionAutoChargeEnabled && in_array($subscriptionPreferredPaymentMethod, ['credito', 'debito'], true);
+$subscriptionGatewayStatusLabels = [
+    '' => 'Nao iniciado',
+    'pending' => 'Aguardando autorizacao',
+    'authorized' => 'Autorizada',
+    'active' => 'Ativa',
+    'paused' => 'Pausada',
+    'cancelled' => 'Cancelada',
+    'cancelled_by_payer' => 'Cancelada pelo pagador',
+    'canceled' => 'Cancelada',
+];
+$subscriptionGatewayStatusLabel = $subscriptionGatewayStatusLabels[$subscriptionGatewayStatus] ?? ($subscriptionGatewayStatus !== '' ? $subscriptionGatewayStatus : 'Nao iniciado');
+$subscriptionCanOpenExistingCardCheckout = $subscriptionGatewayCheckoutUrl !== '' && !$subscriptionUsesAutoCard;
+$subscriptionCardActionLabel = $subscriptionGatewayCheckoutUrl !== '' ? 'Continuar pagamento com cartao' : 'Pagar com cartao';
 
 $buildSubscriptionUrl = static function (array $overrides = []) use ($historySearch, $historyStatus, $historyMethod): string {
     $params = array_merge([
@@ -148,6 +168,11 @@ $historyTo = (int) ($subscriptionHistoryPagination['to'] ?? 0);
         .sp-meta-card span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#64748b}
         .sp-meta-card strong{display:block;margin-top:4px;font-size:13px;line-height:1.4;color:#0f172a}
         .sp-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+        .sp-payment-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+        .sp-payment-option{border:1px solid #dbeafe;border-radius:14px;background:#fff;padding:14px;display:grid;gap:10px;align-content:start;min-width:0}
+        .sp-payment-option strong{display:block;color:#0f172a;font-size:15px}
+        .sp-payment-option p{margin:0;color:#475569;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+        .sp-payment-status{border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;color:#1d4ed8;padding:10px 12px;font-size:13px;line-height:1.5}
         .sp-qr{display:grid;grid-template-columns:200px minmax(0,1fr);gap:14px;align-items:start}
         .sp-qr-box{border:1px solid #d1fae5;border-radius:14px;background:#fff;padding:12px;display:grid;place-items:center;min-height:200px}
         .sp-qr-box img{display:block;max-width:100%;height:auto}
@@ -222,7 +247,7 @@ $historyTo = (int) ($subscriptionHistoryPagination['to'] ?? 0);
         @media (max-width:1120px){.sp-layout{grid-template-columns:1fr}}
         @media (max-width:900px){.sp-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
         @media (max-width:760px){
-            .sp-kpis,.sp-meta,.sp-history-toolbar,.sp-qr,.sp-migration-layout,.sp-migration-kpis,.sp-migration-cycles{grid-template-columns:1fr}
+            .sp-kpis,.sp-meta,.sp-payment-options,.sp-history-toolbar,.sp-qr,.sp-migration-layout,.sp-migration-kpis,.sp-migration-cycles{grid-template-columns:1fr}
             .sp-history-wrap{overflow:visible}
             .sp-history-table,.sp-history-table tbody,.sp-history-table tr,.sp-history-table td{display:block;width:100%}
             .sp-history-table thead{display:none}
@@ -238,7 +263,7 @@ $historyTo = (int) ($subscriptionHistoryPagination['to'] ?? 0);
     <div class="sp-shell">
         <div class="sp-hero">
             <h2>Assinatura e cobrança</h2>
-            <p>Centralize aqui o pagamento da assinatura, a conferência do histórico financeiro e o acompanhamento do que está contratado. O fluxo principal permanece simples para a empresa: gerar o PIX, pagar e aguardar a confirmação automática.</p>
+            <p>Centralize aqui o pagamento da assinatura, a conferência do histórico financeiro e o acompanhamento do que está contratado. A empresa pode pagar a cobrança atual por PIX ou autorizar cartão recorrente pelo checkout seguro do gateway.</p>
         </div>
 
         <?php if ($subscription === []): ?>
@@ -277,7 +302,7 @@ $historyTo = (int) ($subscriptionHistoryPagination['to'] ?? 0);
                         <div class="sp-head">
                             <div>
                                 <h3>Fluxo de pagamento</h3>
-                                <p class="sp-note">A rotina operacional da empresa deve ser objetiva. Gere o PIX da cobrança atual, realize o pagamento no banco e deixe o sistema confirmar o retorno automaticamente.</p>
+                                <p class="sp-note">A rotina operacional da empresa deve ser objetiva. Escolha PIX para pagamento avulso ou cartão para autorizar a recorrência, sem alterar as regras de troca de plano e cobranças em aberto.</p>
                             </div>
                         </div>
 
@@ -285,15 +310,15 @@ $historyTo = (int) ($subscriptionHistoryPagination['to'] ?? 0);
                             <div class="sp-step">
                                 <div class="sp-step-badge">1</div>
                                 <div>
-                                    <strong>Gerar o PIX da cobrança atual</strong>
-                                    <p>O sistema busca o QR Code e o código copia e cola da cobrança mais recente em aberto.</p>
+                                    <strong>Escolher o meio de pagamento</strong>
+                                    <p>PIX gera QR Code para a cobrança atual. Cartão abre o checkout do Mercado Pago para autorizar cobrança recorrente.</p>
                                 </div>
                             </div>
                             <div class="sp-step">
                                 <div class="sp-step-badge">2</div>
                                 <div>
                                     <strong>Efetuar o pagamento</strong>
-                                    <p>Pague pelo aplicativo do banco usando o QR Code ou o código copia e cola. Não há necessidade de cartão ou autorização recorrente.</p>
+                                    <p>No PIX, pague pelo aplicativo do banco. No cartão, conclua a autorização no ambiente seguro do gateway.</p>
                                 </div>
                             </div>
                             <div class="sp-step">
@@ -336,18 +361,65 @@ $historyTo = (int) ($subscriptionHistoryPagination['to'] ?? 0);
                                 </div>
                             </div>
 
+                            <div class="sp-payment-options">
+                                <div class="sp-payment-option">
+                                    <div>
+                                        <strong>Pix</strong>
+                                        <p>Gera QR Code e copia e cola para pagar somente a cobrança atual.</p>
+                                    </div>
+                                    <div class="sp-actions">
+                                        <form method="POST" action="<?= htmlspecialchars(base_url('/admin/dashboard/subscription/pix/generate')) ?>">
+                                            <?= form_security_fields('dashboard.subscription.pix.generate.' . $currentChargeId) ?>
+                                            <input type="hidden" name="subscription_payment_id" value="<?= htmlspecialchars((string) $currentChargeId) ?>">
+                                            <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnSubscriptionQuery) ?>">
+                                            <button class="btn" type="submit"><?= $currentPixImage !== '' ? 'Atualizar QR Code PIX' : 'Gerar QR Code PIX' ?></button>
+                                        </form>
+
+                                        <?php if ($currentPixTicketUrl !== ''): ?>
+                                            <a class="btn secondary" href="<?= htmlspecialchars($currentPixTicketUrl) ?>" target="_blank" rel="noopener">Abrir tela do PIX</a>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+
+                                <div class="sp-payment-option">
+                                    <div>
+                                        <strong>Cartão</strong>
+                                        <p>Abre o checkout do Mercado Pago para autorizar cobrança recorrente no valor do plano atual.</p>
+                                    </div>
+
+                                    <?php if ($subscriptionUsesAutoCard): ?>
+                                        <div class="sp-payment-status">
+                                            Cartão recorrente ativo. Status no gateway: <?= htmlspecialchars($subscriptionGatewayStatusLabel) ?>.
+                                        </div>
+                                        <form method="POST" action="<?= htmlspecialchars(base_url('/admin/dashboard/subscription/auto-charge/disable')) ?>">
+                                            <?= form_security_fields('dashboard.subscription.auto_charge.disable') ?>
+                                            <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnSubscriptionQuery) ?>">
+                                            <button class="btn secondary" type="submit">Desativar recorrência</button>
+                                        </form>
+                                    <?php elseif (!$subscriptionGatewayConfigured): ?>
+                                        <div class="sp-payment-status">
+                                            Pagamento por cartão indisponível porque o gateway ainda não está configurado.
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="sp-actions">
+                                            <form method="POST" action="<?= htmlspecialchars(base_url('/admin/dashboard/subscription/gateway/checkout')) ?>">
+                                                <?= form_security_fields('dashboard.subscription.gateway.checkout') ?>
+                                                <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnSubscriptionQuery) ?>">
+                                                <button class="btn" type="submit"><?= htmlspecialchars($subscriptionCardActionLabel) ?></button>
+                                            </form>
+
+                                            <?php if ($subscriptionCanOpenExistingCardCheckout): ?>
+                                                <a class="btn secondary" href="<?= htmlspecialchars($subscriptionGatewayCheckoutUrl) ?>" target="_blank" rel="noopener">Abrir link já gerado</a>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="sp-note">
+                                            Após autorizar o cartão, retorne para esta página e use sincronizar agora se o status ainda não atualizar automaticamente.
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+
                             <div class="sp-actions">
-                                <form method="POST" action="<?= htmlspecialchars(base_url('/admin/dashboard/subscription/pix/generate')) ?>">
-                                    <?= form_security_fields('dashboard.subscription.pix.generate.' . $currentChargeId) ?>
-                                    <input type="hidden" name="subscription_payment_id" value="<?= htmlspecialchars((string) $currentChargeId) ?>">
-                                    <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnSubscriptionQuery) ?>">
-                                    <button class="btn" type="submit"><?= $currentPixImage !== '' ? 'Atualizar QR Code PIX' : 'Gerar QR Code PIX' ?></button>
-                                </form>
-
-                                <?php if ($currentPixTicketUrl !== ''): ?>
-                                    <a class="btn secondary" href="<?= htmlspecialchars($currentPixTicketUrl) ?>" target="_blank" rel="noopener">Abrir tela do PIX</a>
-                                <?php endif; ?>
-
                                 <form method="POST" action="<?= htmlspecialchars(base_url('/admin/dashboard/subscription/gateway/sync')) ?>">
                                     <?= form_security_fields('dashboard.subscription.gateway.sync') ?>
                                     <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnSubscriptionQuery) ?>">
@@ -525,6 +597,14 @@ $historyTo = (int) ($subscriptionHistoryPagination['to'] ?? 0);
                             <div class="sp-row">
                                 <span>Pagamento preferencial</span>
                                 <strong><?= htmlspecialchars($paymentMethodLabels[(string) ($subscription['preferred_payment_method'] ?? '')] ?? 'Não definido') ?></strong>
+                            </div>
+                            <div class="sp-row">
+                                <span>Cartao recorrente</span>
+                                <strong><?= $subscriptionUsesAutoCard ? 'Ativo' : 'Inativo' ?></strong>
+                            </div>
+                            <div class="sp-row">
+                                <span>Status do gateway</span>
+                                <strong><?= htmlspecialchars($subscriptionGatewayStatusLabel) ?></strong>
                             </div>
                             <div class="sp-row">
                                 <span>Empresa bloqueada</span>

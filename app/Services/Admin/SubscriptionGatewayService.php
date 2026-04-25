@@ -186,6 +186,8 @@ final class SubscriptionGatewayService
                 'gateway_webhook_payload_json' => json_encode($response, JSON_UNESCAPED_SLASHES),
                 'gateway_last_synced_at' => date('Y-m-d H:i:s'),
             ]);
+
+            $this->applyAuthorizedSubscriptionState($subscription, $response);
         }
 
         foreach ($this->subscriptionPayments->listOpenBySubscriptionId((int) $subscription['id']) as $payment) {
@@ -337,10 +339,10 @@ final class SubscriptionGatewayService
 
                 if ($billingStatus === 'ativa') {
                     $this->subscriptions->updateBillingProfile((int) $subscription['id'], [
-                        'preferred_payment_method' => 'credito',
+                        'preferred_payment_method' => $this->resolveGatewayCardMethod($subscriptionResponse),
                         'auto_charge_enabled' => 1,
-                        'card_brand' => $subscription['card_brand'] ?? null,
-                        'card_last_digits' => $subscription['card_last_digits'] ?? null,
+                        'card_brand' => $this->normalizeGatewayCardBrand((string) ($subscriptionResponse['payment_method_id'] ?? '')),
+                        'card_last_digits' => null,
                     ]);
                 }
 
@@ -383,6 +385,55 @@ final class SubscriptionGatewayService
             'credit_card' => 'credito',
             default => $gatewayMethod,
         };
+    }
+
+    private function applyAuthorizedSubscriptionState(array $subscription, array $subscriptionResponse): void
+    {
+        $subscriptionId = (int) ($subscription['id'] ?? 0);
+        $companyId = (int) ($subscription['company_id'] ?? 0);
+        if ($subscriptionId <= 0 || $companyId <= 0) {
+            return;
+        }
+
+        $status = strtolower(trim((string) ($subscriptionResponse['status'] ?? '')));
+        if (!in_array($status, ['authorized', 'active'], true)) {
+            return;
+        }
+
+        $this->subscriptions->updateStatus($subscriptionId, 'ativa');
+        $this->companies->updateSubscriptionSnapshot($companyId, [
+            'plan_id' => $subscription['plan_id'] ?? null,
+            'subscription_status' => 'ativa',
+            'trial_ends_at' => null,
+            'subscription_starts_at' => $subscription['starts_at'] ?? null,
+            'subscription_ends_at' => $subscription['ends_at'] ?? null,
+        ]);
+
+        $paymentMethod = $this->resolveGatewayCardMethod($subscriptionResponse);
+        $this->subscriptions->updateBillingProfile($subscriptionId, [
+            'preferred_payment_method' => $paymentMethod,
+            'auto_charge_enabled' => 1,
+            'card_brand' => $this->normalizeGatewayCardBrand((string) ($subscriptionResponse['payment_method_id'] ?? '')),
+            'card_last_digits' => null,
+        ]);
+
+        $this->accessProvisioning->activateIfEligible($companyId);
+    }
+
+    private function resolveGatewayCardMethod(array $subscriptionResponse): string
+    {
+        $method = strtolower(trim((string) ($subscriptionResponse['payment_type_id'] ?? '')));
+        return $method === 'debit_card' ? 'debito' : 'credito';
+    }
+
+    private function normalizeGatewayCardBrand(string $value): ?string
+    {
+        $brand = trim($value);
+        if ($brand === '') {
+            return null;
+        }
+
+        return substr($brand, 0, 30);
     }
 
     private function buildPayer(array $subscription, ?string $companyEmail = null): array
