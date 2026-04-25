@@ -290,7 +290,71 @@ final class ProductController extends Controller
 
         try {
             $this->service->removeAdditionalItem($companyId, $productId, $additionalItemId);
-            return $this->backWithSuccess('Adicional removido com sucesso.', '/admin/products/additionals?product_id=' . $productId);
+            return $this->backWithSuccess('Adicional inativado com sucesso.', '/admin/products/additionals?product_id=' . $productId);
+        } catch (ValidationException $e) {
+            return $this->backWithError($e->getMessage(), '/admin/products/additionals?product_id=' . $productId);
+        }
+    }
+
+    public function updateAdditionalItem(Request $request): Response
+    {
+        $productId = (int) ($request->input('product_id', 0));
+        $additionalItemId = (int) ($request->input('additional_item_id', 0));
+        $guard = $this->guardSingleSubmit($request, 'products.additionals.update.' . $additionalItemId, '/admin/products/additionals?product_id=' . $productId);
+        if ($guard !== null) {
+            return $guard;
+        }
+
+        $user = Auth::user();
+        $companyId = (int) ($user['company_id'] ?? 0);
+
+        try {
+            $this->service->updateAdditionalItem($companyId, $productId, $additionalItemId, $request->all());
+            return $this->backWithSuccess('Adicional atualizado com sucesso.', '/admin/products/additionals?product_id=' . $productId);
+        } catch (ValidationException $e) {
+            return $this->backWithError($e->getMessage(), '/admin/products/additionals?product_id=' . $productId);
+        }
+    }
+
+    public function updateAdditionalItemStatus(Request $request): Response
+    {
+        $productId = (int) ($request->input('product_id', 0));
+        $additionalItemId = (int) ($request->input('additional_item_id', 0));
+        $guard = $this->guardSingleSubmit($request, 'products.additionals.status.' . $additionalItemId, '/admin/products/additionals?product_id=' . $productId);
+        if ($guard !== null) {
+            return $guard;
+        }
+
+        $user = Auth::user();
+        $companyId = (int) ($user['company_id'] ?? 0);
+        $status = (string) ($request->input('status', ''));
+
+        try {
+            $this->service->updateAdditionalItemStatus($companyId, $productId, $additionalItemId, $status);
+            return $this->backWithSuccess(
+                $status === 'ativo' ? 'Adicional ativado com sucesso.' : 'Adicional inativado com sucesso.',
+                '/admin/products/additionals?product_id=' . $productId
+            );
+        } catch (ValidationException $e) {
+            return $this->backWithError($e->getMessage(), '/admin/products/additionals?product_id=' . $productId);
+        }
+    }
+
+    public function deleteAdditionalItem(Request $request): Response
+    {
+        $productId = (int) ($request->input('product_id', 0));
+        $additionalItemId = (int) ($request->input('additional_item_id', 0));
+        $guard = $this->guardSingleSubmit($request, 'products.additionals.delete.' . $additionalItemId, '/admin/products/additionals?product_id=' . $productId);
+        if ($guard !== null) {
+            return $guard;
+        }
+
+        $user = Auth::user();
+        $companyId = (int) ($user['company_id'] ?? 0);
+
+        try {
+            $this->service->deleteAdditionalItem($companyId, $productId, $additionalItemId);
+            return $this->backWithSuccess('Adicional excluido do banco de dados com sucesso.', '/admin/products/additionals?product_id=' . $productId);
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), '/admin/products/additionals?product_id=' . $productId);
         }

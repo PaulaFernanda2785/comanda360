@@ -19,6 +19,14 @@ $minSelectionValue = $additionalGroup !== null && $additionalGroup['min_selectio
     .item-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .additional-item{border:1px solid #e2e8f0;border-radius:12px;padding:12px;background:#f8fafc}
     .additional-item h4{margin:0 0 6px}
+    .additional-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .additional-actions form{margin:0}
+    .additional-actions .btn{min-height:34px;padding:6px 10px;font-size:12px}
+    .additional-edit{margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px}
+    .additional-edit summary{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;list-style:none}
+    .additional-edit summary::-webkit-details-marker{display:none}
+    .additional-edit form{display:grid;gap:10px;margin-top:10px}
+    .additional-danger{border-color:#fecaca!important;color:#991b1b!important;background:#fff1f2!important}
     @media (max-width:980px){
         .additionals-layout{grid-template-columns:1fr}
         .item-grid{grid-template-columns:1fr}
@@ -163,14 +171,64 @@ $minSelectionValue = $additionalGroup !== null && $additionalGroup['min_selectio
                             <p style="margin:8px 0;color:#64748b"><?= htmlspecialchars((string) $additional['description']) ?></p>
                         <?php endif; ?>
 
-                        <?php if (($additional['status'] ?? '') === 'ativo'): ?>
-                            <form method="POST" action="<?= htmlspecialchars(base_url('/admin/products/additionals/remove')) ?>" onsubmit="return confirm('Remover este adicional?');" style="margin-top:10px">
-                                <?= form_security_fields('products.additionals.remove') ?>
+                        <div class="additional-actions">
+                            <?php if (($additional['status'] ?? '') === 'ativo'): ?>
+                                <form method="POST" action="<?= htmlspecialchars(base_url('/admin/products/additionals/status')) ?>" onsubmit="return confirm('Inativar este adicional? Ele ficara no card, mas nao aparecera para selecao nos pedidos.');">
+                                    <?= form_security_fields('products.additionals.status.' . (int) ($additional['id'] ?? 0)) ?>
+                                    <input type="hidden" name="product_id" value="<?= (int) ($product['id'] ?? 0) ?>">
+                                    <input type="hidden" name="additional_item_id" value="<?= (int) ($additional['id'] ?? 0) ?>">
+                                    <input type="hidden" name="status" value="inativo">
+                                    <button class="btn secondary" type="submit">Inativar</button>
+                                </form>
+                            <?php else: ?>
+                                <form method="POST" action="<?= htmlspecialchars(base_url('/admin/products/additionals/status')) ?>" onsubmit="return confirm('Ativar este adicional para voltar a aparecer na selecao dos pedidos?');">
+                                    <?= form_security_fields('products.additionals.status.' . (int) ($additional['id'] ?? 0)) ?>
+                                    <input type="hidden" name="product_id" value="<?= (int) ($product['id'] ?? 0) ?>">
+                                    <input type="hidden" name="additional_item_id" value="<?= (int) ($additional['id'] ?? 0) ?>">
+                                    <input type="hidden" name="status" value="ativo">
+                                    <button class="btn secondary" type="submit">Ativar</button>
+                                </form>
+                            <?php endif; ?>
+
+                            <form method="POST" action="<?= htmlspecialchars(base_url('/admin/products/additionals/delete')) ?>" onsubmit="return confirm('Excluir definitivamente este adicional do banco de dados? Esta acao nao pode ser desfeita.');">
+                                <?= form_security_fields('products.additionals.delete.' . (int) ($additional['id'] ?? 0)) ?>
                                 <input type="hidden" name="product_id" value="<?= (int) ($product['id'] ?? 0) ?>">
                                 <input type="hidden" name="additional_item_id" value="<?= (int) ($additional['id'] ?? 0) ?>">
-                                <button class="btn secondary" type="submit">Remover</button>
+                                <button class="btn secondary additional-danger" type="submit">Excluir</button>
                             </form>
-                        <?php endif; ?>
+                        </div>
+
+                        <details class="additional-edit">
+                            <summary class="btn secondary">Editar</summary>
+                            <form method="POST" action="<?= htmlspecialchars(base_url('/admin/products/additionals/update')) ?>">
+                                <?= form_security_fields('products.additionals.update.' . (int) ($additional['id'] ?? 0)) ?>
+                                <input type="hidden" name="product_id" value="<?= (int) ($product['id'] ?? 0) ?>">
+                                <input type="hidden" name="additional_item_id" value="<?= (int) ($additional['id'] ?? 0) ?>">
+
+                                <div class="field">
+                                    <label for="additional_name_<?= (int) ($additional['id'] ?? 0) ?>">Nome do adicional</label>
+                                    <input id="additional_name_<?= (int) ($additional['id'] ?? 0) ?>" name="name" type="text" required value="<?= htmlspecialchars((string) ($additional['name'] ?? '')) ?>">
+                                </div>
+
+                                <div class="grid two">
+                                    <div class="field">
+                                        <label for="additional_price_<?= (int) ($additional['id'] ?? 0) ?>">Valor (R$)</label>
+                                        <input id="additional_price_<?= (int) ($additional['id'] ?? 0) ?>" name="price" type="number" min="0" step="0.01" required value="<?= htmlspecialchars(number_format((float) ($additional['price'] ?? 0), 2, '.', '')) ?>">
+                                    </div>
+                                    <div class="field">
+                                        <label for="additional_order_<?= (int) ($additional['id'] ?? 0) ?>">Ordem de exibicao</label>
+                                        <input id="additional_order_<?= (int) ($additional['id'] ?? 0) ?>" name="display_order" type="number" min="0" value="<?= (int) ($additional['display_order'] ?? 0) ?>">
+                                    </div>
+                                </div>
+
+                                <div class="field">
+                                    <label for="additional_description_<?= (int) ($additional['id'] ?? 0) ?>">Descricao (opcional)</label>
+                                    <input id="additional_description_<?= (int) ($additional['id'] ?? 0) ?>" name="description" type="text" value="<?= htmlspecialchars((string) ($additional['description'] ?? '')) ?>">
+                                </div>
+
+                                <button class="btn" type="submit">Salvar edicao</button>
+                            </form>
+                        </details>
                     </div>
                 <?php endforeach; ?>
             </div>

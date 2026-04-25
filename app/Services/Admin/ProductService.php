@@ -339,30 +339,15 @@ final class ProductService
     {
         $product = $this->findForEdit($companyId, $productId);
         $group = $this->ensureProductAdditionalGroup($companyId, $product);
-
-        $name = trim((string) ($input['name'] ?? ''));
-        if ($name === '') {
-            throw new ValidationException('Informe o nome do adicional.');
-        }
-
-        $price = $this->parseMoney($input['price'] ?? 0);
-        if ($price < 0) {
-            throw new ValidationException('O valor do adicional nao pode ser negativo.');
-        }
-
-        $description = trim((string) ($input['description'] ?? ''));
-        $displayOrder = (int) ($input['display_order'] ?? 0);
-        if ($displayOrder < 0) {
-            $displayOrder = 0;
-        }
+        $data = $this->normalizeAdditionalItemInput($input);
 
         $additionalItemId = $this->products->createAdditionalItem([
             'company_id' => $companyId,
             'additional_group_id' => (int) $group['id'],
-            'name' => $name,
-            'description' => $description !== '' ? $description : null,
-            'price' => $price,
-            'display_order' => $displayOrder,
+            'name' => $data['name'],
+            'description' => $data['description'],
+            'price' => $data['price'],
+            'display_order' => $data['display_order'],
         ]);
 
         $this->products->setHasAdditionals($companyId, $productId, true);
@@ -371,18 +356,41 @@ final class ProductService
 
     public function removeAdditionalItem(int $companyId, int $productId, int $additionalItemId): void
     {
-        $this->findForEdit($companyId, $productId);
+        $this->updateAdditionalItemStatus($companyId, $productId, $additionalItemId, 'inativo');
+    }
 
-        if ($additionalItemId <= 0) {
-            throw new ValidationException('Adicional invalido para remocao.');
+    public function updateAdditionalItemStatus(int $companyId, int $productId, int $additionalItemId, string $status): void
+    {
+        $this->assertAdditionalItemBelongsToProduct($companyId, $productId, $additionalItemId);
+
+        $normalizedStatus = strtolower(trim($status));
+        if (!in_array($normalizedStatus, ['ativo', 'inativo'], true)) {
+            throw new ValidationException('Status invalido para o adicional.');
         }
 
-        $additional = $this->products->findAdditionalItemByIdForProduct($companyId, $productId, $additionalItemId);
-        if ($additional === null) {
-            throw new ValidationException('Adicional nao encontrado para este produto.');
+        $this->products->updateAdditionalItemStatus($companyId, $additionalItemId, $normalizedStatus);
+        $this->syncProductHasAdditionalsFlag($companyId, $productId);
+    }
+
+    public function deleteAdditionalItem(int $companyId, int $productId, int $additionalItemId): void
+    {
+        $this->assertAdditionalItemBelongsToProduct($companyId, $productId, $additionalItemId);
+
+        if ($this->products->countOrderUsageByAdditionalItem($companyId, $additionalItemId) > 0) {
+            throw new ValidationException('Este adicional ja foi usado em pedidos. Para preservar o historico, inative o adicional em vez de excluir.');
         }
 
-        $this->products->deactivateAdditionalItem($companyId, $additionalItemId);
+        $this->products->deleteAdditionalItem($companyId, $additionalItemId);
+        $this->syncProductHasAdditionalsFlag($companyId, $productId);
+    }
+
+    public function updateAdditionalItem(int $companyId, int $productId, int $additionalItemId, array $input): void
+    {
+        $this->assertAdditionalItemBelongsToProduct($companyId, $productId, $additionalItemId);
+        $data = $this->normalizeAdditionalItemInput($input);
+
+        $this->products->updateAdditionalItem($companyId, $additionalItemId, $data);
+        $this->syncProductHasAdditionalsFlag($companyId, $productId);
     }
 
     public function listForOrderForm(int $companyId): array
@@ -470,6 +478,55 @@ final class ProductService
         }
 
         return $created;
+    }
+
+    private function assertAdditionalItemBelongsToProduct(int $companyId, int $productId, int $additionalItemId): array
+    {
+        $this->findForEdit($companyId, $productId);
+
+        if ($additionalItemId <= 0) {
+            throw new ValidationException('Adicional invalido.');
+        }
+
+        $additional = $this->products->findAdditionalItemByIdForProduct($companyId, $productId, $additionalItemId);
+        if ($additional === null) {
+            throw new ValidationException('Adicional nao encontrado para este produto.');
+        }
+
+        return $additional;
+    }
+
+    private function normalizeAdditionalItemInput(array $input): array
+    {
+        $name = trim((string) ($input['name'] ?? ''));
+        if ($name === '') {
+            throw new ValidationException('Informe o nome do adicional.');
+        }
+
+        $price = $this->parseMoney($input['price'] ?? 0);
+        if ($price < 0) {
+            throw new ValidationException('O valor do adicional nao pode ser negativo.');
+        }
+
+        $description = trim((string) ($input['description'] ?? ''));
+        $displayOrder = (int) ($input['display_order'] ?? 0);
+        if ($displayOrder < 0) {
+            $displayOrder = 0;
+        }
+
+        return [
+            'name' => $name,
+            'description' => $description !== '' ? $description : null,
+            'price' => $price,
+            'display_order' => $displayOrder,
+        ];
+    }
+
+    private function syncProductHasAdditionalsFlag(int $companyId, int $productId): void
+    {
+        $group = $this->products->findProductAdditionalGroup($companyId, $productId);
+        $hasItems = $group !== null && $this->products->countAdditionalItemsByGroup($companyId, (int) $group['id']) > 0;
+        $this->products->setHasAdditionals($companyId, $productId, $hasItems);
     }
 
     private function normalizeBaseProductInput(int $companyId, array $input, ?string $imagePath, ?int $currentProductId): array

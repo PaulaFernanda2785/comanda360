@@ -612,19 +612,93 @@ final class ProductRepository extends BaseRepository
         return (int) $this->db()->lastInsertId();
     }
 
-    public function deactivateAdditionalItem(int $companyId, int $additionalItemId): void
+    public function updateAdditionalItem(int $companyId, int $additionalItemId, array $data): void
     {
         $stmt = $this->db()->prepare("
             UPDATE additional_items
-            SET status = 'inativo',
+            SET name = :name,
+                description = :description,
+                price = :price,
+                display_order = :display_order,
                 updated_at = NOW()
             WHERE company_id = :company_id
               AND id = :id
         ");
         $stmt->execute([
+            'name' => $data['name'],
+            'description' => $data['description'],
+            'price' => $data['price'],
+            'display_order' => $data['display_order'],
             'company_id' => $companyId,
             'id' => $additionalItemId,
         ]);
+    }
+
+    public function deactivateAdditionalItem(int $companyId, int $additionalItemId): void
+    {
+        $this->updateAdditionalItemStatus($companyId, $additionalItemId, 'inativo');
+    }
+
+    public function updateAdditionalItemStatus(int $companyId, int $additionalItemId, string $status): void
+    {
+        $stmt = $this->db()->prepare("
+            UPDATE additional_items
+            SET status = :status,
+                updated_at = NOW()
+            WHERE company_id = :company_id
+              AND id = :id
+        ");
+        $stmt->execute([
+            'status' => $status,
+            'company_id' => $companyId,
+            'id' => $additionalItemId,
+        ]);
+    }
+
+    public function deleteAdditionalItem(int $companyId, int $additionalItemId): void
+    {
+        $stmt = $this->db()->prepare("
+            DELETE FROM additional_items
+            WHERE company_id = :company_id
+              AND id = :id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'id' => $additionalItemId,
+        ]);
+    }
+
+    public function countAdditionalItemsByGroup(int $companyId, int $additionalGroupId): int
+    {
+        $stmt = $this->db()->prepare("
+            SELECT COUNT(*)
+            FROM additional_items
+            WHERE company_id = :company_id
+              AND additional_group_id = :additional_group_id
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'additional_group_id' => $additionalGroupId,
+        ]);
+
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function countOrderUsageByAdditionalItem(int $companyId, int $additionalItemId): int
+    {
+        $stmt = $this->db()->prepare("
+            SELECT COUNT(*)
+            FROM order_item_additionals
+            WHERE company_id = :company_id
+              AND additional_item_id = :additional_item_id
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'additional_item_id' => $additionalItemId,
+        ]);
+
+        return (int) $stmt->fetchColumn();
     }
 
     public function findAdditionalItemByIdForProduct(int $companyId, int $productId, int $additionalItemId): ?array
@@ -635,8 +709,10 @@ final class ProductRepository extends BaseRepository
                 ai.company_id,
                 ai.additional_group_id,
                 ai.name,
+                ai.description,
                 ai.price,
-                ai.status
+                ai.status,
+                ai.display_order
             FROM additional_items ai
             INNER JOIN product_additional_groups pag
                 ON pag.additional_group_id = ai.additional_group_id

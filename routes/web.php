@@ -119,6 +119,9 @@ $router->post('/admin/products/categories/delete', [ProductController::class, 'd
 $router->get('/admin/products/additionals', [ProductController::class, 'additionals'], $companyAccess('products.edit'));
 $router->post('/admin/products/additionals/rules', [ProductController::class, 'updateAdditionalRules'], $companyAccess('products.edit'));
 $router->post('/admin/products/additionals/store', [ProductController::class, 'storeAdditionalItem'], $companyAccess('products.edit'));
+$router->post('/admin/products/additionals/update', [ProductController::class, 'updateAdditionalItem'], $companyAccess('products.edit'));
+$router->post('/admin/products/additionals/status', [ProductController::class, 'updateAdditionalItemStatus'], $companyAccess('products.edit'));
+$router->post('/admin/products/additionals/delete', [ProductController::class, 'deleteAdditionalItem'], $companyAccess('products.edit'));
 $router->post('/admin/products/additionals/remove', [ProductController::class, 'removeAdditionalItem'], $companyAccess('products.edit'));
 
 $router->get('/admin/tables', [TableController::class, 'index'], $companyAccess('tables.view'));
