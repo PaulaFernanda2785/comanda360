@@ -267,7 +267,7 @@ $formatLimit = static function (?int $value, string $label): string {
         <section class="hero">
             <article class="card hero-copy">
                 <span class="eyebrow">Comece agora</span>
-                <h1>Finalize sua contratação e ative a MesiMenu para sua empresa.</h1>
+                <h1>Finalize sua contratação e ative o MesiMenu para sua empresa.</h1>
                 <p>Informe os dados principais, confirme o plano escolhido e avance para o pagamento. Em poucos passos, sua empresa fica pronta para usar cardápio digital, pedidos e gestão em uma única plataforma.</p>
                 <div class="hero-points">
                     <div>Plano e ciclo já carregados a partir da sua escolha na página pública.</div>
@@ -382,7 +382,7 @@ $formatLimit = static function (?int $value, string $label): string {
 
             <aside class="card aside-card">
                 <h3>Próximos passos</h3>
-                <p>A MesiMenu conduz sua empresa do cadastro ao pagamento com uma jornada simples, para você começar a configurar a operação rapidamente.</p>
+                <p>O MesiMenu conduz sua empresa do cadastro ao pagamento com uma jornada simples, para você começar a configurar a operação rapidamente.</p>
                 <ul class="aside-list">
                     <li>1. Sua empresa é cadastrada com o plano e o ciclo escolhidos.</li>
                     <li>2. O administrador principal fica preparado para acessar o painel após a confirmação.</li>

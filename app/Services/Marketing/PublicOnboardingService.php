@@ -47,7 +47,7 @@ final class PublicOnboardingService
             'title' => 'Cadastro da empresa',
             'seo' => $this->buildSeo(
                 'Finalize sua contratação | MesiMenu',
-                'Cadastre sua empresa, confirme o plano escolhido e avance para o pagamento para ativar a MesiMenu.'
+                'Cadastre sua empresa, confirme o plano escolhido e avance para o pagamento para ativar o MesiMenu.'
             ),
             'selectedPlan' => $selection,
             'formData' => $this->normalizeFormData($formData),
@@ -114,7 +114,7 @@ final class PublicOnboardingService
             'title' => 'Ative sua assinatura',
             'seo' => $this->buildSeo(
                 'Ative sua assinatura | MesiMenu',
-                'Escolha PIX ou cartão, conclua o pagamento e libere o acesso da sua empresa à MesiMenu.'
+                'Escolha PIX ou cartão, conclua o pagamento e libere o acesso da sua empresa ao MesiMenu.'
             ),
             'completed' => false,
             'company' => $company,
@@ -224,7 +224,7 @@ final class PublicOnboardingService
             'title' => 'Pagamento confirmado',
             'seo' => $this->buildSeo(
                 'Pagamento confirmado | MesiMenu',
-                'Pagamento confirmado e acesso liberado para a empresa começar a usar a MesiMenu.'
+                'Pagamento confirmado e acesso liberado para a empresa começar a usar o MesiMenu.'
             ),
             'confirmation' => $payload,
         ];

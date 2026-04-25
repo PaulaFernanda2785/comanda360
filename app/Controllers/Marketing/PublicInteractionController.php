@@ -29,7 +29,7 @@ final class PublicInteractionController extends Controller
 
         try {
             $this->service->store($request->all(), $request->server);
-            return $this->backWithSuccess('Mensagem recebida. Obrigado por contribuir com o feedback da MesiMenu.', $redirectTo);
+            return $this->backWithSuccess('Mensagem recebida. Obrigado por contribuir com o feedback do MesiMenu.', $redirectTo);
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), $redirectTo);
         }

@@ -702,9 +702,9 @@ $mobilePreviewUrl = public_embedded_image_url('img/menu-celular.png');
         <section class="auth-stage">
             <article class="context-panel">
                 <div class="context-copy">
-                    <span class="eyebrow">Acesso interno da MesiMenu</span>
+                    <span class="eyebrow">Acesso interno do MesiMenu</span>
                     <h1>Entrar no ambiente certo, com o perfil certo e sem misturar contextos de uso.</h1>
-                    <p>O login interno da MesiMenu separa operação do estabelecimento, gestão da empresa assinante e ambiente institucional da plataforma. O cliente final do QR Code continua no fluxo público do cardápio e do pedido.</p>
+                    <p>O login interno do MesiMenu separa operação do estabelecimento, gestão da empresa assinante e ambiente institucional da plataforma. O cliente final do QR Code continua no fluxo público do cardápio e do pedido.</p>
                 </div>
 
                 <div class="context-grid">
@@ -723,7 +723,7 @@ $mobilePreviewUrl = public_embedded_image_url('img/menu-celular.png');
                     <article class="context-card">
                         <span>Ambiente institucional</span>
                         <strong>Empresas, planos e cobranças</strong>
-                        <p>Usuários da MesiMenu acessam governança da plataforma, assinaturas, cobranças, suporte e operação global da MesiMenu.</p>
+                        <p>Usuários do MesiMenu acessam governança da plataforma, assinaturas, cobranças, suporte e operação global do MesiMenu.</p>
                     </article>
 
                     <article class="context-card">
@@ -742,7 +742,7 @@ $mobilePreviewUrl = public_embedded_image_url('img/menu-celular.png');
                 <div class="login-hero">
                     <span class="eyebrow">Acesso dedicado</span>
                     <h2>Entre com seu usuário interno e siga para o módulo que pertence ao seu perfil.</h2>
-                    <p>O destino do acesso respeita o contexto permitido para o usuário: operação, administração da empresa ou ambiente institucional da MesiMenu.</p>
+                    <p>O destino do acesso respeita o contexto permitido para o usuário: operação, administração da empresa ou ambiente institucional do MesiMenu.</p>
 
                     <div class="login-pills">
                         <span>Pedidos e cozinha</span>
@@ -758,7 +758,7 @@ $mobilePreviewUrl = public_embedded_image_url('img/menu-celular.png');
                 <div class="login-body">
                     <div class="login-head">
                         <h3>Acessar agora</h3>
-                        <p>Informe o e-mail e a senha do usuário cadastrado na MesiMenu. O redirecionamento é definido automaticamente pelo perfil, empresa vinculada e escopo autorizado.</p>
+                        <p>Informe o e-mail e a senha do usuário cadastrado no MesiMenu. O redirecionamento é definido automaticamente pelo perfil, empresa vinculada e escopo autorizado.</p>
                     </div>
 
                     <div class="flash-stack">
@@ -803,7 +803,7 @@ $mobilePreviewUrl = public_embedded_image_url('img/menu-celular.png');
         <footer class="page-footer">
             <div class="page-footer-topline">
                 <div class="page-footer-kicker">Autenticação interna com contexto controlado</div>
-                <span>Entrada central para equipes operacionais, gestores da empresa e escopo institucional da MesiMenu.</span>
+                <span>Entrada central para equipes operacionais, gestores da empresa e escopo institucional do MesiMenu.</span>
             </div>
 
             <div class="page-footer-main">
@@ -841,7 +841,7 @@ $mobilePreviewUrl = public_embedded_image_url('img/menu-celular.png');
                     <ul class="page-footer-list">
                         <li>Mesas, comandas, pedidos, cozinha, caixa e entregas da empresa.</li>
                         <li>Catálogo, adicionais, estoque, usuários e acompanhamento gerencial da unidade.</li>
-                        <li>Empresas, planos, assinaturas, cobranças e suporte da MesiMenu.</li>
+                        <li>Empresas, planos, assinaturas, cobranças e suporte do MesiMenu.</li>
                     </ul>
                 </div>
 
@@ -856,7 +856,7 @@ $mobilePreviewUrl = public_embedded_image_url('img/menu-celular.png');
             </div>
 
             <div class="page-footer-bottom">
-                <span>Login interno da MesiMenu desenhado para separar atendimento ao cliente, operação do estabelecimento e governança da plataforma.</span>
+                <span>Login interno do MesiMenu desenhado para separar atendimento ao cliente, operação do estabelecimento e governança da plataforma.</span>
                 <span>Interface de acesso alinhada a contexto, permissão e responsabilidade operacional.</span>
             </div>
         </footer>

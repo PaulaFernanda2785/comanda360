@@ -164,7 +164,7 @@ $returnQuery = http_build_query([
     <section class="public-interactions-hero">
         <div class="public-interactions-hero-body">
             <div class="public-interactions-hero-copy">
-                <h1>Interações públicas da MesiMenu</h1>
+                <h1>Interações públicas do MesiMenu</h1>
                 <p>Este módulo concentra feedbacks, sugestões e mensagens enviadas pela página pública. O trabalho aqui é revisar o texto, proteger a reputação da marca e publicar apenas o que fortalece a narrativa comercial.</p>
             </div>
             <div class="public-interactions-pills">
@@ -181,7 +181,7 @@ $returnQuery = http_build_query([
                 <div class="public-interactions-head">
                     <div>
                         <h2>Fila de moderação</h2>
-                        <p class="public-interactions-note">Use a busca, revise o texto, ajuste o status e publique somente o que realmente ajuda a vender melhor a MesiMenu.</p>
+                        <p class="public-interactions-note">Use a busca, revise o texto, ajuste o status e publique somente o que realmente ajuda a vender melhor o MesiMenu.</p>
                     </div>
                     <div class="public-interactions-badges">
                         <span class="badge">10 por página</span>

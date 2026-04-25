@@ -2392,7 +2392,7 @@ $formatLimitValue = static function (?int $value): string {
                         <div class="hero-kicker">
                             <span class="eyebrow">MesiMenu com foco em atração, operação e recorrência</span>
                             <h1>Transforme vendas manuais em um fluxo digital que vende, cobra e escala.</h1>
-                            <p>A MesiMenu ajuda empresas a organizar atendimento, pedidos, comandas, fechamento e cobrança recorrente em uma plataforma feita para contratar, operar e crescer com mais controle.</p>
+                            <p>O MesiMenu ajuda empresas a organizar atendimento, pedidos, comandas, fechamento e cobrança recorrente em uma plataforma feita para contratar, operar e crescer com mais controle.</p>
 
                             <div class="hero-actions">
                                 <a class="btn btn-primary" href="#planos">Ver planos ativos</a>
@@ -2420,14 +2420,14 @@ $formatLimitValue = static function (?int $value): string {
             <div class="container">
                 <div class="section-head reveal">
                     <span class="eyebrow">Sobre</span>
-                    <h2>A MesiMenu foi desenhada para digitalizar atendimento, operação e receita em um único fluxo.</h2>
+                    <h2>O MesiMenu foi desenhado para digitalizar atendimento, operação e receita em um único fluxo.</h2>
                 </div>
 
                 <div class="about-grid">
                     <article class="about-panel about-story reveal">
                         <div class="about-lead">
                             <span class="about-kicker">Plataforma operacional MesiMenu</span>
-                            <h3>O valor da MesiMenu não está em um módulo isolado, mas na integração entre atendimento, operação e gestão.</h3>
+                            <h3>O valor do MesiMenu não está em um módulo isolado, mas na integração entre atendimento, operação e gestão.</h3>
                             <p>Na prática, a plataforma conecta cardápio digital, pedidos por QR Code, comandas, cozinha, caixa, entregas, estoque, usuários, suporte e assinaturas recorrentes em uma arquitetura multiempresa preparada para uso diário.</p>
                             <p>Isso reduz o problema mais comum desse mercado: sistemas e processos soltos demais para quem precisa vender rápido, operar com menos erro e manter leitura gerencial confiável.</p>
                         </div>
@@ -2464,19 +2464,19 @@ $formatLimitValue = static function (?int $value): string {
                         <div class="about-visual-copy">
                             <span class="about-kicker is-contrast">Painel em tablet</span>
                             <h3>Uma interface pensada para uso real em operação, gestão e acompanhamento institucional.</h3>
-                            <p>A imagem abaixo usa o painel do próprio sistema em formato tablet para mostrar um ponto importante: a MesiMenu não depende de uma única tela. Ela foi estruturada para funcionar com clareza em contextos móveis, administrativos e operacionais.</p>
+                            <p>A imagem abaixo usa o painel do próprio sistema em formato tablet para mostrar um ponto importante: o MesiMenu não depende de uma única tela. Ele foi estruturado para funcionar com clareza em contextos móveis, administrativos e operacionais.</p>
                         </div>
 
                         <div class="tablet-stage">
                             <span class="about-floating-tag tag-top">Dashboard, usuários, suporte e assinatura no mesmo ecossistema</span>
-                            <img src="<?= htmlspecialchars($aboutPanelImageUrl) ?>" alt="Painel da MesiMenu exibido em um tablet">
+                            <img src="<?= htmlspecialchars($aboutPanelImageUrl) ?>" alt="Painel do MesiMenu exibido em um tablet">
                             <span class="about-floating-tag tag-bottom">Leitura confortável para salão, caixa e acompanhamento gerencial em rotina de campo</span>
                         </div>
 
                         <div class="about-visual-footer">
                             <div class="about-footer-card">
                                 <strong>Produto com camadas bem separadas</strong>
-                                <span>Cliente final, equipe operacional, administração do estabelecimento e área global da MesiMenu convivem no mesmo produto sem misturar contexto nem permissão.</span>
+                                <span>Cliente final, equipe operacional, administração do estabelecimento e área global do MesiMenu convivem no mesmo produto sem misturar contexto nem permissão.</span>
                             </div>
                         </div>
                     </aside>
@@ -2533,13 +2533,13 @@ $formatLimitValue = static function (?int $value): string {
                 <div class="section-head reveal">
                     <span class="eyebrow">Soluções</span>
                     <h2>Menos erro, mais controle e uma operação pronta para vender melhor.</h2>
-                    <p>A MesiMenu foi pensada para ajudar a empresa a atender melhor, organizar pedidos, fechar com mais segurança e contratar uma plataforma alinhada ao seu momento operacional.</p>
+                    <p>O MesiMenu foi pensado para ajudar a empresa a atender melhor, organizar pedidos, fechar com mais segurança e contratar uma plataforma alinhada ao seu momento operacional.</p>
                 </div>
 
                 <div class="solutions-layout">
                     <aside class="solutions-panel reveal">
                         <span class="solutions-panel-badge">Resposta estrutural</span>
-                        <h3>A MesiMenu entra para conectar operação, pagamento e crescimento.</h3>
+                        <h3>O MesiMenu entra para conectar operação, pagamento e crescimento.</h3>
                         <p>A proposta não é empilhar mais improviso em cima da rotina. É dar para a empresa uma plataforma mais clara para atendimento, comandas, caixa, fechamento e decisão de contratação.</p>
 
                         <div class="solutions-panel-list">
@@ -2553,7 +2553,7 @@ $formatLimitValue = static function (?int $value): string {
                             </div>
                             <div>
                                 <strong>Venda com mais coerência</strong>
-                                <span>Esta página da MesiMenu passa a comunicar melhor o que a plataforma resolve, atraindo empresas com mais aderência ao produto.</span>
+                                <span>Esta página do MesiMenu passa a comunicar melhor o que a plataforma resolve, atraindo empresas com mais aderência ao produto.</span>
                             </div>
                         </div>
                     </aside>
@@ -2587,8 +2587,8 @@ $formatLimitValue = static function (?int $value): string {
             <div class="container">
                 <div class="section-head reveal">
                     <span class="eyebrow">Funcionalidades</span>
-                    <h2>Da entrada do cliente ao fechamento, a MesiMenu organiza a rotina em etapas claras.</h2>
-                    <p>Veja como a MesiMenu ajuda a acelerar atendimento, vender com mais clareza, fechar com menos erro e dar mais controle para a empresa no dia a dia.</p>
+                    <h2>Da entrada do cliente ao fechamento, o MesiMenu organiza a rotina em etapas claras.</h2>
+                    <p>Veja como o MesiMenu ajuda a acelerar atendimento, vender com mais clareza, fechar com menos erro e dar mais controle para a empresa no dia a dia.</p>
                 </div>
 
                 <div class="features-showcase">
@@ -2596,7 +2596,7 @@ $formatLimitValue = static function (?int $value): string {
                         <div class="features-hero-copy">
                             <span class="features-hero-badge">Fluxo funcional MesiMenu</span>
                             <h3>Uma jornada pensada para vender mais, atender melhor e fechar com mais segurança.</h3>
-                            <p>A MesiMenu conecta o que normalmente fica solto na rotina da empresa: entrada do cliente, escolha do pedido, registro de consumo, fechamento financeiro e leitura gerencial da operação.</p>
+                            <p>O MesiMenu conecta o que normalmente fica solto na rotina da empresa: entrada do cliente, escolha do pedido, registro de consumo, fechamento financeiro e leitura gerencial da operação.</p>
 
                             <div class="features-hero-points">
                                 <div class="features-hero-point">
@@ -2615,7 +2615,7 @@ $formatLimitValue = static function (?int $value): string {
                         </div>
 
                         <div class="features-hero-visual">
-                            <img src="<?= htmlspecialchars($featuresPanelImageUrl) ?>" alt="Painel principal da MesiMenu">
+                            <img src="<?= htmlspecialchars($featuresPanelImageUrl) ?>" alt="Painel principal do MesiMenu">
                         </div>
                     </article>
 
@@ -2667,7 +2667,7 @@ $formatLimitValue = static function (?int $value): string {
             <div class="container">
                 <div class="section-head reveal">
                     <span class="eyebrow">Planos</span>
-                    <h2>Escolha o plano da MesiMenu mais aderente ao momento da sua empresa.</h2>
+                    <h2>Escolha o plano do MesiMenu mais aderente ao momento da sua empresa.</h2>
                 </div>
 
                 <div class="plans-head reveal">
@@ -2684,7 +2684,7 @@ $formatLimitValue = static function (?int $value): string {
                 <?php if ($plans === []): ?>
                     <article class="content-card reveal">
                         <h3>Nenhum plano disponível no momento</h3>
-                        <p>Os planos da MesiMenu ainda não estão disponíveis para exibição nesta página.</p>
+                        <p>Os planos do MesiMenu ainda não estão disponíveis para exibição nesta página.</p>
                     </article>
                 <?php else: ?>
                     <div class="plans-grid">
@@ -2706,7 +2706,7 @@ $formatLimitValue = static function (?int $value): string {
                                 </div>
                                 <div class="plan-copy">
                                     <h3><?= htmlspecialchars($planName) ?></h3>
-                                    <p><?= htmlspecialchars($planDescription !== '' ? $planDescription : 'Plano comercial ativo para operação da MesiMenu com cobrança recorrente.') ?></p>
+                                    <p><?= htmlspecialchars($planDescription !== '' ? $planDescription : 'Plano comercial ativo para operação do MesiMenu com cobrança recorrente.') ?></p>
                                 </div>
 
                                 <div class="plan-price">
@@ -2759,8 +2759,8 @@ $formatLimitValue = static function (?int $value): string {
             <div class="container">
                 <div class="section-head reveal">
                     <span class="eyebrow">Feedback</span>
-                    <h2>Feedback e sugestões para mostrar o valor da MesiMenu com mais clareza.</h2>
-                    <p>Use este espaço para contar sua percepção sobre o sistema, sugerir melhorias e acompanhar feedbacks que ajudam a reforçar a confiança na MesiMenu.</p>
+                    <h2>Feedback e sugestões para mostrar o valor do MesiMenu com mais clareza.</h2>
+                    <p>Use este espaço para contar sua percepção sobre o sistema, sugerir melhorias e acompanhar feedbacks que ajudam a reforçar a confiança no MesiMenu.</p>
                 </div>
 
                 <?php if ($landingFormContext === 'feedback' && (!empty($flashSuccess) || !empty($flashError))): ?>
@@ -2776,14 +2776,14 @@ $formatLimitValue = static function (?int $value): string {
 
                 <div class="blog-layout">
                     <aside class="blog-showcase reveal">
-                        <span class="blog-showcase-badge">Feedback da MesiMenu</span>
+                        <span class="blog-showcase-badge">Feedback do MesiMenu</span>
                         <h3>Um espaço para ouvir o mercado e reforçar a confiança no sistema.</h3>
-                        <p>Quando a página mostra percepções reais de quem conhece a MesiMenu, ela ganha mais proximidade, mais credibilidade e mais força para sustentar a decisão de compra.</p>
+                        <p>Quando a página mostra percepções reais de quem conhece o MesiMenu, ela ganha mais proximidade, mais credibilidade e mais força para sustentar a decisão de compra.</p>
 
                         <div class="blog-showcase-points">
                             <div class="blog-showcase-point">
                                 <strong>Mais proximidade com quem visita a página</strong>
-                                <span>O feedback abre um canal direto para entender dúvidas, percepções e oportunidades de melhoria sobre a MesiMenu.</span>
+                                <span>O feedback abre um canal direto para entender dúvidas, percepções e oportunidades de melhoria sobre o MesiMenu.</span>
                             </div>
                             <div class="blog-showcase-point">
                                 <strong>Mais clareza sobre o que o produto entrega</strong>
@@ -2800,13 +2800,13 @@ $formatLimitValue = static function (?int $value): string {
                         <div class="blog-form-head">
                             <div>
                                 <h3>Enviar feedback para a equipe MesiMenu</h3>
-                                <p>Compartilhe sua opinião sobre o sistema, envie uma sugestão ou registre sua percepção sobre a MesiMenu.</p>
+                                <p>Compartilhe sua opinião sobre o sistema, envie uma sugestão ou registre sua percepção sobre o MesiMenu.</p>
                             </div>
                             <span class="blog-form-badge">Campos obrigatórios</span>
                         </div>
 
                         <div class="blog-form-note">
-                            Seu feedback ajuda a MesiMenu a evoluir a experiência, comunicar melhor o produto e ficar mais alinhada ao que o mercado espera.
+                            Seu feedback ajuda o MesiMenu a evoluir a experiência, comunicar melhor o produto e ficar mais alinhado ao que o mercado espera.
                         </div>
 
                         <form method="POST" action="<?= htmlspecialchars(base_url('/blog/interactions')) ?>">
@@ -2824,7 +2824,7 @@ $formatLimitValue = static function (?int $value): string {
                                 </div>
                                 <div class="field full">
                                     <label for="interaction_message">Mensagem</label>
-                                    <textarea id="interaction_message" name="message" required placeholder="Escreva seu feedback, sua sugestão ou sua percepção sobre a MesiMenu."></textarea>
+                                    <textarea id="interaction_message" name="message" required placeholder="Escreva seu feedback, sua sugestão ou sua percepção sobre o MesiMenu."></textarea>
                                 </div>
                             </div>
 
@@ -2839,7 +2839,7 @@ $formatLimitValue = static function (?int $value): string {
 
                 <?php if ($publicInteractions === []): ?>
                     <div class="blog-empty reveal">
-                        Os primeiros feedbacks em destaque vão aparecer aqui conforme a MesiMenu ampliar essa vitrine de percepções e sugestões do mercado.
+                        Os primeiros feedbacks em destaque vão aparecer aqui conforme o MesiMenu ampliar essa vitrine de percepções e sugestões do mercado.
                     </div>
                 <?php else: ?>
                     <div class="blog-published-grid">
@@ -2868,8 +2868,8 @@ $formatLimitValue = static function (?int $value): string {
             <div class="container">
                 <div class="section-head reveal">
                     <span class="eyebrow">Contato</span>
-                    <h2>Abra uma conversa comercial com a MesiMenu e avance para a contratação certa.</h2>
-                    <p>Se a empresa quer contratar a MesiMenu para organizar atendimento, pedidos, comandas, pagamentos e fechamento, este é o canal para falar com o comercial.</p>
+                    <h2>Abra uma conversa comercial com o MesiMenu e avance para a contratação certa.</h2>
+                    <p>Se a empresa quer contratar o MesiMenu para organizar atendimento, pedidos, comandas, pagamentos e fechamento, este é o canal para falar com o comercial.</p>
                 </div>
 
                 <div class="contact-grid">
@@ -2936,7 +2936,7 @@ $formatLimitValue = static function (?int $value): string {
                         <?php endif; ?>
 
                         <div class="contact-form-note">
-                            Este formulário entra direto na fila comercial da MesiMenu. A equipe pode registrar o lead, definir status, anotar observações e seguir o retorno por e-mail, telefone ou WhatsApp.
+                            Este formulário entra direto na fila comercial do MesiMenu. A equipe pode registrar o lead, definir status, anotar observações e seguir o retorno por e-mail, telefone ou WhatsApp.
                         </div>
 
                         <form method="POST" action="<?= htmlspecialchars(base_url('/contact')) ?>">
@@ -2985,7 +2985,7 @@ $formatLimitValue = static function (?int $value): string {
                                 </div>
                                 <div class="field full">
                                     <label for="lead_message">Mensagem</label>
-                                    <textarea id="lead_message" name="message" required placeholder="Descreva rapidamente a operação, o momento comercial e o que você quer estruturar com a MesiMenu."></textarea>
+                                    <textarea id="lead_message" name="message" required placeholder="Descreva rapidamente a operação, o momento comercial e o que você quer estruturar com o MesiMenu."></textarea>
                                 </div>
                             </div>
 
@@ -3004,19 +3004,19 @@ $formatLimitValue = static function (?int $value): string {
                 <div class="section-head reveal">
                     <span class="eyebrow">FAQ</span>
                     <h2>Dúvidas que costumam travar a decisão antes do contato comercial.</h2>
-                    <p>Aqui ficam respostas diretas para empresas que estão avaliando a contratação da MesiMenu e querem entender melhor plano, operação e aderência da plataforma.</p>
+                    <p>Aqui ficam respostas diretas para empresas que estão avaliando a contratação do MesiMenu e querem entender melhor plano, operação e aderência da plataforma.</p>
                 </div>
 
                 <div class="faq-layout">
                     <article class="content-card faq-panel reveal">
                         <span class="faq-panel-badge">Leitura comercial rápida</span>
-                        <h3>O FAQ existe para ajudar a empresa a decidir se a MesiMenu faz sentido para a sua operação.</h3>
+                        <h3>O FAQ existe para ajudar a empresa a decidir se o MesiMenu faz sentido para a sua operação.</h3>
                         <p>Quando a página responde às dúvidas certas, a conversa comercial avança com mais critério e a contratação fica mais próxima da realidade da empresa.</p>
 
                         <div class="faq-panel-list">
                             <div>
                                 <strong>Mais clareza sobre o produto</strong>
-                                <span>A empresa entende com mais rapidez o que a MesiMenu organiza na operação e onde ela gera valor real.</span>
+                                <span>A empresa entende com mais rapidez o que o MesiMenu organiza na operação e onde ele gera valor real.</span>
                             </div>
                             <div>
                                 <strong>Menos atrito na avaliação</strong>

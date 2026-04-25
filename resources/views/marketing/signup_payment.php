@@ -432,7 +432,7 @@ $stateHint = trim((string) ($paymentState['hint'] ?? ''));
         <section class="hero">
             <article class="card hero-copy">
                 <span class="eyebrow">Etapa financeira</span>
-                <h1>Conclua o pagamento e ative a MesiMenu para sua empresa.</h1>
+                <h1>Conclua o pagamento e ative o MesiMenu para sua empresa.</h1>
                 <p>Seu cadastro foi recebido. Agora escolha a melhor forma de pagamento para liberar o acesso e começar a configurar cardápio digital, pedidos e gestão em uma única plataforma.</p>
                 <div class="hero-points">
                     <div>Cadastro salvo para <strong><?= htmlspecialchars((string) ($company['name'] ?? 'Empresa')) ?></strong>.</div>
@@ -482,7 +482,7 @@ $stateHint = trim((string) ($paymentState['hint'] ?? ''));
         <section class="content-grid">
             <article class="card section-card">
                 <h2>Escolha como deseja pagar</h2>
-                <p>Finalize a assinatura por PIX ou cartão. Depois da confirmação, o acesso da empresa é liberado para iniciar a configuração da MesiMenu.</p>
+                <p>Finalize a assinatura por PIX ou cartão. Depois da confirmação, o acesso da empresa é liberado para iniciar a configuração do MesiMenu.</p>
 
                 <div class="status-strip">
                     <div>

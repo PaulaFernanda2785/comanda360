@@ -166,7 +166,7 @@ $returnQuery = http_build_query([
     <section class="public-contacts-hero">
         <div class="public-contacts-hero-body">
             <div class="public-contacts-hero-copy">
-                <h1>Contatos comerciais da MesiMenu</h1>
+                <h1>Contatos comerciais do MesiMenu</h1>
                 <p>Esta fila concentra mensagens de visitantes e futuros clientes que querem falar com o comercial. O objetivo aqui nao e apenas armazenar lead, e sim responder com velocidade, contexto e leitura de conversao.</p>
             </div>
             <div class="public-contacts-pills">

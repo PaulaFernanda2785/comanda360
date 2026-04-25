@@ -197,13 +197,13 @@ $formatDate = static function (?string $value): string {
             <div class="hero">
                 <span class="eyebrow">Pagamento confirmado</span>
                 <h1>Pagamento confirmado. Sua conta já está liberada.</h1>
-                <p>Sua assinatura foi aprovada e a MesiMenu já está pronta para uso. Acesse com o e-mail principal cadastrado e a senha definida no cadastro para começar a configurar sua operação.</p>
+                <p>Sua assinatura foi aprovada e o MesiMenu já está pronto para uso. Acesse com o e-mail principal cadastrado e a senha definida no cadastro para começar a configurar sua operação.</p>
             </div>
 
             <div class="content">
                 <article class="card">
                     <h2>Primeiro acesso liberado</h2>
-                    <p>Sua assinatura está ativa. A partir de agora, você pode entrar no painel da MesiMenu para configurar cardápio, produtos, mesas, pedidos e a rotina de atendimento da sua empresa.</p>
+                    <p>Sua assinatura está ativa. A partir de agora, você pode entrar no painel do MesiMenu para configurar cardápio, produtos, mesas, pedidos e a rotina de atendimento da sua empresa.</p>
 
                     <ul class="checklist">
                         <li>Empresa ativada: <strong><?= htmlspecialchars((string) ($confirmation['company_name'] ?? 'Empresa')) ?></strong></li>

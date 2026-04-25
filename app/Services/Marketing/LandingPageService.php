@@ -105,7 +105,7 @@ final class LandingPageService
                 [
                     'eyebrow' => 'Governança SaaS',
                     'title' => 'Empresas, planos, assinaturas e suporte',
-                    'description' => 'A MesiMenu também opera como produto recorrente, com gestão de empresas assinantes, planos de assinatura, cobrança e acompanhamento institucional.',
+                    'description' => 'O MesiMenu também opera como produto recorrente, com gestão de empresas assinantes, planos de assinatura, cobrança e acompanhamento institucional.',
                 ],
             ],
             'problem_points' => [
@@ -138,7 +138,7 @@ final class LandingPageService
                 [
                     'eyebrow' => 'Operação',
                     'title' => 'Atendimento mais rápido e operação mais organizada',
-                    'description' => 'A MesiMenu conecta mesas, comandas, pedidos e cozinha em um fluxo mais claro para reduzir falhas, acelerar o atendimento e melhorar a experiência do cliente.',
+                    'description' => 'O MesiMenu conecta mesas, comandas, pedidos e cozinha em um fluxo mais claro para reduzir falhas, acelerar o atendimento e melhorar a experiência do cliente.',
                 ],
                 [
                     'eyebrow' => 'Pagamento',
@@ -153,7 +153,7 @@ final class LandingPageService
                 [
                     'eyebrow' => 'Crescimento',
                     'title' => 'Mais força comercial para atrair e converter novas empresas',
-                    'description' => 'A página da MesiMenu, os planos e o fluxo de contato ajudam a apresentar melhor a solução, fortalecer a proposta de valor e transformar interesse em oportunidade real de assinatura.',
+                    'description' => 'A página do MesiMenu, os planos e o fluxo de contato ajudam a apresentar melhor a solução, fortalecer a proposta de valor e transformar interesse em oportunidade real de assinatura.',
                 ],
             ],
             'feature_groups' => $this->featureGroups(),
@@ -292,15 +292,15 @@ final class LandingPageService
     {
         return [
             [
-                'question' => 'A MesiMenu atende empresas com mesas, comandas e pedidos no salão?',
-                'answer' => 'Sim. A MesiMenu foi pensada para organizar mesas, comandas, pedidos, atendimento e fechamento em um fluxo mais claro para a empresa assinante.',
+                'question' => 'O MesiMenu atende empresas com mesas, comandas e pedidos no salão?',
+                'answer' => 'Sim. O MesiMenu foi pensado para organizar mesas, comandas, pedidos, atendimento e fechamento em um fluxo mais claro para a empresa assinante.',
             ],
             [
                 'question' => 'Depois da contratação, meus clientes conseguem acessar o cardápio pelo QR Code da mesa?',
                 'answer' => 'Sim. Depois que a empresa entra na plataforma, os clientes do estabelecimento podem acessar o cardápio pelo QR Code e seguir a jornada com mais autonomia.',
             ],
             [
-                'question' => 'A MesiMenu ajuda no fechamento da conta e no controle de pagamento da empresa?',
+                'question' => 'O MesiMenu ajuda no fechamento da conta e no controle de pagamento da empresa?',
                 'answer' => 'Sim. Consumo, comanda, formas de pagamento e fechamento ficam mais conectados para reduzir erro operacional e dar mais segurança no caixa da empresa.',
             ],
             [
@@ -308,20 +308,20 @@ final class LandingPageService
                 'answer' => 'Sim. A plataforma contempla PIX, cartão e cobrança recorrente conforme o ciclo escolhido pela empresa no momento da assinatura.',
             ],
             [
-                'question' => 'Posso contratar a MesiMenu no plano mensal ou anual?',
-                'answer' => 'Sim. A MesiMenu pode apresentar contratação mensal e anual para facilitar a escolha do formato mais adequado para a empresa.',
+                'question' => 'Posso contratar o MesiMenu no plano mensal ou anual?',
+                'answer' => 'Sim. O MesiMenu pode apresentar contratação mensal e anual para facilitar a escolha do formato mais adequado para a empresa.',
             ],
             [
                 'question' => 'Como eu escolho o plano ideal para a minha empresa?',
                 'answer' => 'A comparação entre os planos ajuda a entender qual estrutura faz mais sentido para o momento da sua operação. Se houver dúvida, o canal de contato comercial existe justamente para orientar essa decisão.',
             ],
             [
-                'question' => 'A MesiMenu serve apenas para operação ou também ajuda a empresa a vender melhor?',
+                'question' => 'O MesiMenu serve apenas para operação ou também ajuda a empresa a vender melhor?',
                 'answer' => 'Os dois. A plataforma melhora atendimento, organização da operação, fechamento e a capacidade da empresa de atender melhor e vender com menos erro.',
             ],
             [
-                'question' => 'Esta página pública é da minha empresa ou da própria MesiMenu?',
-                'answer' => 'Esta página pública é da própria MesiMenu e foi feita para atrair novas empresas interessadas em contratar a plataforma. Ela não é uma página promocional das empresas assinantes.',
+                'question' => 'Esta página pública é da minha empresa ou do próprio MesiMenu?',
+                'answer' => 'Esta página pública é do próprio MesiMenu e foi feita para atrair novas empresas interessadas em contratar a plataforma. Ela não é uma página promocional das empresas assinantes.',
             ],
             [
                 'question' => 'Se eu quiser entender melhor o plano ideal, posso falar com o comercial antes de assinar?',
@@ -339,7 +339,7 @@ final class LandingPageService
                 'title' => 'O cliente entra no fluxo certo sem depender do atendimento manual',
                 'description' => 'A leitura do QR Code identifica a mesa e reduz o atrito logo no primeiro contato, deixando o início do atendimento mais rápido e mais confiável.',
                 'image' => 'img/qrcode-celular.png',
-                'image_alt' => 'Acesso por QR Code no celular com a MesiMenu',
+                'image_alt' => 'Acesso por QR Code no celular com o MesiMenu',
                 'result' => 'Menos erro na identificação da mesa e mais agilidade no início do pedido.',
                 'items' => [
                     'Entrada direta pelo celular do cliente',
@@ -353,7 +353,7 @@ final class LandingPageService
                 'title' => 'A empresa apresenta melhor o cardápio e vende com mais clareza',
                 'description' => 'Produtos, categorias e jornada de escolha ficam mais intuitivos no celular, ajudando o cliente a navegar melhor e aumentando a chance de conversão.',
                 'image' => 'img/menu-celular.png',
-                'image_alt' => 'Cardápio digital da MesiMenu no celular',
+                'image_alt' => 'Cardápio digital do MesiMenu no celular',
                 'result' => 'Mais autonomia para o cliente e mais capacidade de venda no salão.',
                 'items' => [
                     'Categorias mais organizadas',
@@ -367,7 +367,7 @@ final class LandingPageService
                 'title' => 'Itens, adicionais e observações ficam mais precisos no pedido',
                 'description' => 'A escolha de produtos e complementos passa a seguir um fluxo guiado, reduzindo ruído entre cliente, atendimento e cozinha.',
                 'image' => 'img/produtos-celular.png',
-                'image_alt' => 'Tela de produtos e adicionais da MesiMenu',
+                'image_alt' => 'Tela de produtos e adicionais do MesiMenu',
                 'result' => 'Menos retrabalho operacional e mais precisão no que vai para produção.',
                 'items' => [
                     'Escolha de itens com melhor orientação visual',
@@ -381,7 +381,7 @@ final class LandingPageService
                 'title' => 'A equipe acompanha consumo, caixa e fechamento com mais controle',
                 'description' => 'Mesa, comanda e movimentação financeira deixam de ficar soltas e passam a seguir um fluxo operacional mais legível para quem atende e para quem gere.',
                 'image' => 'img/caixa-celular.png',
-                'image_alt' => 'Controle de caixa e comandas da MesiMenu',
+                'image_alt' => 'Controle de caixa e comandas do MesiMenu',
                 'result' => 'Mais segurança na operação diária e menos dependência de memória da equipe.',
                 'items' => [
                     'Abertura e leitura mais clara das comandas',
@@ -395,7 +395,7 @@ final class LandingPageService
                 'title' => 'O recebimento acontece com mais segurança e menos divergência',
                 'description' => 'Pagamentos, status da comanda e fechamento passam a conversar entre si, diminuindo erro de cobrança e melhorando a leitura do que realmente foi recebido.',
                 'image' => 'img/pagamento-celular.png',
-                'image_alt' => 'Fluxo de pagamentos da MesiMenu',
+                'image_alt' => 'Fluxo de pagamentos do MesiMenu',
                 'result' => 'Menos atrito no fechamento e mais confiança no controle financeiro.',
                 'items' => [
                     'PIX e cartão no mesmo ecossistema',
@@ -409,7 +409,7 @@ final class LandingPageService
                 'title' => 'A gestão acompanha indicadores e decide com mais visibilidade',
                 'description' => 'A empresa sai do improviso e passa a ter uma camada visual de acompanhamento para entender desempenho, gargalos e oportunidades de crescimento.',
                 'image' => 'img/estatistica-celular.png',
-                'image_alt' => 'Indicadores e estatísticas da MesiMenu',
+                'image_alt' => 'Indicadores e estatísticas do MesiMenu',
                 'result' => 'Mais visibilidade para ajustar operação, venda e crescimento com base real.',
                 'items' => [
                     'Indicadores para leitura mais rápida da operação',
