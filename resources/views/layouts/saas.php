@@ -7,7 +7,7 @@ $rawNavItems = is_array($navItems ?? null)
     ? $navItems
     : [
         ['href' => '/saas/dashboard', 'label' => 'Dashboard', 'description' => 'Indicadores da plataforma'],
-        ['href' => '/saas/public-contacts', 'label' => 'Contatos', 'description' => 'Leads comerciais da pagina publica'],
+        ['href' => '/saas/public-contacts', 'label' => 'Contatos', 'description' => 'Leads comerciais da página pública'],
         ['href' => '/saas/public-interactions', 'label' => 'Interações', 'description' => 'Moderação da página pública'],
         ['href' => '/saas/companies', 'label' => 'Empresas', 'description' => 'Clientes da plataforma'],
         ['href' => '/saas/plans', 'label' => 'Planos', 'description' => 'Catálogo comercial'],
@@ -215,9 +215,9 @@ $routeMatches = static function (string $path, array $routes): bool {
 <div class="shell">
     <aside class="sidebar">
         <h2>MesiMenu SaaS</h2>
-        <p><?= htmlspecialchars((string) ($user['name'] ?? 'Usuario')) ?></p>
+        <p><?= htmlspecialchars((string) ($user['name'] ?? 'Usuário')) ?></p>
 
-        <p class="sidebar-label">Navegacao</p>
+        <p class="sidebar-label">Navegação</p>
         <nav class="nav-links">
             <?php foreach ($normalizedNavItems as $item): ?>
                 <?php

@@ -10,7 +10,7 @@ $themeMainCard = (string) ($appShellTheme['main_card_color'] ?? '#0f172a');
 $companyName = trim((string) ($appShellTheme['company_name'] ?? 'Estabelecimento'));
 $brandTitle = trim((string) ($appShellTheme['title'] ?? 'Painel da Empresa'));
 $brandDescription = trim((string) ($appShellTheme['description'] ?? ''));
-$footerText = trim((string) ($appShellTheme['footer_text'] ?? 'MesiMenu - Sistema de gestao de atendimento e vendas.'));
+$footerText = trim((string) ($appShellTheme['footer_text'] ?? 'MesiMenu - Sistema de gestão de atendimento e vendas.'));
 
 $logoPath = trim((string) ($appShellTheme['logo_path'] ?? ''));
 $bannerPath = trim((string) ($appShellTheme['banner_path'] ?? ''));
@@ -498,7 +498,7 @@ $routeMatches = static function (string $path, array $routes): bool {
             <p class="brand-company"><?= htmlspecialchars($companyName) ?></p>
         </div>
 
-        <p class="sidebar-group-title">Navegacao</p>
+        <p class="sidebar-group-title">Navegação</p>
         <nav class="nav-links">
             <?php foreach ($normalizedNavItems as $item): ?>
                 <?php

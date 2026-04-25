@@ -27,7 +27,7 @@ final class AppShellService
             'main_card_color' => '#0f172a',
             'logo_path' => '',
             'banner_path' => '',
-            'footer_text' => 'MesiMenu - Sistema de gestao de atendimento e vendas.',
+            'footer_text' => 'MesiMenu - Sistema de gestão de atendimento e vendas.',
         ];
 
         if (!is_array($user)) {
@@ -195,7 +195,7 @@ final class AppShellService
             [
                 'href' => '/admin/dashboard',
                 'label' => 'Dashboard',
-                'description' => 'VisÃ£o geral da operaÃ§Ã£o',
+                'description' => 'Visão geral da operação',
                 'permission' => 'dashboard.view',
                 'roles' => ['admin_establishment', 'manager'],
                 'match' => ['/admin/dashboard', '/admin/dashboard/report'],
@@ -203,13 +203,13 @@ final class AppShellService
             [
                 'href' => '/admin/products',
                 'label' => 'Produtos',
-                'description' => 'CardÃ¡pio e categorias',
+                'description' => 'Cardápio e categorias',
                 'permission' => 'products.view',
             ],
             [
                 'href' => '/admin/tables',
                 'label' => 'Mesas',
-                'description' => 'GestÃ£o de salÃ£o',
+                'description' => 'Gestão de salão',
                 'permission' => 'tables.view',
             ],
             [
@@ -227,7 +227,7 @@ final class AppShellService
             [
                 'href' => '/admin/kitchen',
                 'label' => 'Cozinha',
-                'description' => 'ProduÃ§Ã£o e impressÃ£o',
+                'description' => 'Produção e impressão',
                 'permission' => 'orders.view',
             ],
             [
@@ -245,14 +245,14 @@ final class AppShellService
             [
                 'href' => '/admin/stock',
                 'label' => 'Estoque',
-                'description' => 'Controle e movimentacao',
+                'description' => 'Controle e movimentação',
                 'permission' => 'stock.view',
                 'plan_feature' => 'estoque',
             ],
             [
                 'href' => '/admin/payments',
                 'label' => 'Pagamentos',
-                'description' => 'CobranÃ§as e recebimentos',
+                'description' => 'Cobranças e recebimentos',
                 'permission' => 'payments.view',
             ],
             [
@@ -281,7 +281,7 @@ final class AppShellService
             [
                 'href' => '/saas/public-contacts',
                 'label' => 'Contatos',
-                'description' => 'Leads comerciais da pagina publica',
+                'description' => 'Leads comerciais da página pública',
                 'permission' => 'support.view',
                 'match' => ['/saas/public-contacts'],
             ],
