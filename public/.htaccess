@@ -1,19 +1,12 @@
 RewriteEngine On
 
-# Hostinger/ModSecurity can block Mercado Pago webhook POSTs with 403.
-# Keep any relaxation scoped to the webhook route instead of disabling it site-wide.
-<IfModule mod_security2.c>
-SecRule REQUEST_URI "@beginsWith /webhooks/mercado-pago" "id:1000001,phase:1,pass,nolog,ctl:ruleEngine=Off"
-SecRule REQUEST_URI "@beginsWith /webhooks/mercado-pago" "id:1000002,phase:2,pass,nolog,ctl:ruleEngine=Off"
-</IfModule>
+Options -Indexes
 
-# Upload de imagens de produtos (WAMP/mod_php)
-php_value file_uploads On
-php_value upload_max_filesize 12M
-php_value post_max_size 12M
-php_value max_file_uploads 20
+<FilesMatch "^(\.env|\.user\.ini|\.ht|\.git)">
+    Require all denied
+</FilesMatch>
 
-# Redireciona tudo para index.php, exceto arquivos fisicos
+# Redireciona tudo para index.php, exceto arquivos fisicos.
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [QSA,L]

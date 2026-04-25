@@ -283,7 +283,8 @@ final class SupportAttachmentService
 
         $names = $files['name'] ?? null;
         if (!is_array($names)) {
-            return [is_array($files) ? $files : []];
+            $error = (int) ($files['error'] ?? UPLOAD_ERR_NO_FILE);
+            return $error === UPLOAD_ERR_NO_FILE ? [] : [is_array($files) ? $files : []];
         }
 
         $normalized = [];
@@ -293,11 +294,16 @@ final class SupportAttachmentService
         $types = is_array($files['type'] ?? null) ? $files['type'] : [];
 
         foreach ($names as $index => $name) {
+            $error = (int) ($errors[$index] ?? UPLOAD_ERR_NO_FILE);
+            if ($error === UPLOAD_ERR_NO_FILE) {
+                continue;
+            }
+
             $normalized[] = [
                 'name' => $name,
                 'type' => $types[$index] ?? '',
                 'tmp_name' => $tmpNames[$index] ?? '',
-                'error' => $errors[$index] ?? UPLOAD_ERR_NO_FILE,
+                'error' => $error,
                 'size' => $sizes[$index] ?? 0,
             ];
         }

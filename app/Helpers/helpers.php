@@ -125,13 +125,7 @@ if (!function_exists('public_logo_url')) {
             }
         }
 
-        $scriptName = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
-        $logoRelativePath = str_contains($scriptName, '/public/')
-            || str_ends_with($scriptName, '/public/index.php')
-            ? '/img/logo-mesimenu.png'
-            : '/public/img/logo-mesimenu.png';
-
-        $cached = base_url($logoRelativePath);
+        $cached = asset_url('/img/logo-mesimenu.png');
         return $cached;
     }
 }
@@ -163,13 +157,7 @@ if (!function_exists('public_embedded_image_url')) {
             }
         }
 
-        $scriptName = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
-        $resolvedPath = str_contains($scriptName, '/public/')
-            || str_ends_with($scriptName, '/public/index.php')
-            ? '/' . $normalized
-            : '/public/' . $normalized;
-
-        $cache[$normalized] = base_url($resolvedPath);
+        $cache[$normalized] = asset_url('/' . $normalized);
         return $cache[$normalized];
     }
 }

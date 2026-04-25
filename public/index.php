@@ -1,7 +1,42 @@
 <?php
 declare(strict_types=1);
 
-define('BASE_PATH', dirname(__DIR__));
+function mesimenu_resolve_base_path(string $publicPath): ?string
+{
+    $candidates = [
+        dirname($publicPath),
+        dirname($publicPath) . '/mesimenu_app',
+        dirname($publicPath, 2) . '/mesimenu_app',
+        dirname($publicPath, 3) . '/mesimenu_app',
+    ];
+
+    foreach (array_unique($candidates) as $candidate) {
+        $realPath = realpath($candidate);
+        if ($realPath === false) {
+            continue;
+        }
+
+        if (
+            is_dir($realPath . '/app')
+            && is_dir($realPath . '/config')
+            && is_file($realPath . '/routes/web.php')
+        ) {
+            return $realPath;
+        }
+    }
+
+    return null;
+}
+
+$basePath = mesimenu_resolve_base_path(__DIR__);
+if ($basePath === null) {
+    http_response_code(500);
+    header('Content-Type: text/plain; charset=UTF-8');
+    echo 'Pasta mesimenu_app nao encontrada. Confira se ela foi extraida fora do public_html.';
+    exit;
+}
+
+define('BASE_PATH', $basePath);
 
 require BASE_PATH . '/app/Helpers/helpers.php';
 require BASE_PATH . '/app/Core/Autoloader.php';
