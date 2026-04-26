@@ -91,7 +91,7 @@ $paymentLabel = $paymentStatusFilter !== '' ? status_label('order_payment_status
     .report-series-fill{height:100%;background:linear-gradient(90deg,#2563eb,#3b82f6);border-radius:999px}
     .report-section{page-break-inside:avoid}
     .report-footer{padding:10px 20px;border-top:1px solid #e2e8f0;background:#f8fafc;font-size:12px;color:#475569;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
-    .report-footer .page-counter::after{content:"Página " counter(page)}
+    .report-footer .page-counter::after{content:"Previa de impressao"}
     .report-muted{color:#64748b}
     .no-print{display:block}
 
@@ -106,7 +106,15 @@ $paymentLabel = $paymentStatusFilter !== '' ? status_label('order_payment_status
         .report-series-row{grid-template-columns:58px 1fr 78px}
     }
 
-    @page { size: A4 portrait; margin: 14mm 10mm 16mm 10mm; }
+    @page {
+        size: A4 portrait;
+        margin: 14mm 10mm 16mm 10mm;
+        @bottom-right {
+            content: "Pagina " counter(page);
+            font-size: 9pt;
+            color: #475569;
+        }
+    }
     @media print {
         body{background:#fff}
         .shell{display:block !important}
@@ -121,7 +129,8 @@ $paymentLabel = $paymentStatusFilter !== '' ? status_label('order_payment_status
         .report-index-card{background:#fff}
         .report-index-item{background:#fff}
         .report-index-tag{background:#eef2ff}
-        .report-footer{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #d1d5db;padding:4mm 8mm}
+        .report-footer{position:static;background:#fff;border-top:1px solid #d1d5db;padding:4mm 0 0;margin-top:6mm}
+        .report-footer .page-counter{display:none}
     }
 </style>
 
