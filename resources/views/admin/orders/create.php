@@ -55,11 +55,35 @@ $canCreateOrder = $totalProducts > 0;
     .items-headline p{margin:5px 0 0;color:#64748b;font-size:13px;line-height:1.5;max-width:760px}
     .items-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:14px;background:#eff6ff;border:1px solid #bfdbfe}
     .items-toolbar-copy{font-size:12px;color:#1e3a8a;line-height:1.5}
-    .items-table-wrap{border:1px solid #dbe3ee;border-radius:16px;overflow-x:auto;overflow-y:visible;background:#f8fafc}
-    .items-table{width:100%;min-width:1140px;border-collapse:separate;border-spacing:0;margin:0;table-layout:auto}
-    .items-table th{background:#e2e8f0;color:#334155;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
-    .items-table th,.items-table td{border-bottom:1px solid #e2e8f0;padding:10px;vertical-align:top}
-    .items-table tbody tr:last-child td{border-bottom:0}
+    .items-table-wrap{border:0;border-radius:16px;overflow:visible;background:transparent}
+    .items-table{width:100%;min-width:0;border-collapse:separate;border-spacing:0;margin:0;display:grid;gap:12px;table-layout:auto}
+    .items-table colgroup,
+    .items-table thead{display:none}
+    .items-table tbody{display:grid;gap:12px;width:100%}
+    .items-table tr{
+        display:grid;
+        grid-template-columns:minmax(220px,1fr) minmax(96px,120px) minmax(260px,1.2fr);
+        grid-template-areas:
+            "product quantity additionals"
+            "notes total additionals"
+            "action action additionals";
+        gap:12px;
+        width:100%;
+        min-width:0;
+        border:1px solid #e2e8f0;
+        border-radius:14px;
+        background:#f8fafc;
+        padding:14px;
+        box-shadow:0 8px 18px rgba(15,23,42,.05);
+    }
+    .items-table td{display:block;border:0;padding:0;min-width:0}
+    .items-table td[data-cell="product"]{grid-area:product}
+    .items-table td[data-cell="quantity"]{grid-area:quantity}
+    .items-table td[data-cell="additionals"]{grid-area:additionals}
+    .items-table td[data-cell="notes"]{grid-area:notes}
+    .items-table td[data-cell="line-total"]{grid-area:total}
+    .items-table td[data-cell="action"]{grid-area:action;align-self:end}
+    .items-table td::before{content:attr(data-label);display:block;margin-bottom:6px;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
     .product-picker{display:grid;gap:6px;position:relative}
     .product-suggestions{position:relative;border:1px solid #dbeafe;border-radius:10px;background:#fff;max-height:170px;overflow:auto}
     .product-suggestions[hidden]{display:none}
@@ -71,14 +95,14 @@ $canCreateOrder = $totalProducts > 0;
     .product-selected-meta{font-size:11px;color:#1e40af}
     .notes-textarea{width:100%;resize:vertical;min-height:48px;max-height:180px;line-height:1.3}
     .notes-textarea.compact{min-height:44px;max-height:130px}
-    .additionals-container{border:1px solid #cbd5e1;border-radius:12px;padding:10px;background:#fff;min-width:280px}
+    .additionals-container{border:1px solid #cbd5e1;border-radius:12px;padding:10px;background:#fff;min-width:0;width:100%;max-width:100%}
     .additionals-shell{display:grid;gap:8px}
     .additionals-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
     .additionals-rules{display:flex;gap:6px;flex-wrap:wrap}
     .additional-rule-chip{display:inline-block;padding:3px 8px;border-radius:999px;background:#e2e8f0;color:#334155;font-size:11px}
     .additional-rule-chip.required{background:#fef3c7;color:#92400e}
     .additionals-counter{font-size:11px;color:#1e40af;background:#dbeafe;padding:3px 8px;border-radius:999px}
-    .additionals-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;max-height:220px;overflow-y:auto;overflow-x:hidden;padding-right:2px}
+    .additionals-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:8px;max-height:260px;overflow-y:auto;overflow-x:hidden;padding-right:2px}
     .additional-card{position:relative;display:grid;gap:6px;padding:10px;border:1px solid #dbeafe;border-radius:12px;background:#f8fafc;cursor:pointer;transition:all .15s ease;align-content:start}
     .additional-card:hover{border-color:#93c5fd;background:#eff6ff}
     .additional-card.is-selected{border-color:#1d4ed8;background:#dbeafe;box-shadow:inset 0 0 0 1px #1d4ed8}
@@ -114,29 +138,28 @@ $canCreateOrder = $totalProducts > 0;
         .kpi-grid{grid-template-columns:repeat(2,minmax(120px,1fr))}
         .channel-grid,.channel-inline-grid{grid-template-columns:1fr}
         .delivery-fields-grid .field{grid-column:span 12}
-        .additionals-container{min-width:0}
-        .items-table{min-width:0}
-    }
-    @media (max-width:1240px){
-        .items-table-wrap{border:none;background:transparent;overflow:visible}
-        .items-table,
-        .items-table tbody,
-        .items-table tr,
-        .items-table td{display:block;width:100%}
-        .items-table{display:grid;gap:10px}
-        .items-table thead{display:none}
-        .items-table tbody{display:grid;gap:10px}
-        .items-table tbody tr{border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc;padding:14px;box-shadow:0 8px 18px rgba(15,23,42,.05)}
-        .items-table th,
-        .items-table td{border:0;padding:0}
-        .items-table td + td{margin-top:12px}
-        .items-table td::before{content:attr(data-label);display:block;margin-bottom:6px;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
-        .items-table td[data-cell="line-total"] .line-total{display:inline-flex}
-        .items-table td[data-cell="action"] .btn{width:auto;min-width:120px}
-        .additionals-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
+        .items-table tr{
+            grid-template-columns:minmax(0,1fr) minmax(92px,120px);
+            grid-template-areas:
+                "product quantity"
+                "additionals additionals"
+                "notes notes"
+                "total action";
+        }
+        .items-table td[data-cell="action"]{align-self:start}
     }
     @media (max-width:560px){
-        .items-table tbody tr{padding:12px}
+        .items-table tr{
+            grid-template-columns:1fr;
+            grid-template-areas:
+                "product"
+                "quantity"
+                "additionals"
+                "notes"
+                "total"
+                "action";
+            padding:12px;
+        }
         .items-table td[data-cell="action"] .btn{width:100%}
         .additional-card-controls{align-items:flex-start}
     }

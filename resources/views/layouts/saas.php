@@ -93,16 +93,58 @@ $routeMatches = static function (string $path, array $routes): bool {
             color:#111827
         }
 
-        .shell{display:grid;grid-template-columns:304px minmax(0,1fr);min-height:100vh}
+        .shell{display:grid;grid-template-columns:304px minmax(0,1fr);min-height:100vh;transition:grid-template-columns .2s ease}
+        .sidebar-toggle{
+            position:fixed;
+            top:12px;
+            left:12px;
+            z-index:1200;
+            width:42px;
+            height:42px;
+            border-radius:12px;
+            border:1px solid rgba(148,163,184,.3);
+            background:rgba(15,23,42,.94);
+            color:#fff;
+            display:inline-grid;
+            place-items:center;
+            cursor:pointer;
+            box-shadow:0 12px 26px rgba(15,23,42,.24);
+        }
+        .sidebar-toggle:hover{background:#020617}
+        .sidebar-toggle-lines,
+        .sidebar-toggle-lines::before,
+        .sidebar-toggle-lines::after{
+            content:"";
+            display:block;
+            width:18px;
+            height:2px;
+            border-radius:999px;
+            background:currentColor;
+        }
+        .sidebar-toggle-lines{position:relative}
+        .sidebar-toggle-lines::before{position:absolute;top:-6px;left:0}
+        .sidebar-toggle-lines::after{position:absolute;top:6px;left:0}
         .sidebar{
             background:linear-gradient(200deg, #0f172a 0%, #020617 100%);
             color:#fff;
-            padding:20px 16px;
+            padding:66px 16px 20px;
             border-right:1px solid rgba(148,163,184,.22);
             display:grid;
             align-content:start;
             gap:14px;
+            min-width:0;
+            overflow:hidden;
+            transition:padding .2s ease;
         }
+        .shell.sidebar-collapsed{grid-template-columns:78px minmax(0,1fr)}
+        .shell.sidebar-collapsed .sidebar{padding:66px 10px 18px}
+        .shell.sidebar-collapsed .sidebar h2,
+        .shell.sidebar-collapsed .sidebar p,
+        .shell.sidebar-collapsed .sidebar-label,
+        .shell.sidebar-collapsed .nav-link-copy,
+        .shell.sidebar-collapsed .nav-link-arrow{display:none}
+        .shell.sidebar-collapsed .nav-link,
+        .shell.sidebar-collapsed .logout-button{justify-content:center;padding:10px 8px}
         .sidebar h2{margin:0;font-size:23px;line-height:1.1}
         .sidebar p{margin:0;color:#94a3b8;font-size:12px}
         .sidebar-label{margin:8px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#64748b;font-weight:700}
@@ -203,16 +245,24 @@ $routeMatches = static function (string $path, array $routes): bool {
 
         @media (max-width:980px){
             .shell{grid-template-columns:1fr}
-            .sidebar{border-right:0;border-bottom:1px solid rgba(148,163,184,.2)}
+            .shell.sidebar-collapsed{grid-template-columns:1fr}
+            .shell.sidebar-collapsed .sidebar{display:none}
+            .sidebar{padding:64px 14px 14px;border-right:0;border-bottom:1px solid rgba(148,163,184,.2)}
             .nav-links{grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:8px}
             .nav-link-copy small{display:none}
             main{padding:16px}
             .grid{grid-template-columns:1fr 1fr}
         }
+        @media print{
+            .sidebar-toggle{display:none !important}
+        }
     </style>
 </head>
 <body>
-<div class="shell">
+<button class="sidebar-toggle" type="button" aria-label="Recolher menu lateral" aria-expanded="true" data-sidebar-toggle>
+    <span class="sidebar-toggle-lines" aria-hidden="true"></span>
+</button>
+<div class="shell" data-sidebar-shell>
     <aside class="sidebar">
         <h2>MesiMenu SaaS</h2>
         <p><?= htmlspecialchars((string) ($user['name'] ?? 'Usuário')) ?></p>
@@ -277,7 +327,30 @@ $routeMatches = static function (string $path, array $routes): bool {
 (() => {
     const idleTimeoutMs = <?= (int) $idleTimeoutSeconds ?> * 1000;
     const scrollStateKey = 'mesimenu:scroll-restore';
+    const sidebarStateKey = 'mesimenu:saas-sidebar-collapsed';
+    const sidebarShell = document.querySelector('[data-sidebar-shell]');
+    const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
     const submitControls = (form) => Array.from(form.querySelectorAll('button[type="submit"], input[type="submit"]'));
+    const setSidebarCollapsed = (collapsed) => {
+        if (!(sidebarShell instanceof HTMLElement) || !(sidebarToggle instanceof HTMLButtonElement)) {
+            return;
+        }
+
+        sidebarShell.classList.toggle('sidebar-collapsed', collapsed);
+        sidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        sidebarToggle.setAttribute('aria-label', collapsed ? 'Mostrar menu lateral' : 'Recolher menu lateral');
+
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(sidebarStateKey, collapsed ? '1' : '0');
+        }
+    };
+    const restoreSidebarState = () => {
+        if (typeof localStorage === 'undefined') {
+            return;
+        }
+
+        setSidebarCollapsed(localStorage.getItem(sidebarStateKey) === '1');
+    };
     const getScrollTarget = () => {
         const main = document.querySelector('main');
         if (main instanceof HTMLElement) {
@@ -384,7 +457,14 @@ $routeMatches = static function (string $path, array $routes): bool {
         return url.search !== window.location.search && url.search !== '';
     };
 
+    restoreSidebarState();
     restoreScrollPosition();
+
+    if (sidebarToggle instanceof HTMLButtonElement && sidebarShell instanceof HTMLElement) {
+        sidebarToggle.addEventListener('click', () => {
+            setSidebarCollapsed(!sidebarShell.classList.contains('sidebar-collapsed'));
+        });
+    }
 
     const loading = (control) => {
         if (!control || control.dataset.processing === '1') {
