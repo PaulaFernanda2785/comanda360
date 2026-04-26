@@ -56,10 +56,19 @@ $donutBackground = $donutStops !== [] ? implode(', ', $donutStops) : '#e2e8f0 0%
         .dash-sales-day-card .dash-label,
         .dash-sales-day-card .dash-value{white-space:nowrap;font-size:12px;line-height:1.2}
         .dash-sales-day-card .dash-value{text-align:right;font-variant-numeric:tabular-nums}
+        .dash-compact-table{min-width:0;overflow-x:hidden}
+        .dash-compact-table .dash-table{display:grid;gap:10px;width:100%;max-width:100%;min-width:0!important;margin-top:0;table-layout:auto}
+        .dash-compact-table .dash-table thead{display:none}
+        .dash-compact-table .dash-table tbody{display:grid;gap:10px;width:100%;max-width:100%;min-width:0!important}
+        .dash-compact-table .dash-table tr{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(72px,.45fr) minmax(112px,.7fr);gap:8px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;padding:10px;max-width:100%;min-width:0!important}
+        .dash-compact-table .dash-table td{display:grid;gap:4px;padding:0;border:0;max-width:100%;min-width:0!important;overflow-wrap:anywhere}
+        .dash-compact-table .dash-table td::before{content:attr(data-label);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#64748b}
+        .dash-compact-table .dash-table td:last-child{text-align:left}
         @media (max-width:760px){
             .dash-sales-day-card .dash-bar-row{grid-template-columns:42px minmax(0,1fr) 126px}
             .dash-sales-day-card .dash-label,
             .dash-sales-day-card .dash-value{font-size:11px}
+            .dash-compact-table .dash-table tr{grid-template-columns:1fr}
         }
     </style>
     <div class="card" style="background:linear-gradient(115deg,var(--theme-main-card,#0f172a) 0%,#1e293b 55%,#334155 100%);color:#fff;overflow:hidden;position:relative">
@@ -218,7 +227,7 @@ $donutBackground = $donutStops !== [] ? implode(', ', $donutStops) : '#e2e8f0 0%
     </div>
 
     <div class="dash-grid-3">
-        <div class="card">
+        <div class="card dash-compact-table">
             <h3 style="margin-top:0">Vendas por canal</h3>
             <?php if ($salesByChannel === []): ?>
                 <div class="empty-state">Sem dados por canal no período.</div>
@@ -228,9 +237,9 @@ $donutBackground = $donutStops !== [] ? implode(', ', $donutStops) : '#e2e8f0 0%
                     <tbody>
                         <?php foreach ($salesByChannel as $row): ?>
                             <tr data-dash-sales-channel-row>
-                                <td><?= htmlspecialchars(status_label('order_channel', (string) ($row['channel'] ?? ''))) ?></td>
-                                <td><?= (int) ($row['total_orders'] ?? 0) ?></td>
-                                <td><?= htmlspecialchars($formatMoney((float) ($row['total_sales'] ?? 0))) ?></td>
+                                <td data-label="Canal"><?= htmlspecialchars(status_label('order_channel', (string) ($row['channel'] ?? ''))) ?></td>
+                                <td data-label="Pedidos"><?= (int) ($row['total_orders'] ?? 0) ?></td>
+                                <td data-label="Total vendido"><?= htmlspecialchars($formatMoney((float) ($row['total_sales'] ?? 0))) ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -242,7 +251,7 @@ $donutBackground = $donutStops !== [] ? implode(', ', $donutStops) : '#e2e8f0 0%
             <?php endif; ?>
         </div>
 
-        <div class="card">
+        <div class="card dash-compact-table">
             <h3 style="margin-top:0">Pagamentos por situação</h3>
             <?php if ($paymentSummary === []): ?>
                 <div class="empty-state">Sem dados de pagamento no período.</div>
@@ -253,9 +262,9 @@ $donutBackground = $donutStops !== [] ? implode(', ', $donutStops) : '#e2e8f0 0%
                         <?php foreach ($paymentSummary as $row): ?>
                             <?php $status = strtolower(trim((string) ($row['payment_status'] ?? 'pending'))); ?>
                             <tr data-dash-payment-summary-row>
-                                <td><span class="badge <?= htmlspecialchars(status_badge_class('order_payment_status', $status)) ?>"><?= htmlspecialchars(status_label('order_payment_status', $status)) ?></span></td>
-                                <td><?= (int) ($row['total_orders'] ?? 0) ?></td>
-                                <td><?= htmlspecialchars($formatMoney((float) ($row['total_amount'] ?? 0))) ?></td>
+                                <td data-label="Status"><span class="badge <?= htmlspecialchars(status_badge_class('order_payment_status', $status)) ?>"><?= htmlspecialchars(status_label('order_payment_status', $status)) ?></span></td>
+                                <td data-label="Pedidos"><?= (int) ($row['total_orders'] ?? 0) ?></td>
+                                <td data-label="Total"><?= htmlspecialchars($formatMoney((float) ($row['total_amount'] ?? 0))) ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -267,7 +276,7 @@ $donutBackground = $donutStops !== [] ? implode(', ', $donutStops) : '#e2e8f0 0%
             <?php endif; ?>
         </div>
 
-        <div class="card">
+        <div class="card dash-compact-table">
             <h3 style="margin-top:0">Top produtos</h3>
             <?php if ($topProducts === []): ?>
                 <div class="empty-state">Sem ranking de produtos.</div>
@@ -277,9 +286,9 @@ $donutBackground = $donutStops !== [] ? implode(', ', $donutStops) : '#e2e8f0 0%
                     <tbody>
                         <?php foreach ($topProducts as $row): ?>
                             <tr>
-                                <td><strong><?= htmlspecialchars((string) ($row['product_name'] ?? '-')) ?></strong><br><span class="muted"><?= htmlspecialchars((string) ($row['category_name'] ?? 'Sem categoria')) ?></span></td>
-                                <td><?= (int) ($row['total_quantidade_vendida'] ?? 0) ?></td>
-                                <td><?= htmlspecialchars($formatMoney((float) ($row['valor_total_vendido'] ?? 0))) ?></td>
+                                <td data-label="Produto"><strong><?= htmlspecialchars((string) ($row['product_name'] ?? '-')) ?></strong><br><span class="muted"><?= htmlspecialchars((string) ($row['category_name'] ?? 'Sem categoria')) ?></span></td>
+                                <td data-label="Qtd."><?= (int) ($row['total_quantidade_vendida'] ?? 0) ?></td>
+                                <td data-label="Valor"><?= htmlspecialchars($formatMoney((float) ($row['valor_total_vendido'] ?? 0))) ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>

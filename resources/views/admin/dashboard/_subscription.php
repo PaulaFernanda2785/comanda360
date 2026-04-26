@@ -233,11 +233,18 @@ $historyTo = (int) ($subscriptionHistoryPagination['to'] ?? 0);
         .sp-migration-note{font-size:13px;line-height:1.6;color:#475569;overflow-wrap:anywhere}
         .sp-history-toolbar{display:grid;grid-template-columns:minmax(0,1.5fr) repeat(2,minmax(0,1fr)) auto;gap:10px;align-items:end;margin-top:14px}
         .sp-history-toolbar .field{margin:0}
-        .sp-history-wrap{overflow:auto;-webkit-overflow-scrolling:touch;margin-top:14px}
-        .sp-history-table{width:100%;border-collapse:collapse}
-        .sp-history-table th,.sp-history-table td{padding:11px 10px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:left;vertical-align:top}
-        .sp-history-table th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#64748b}
+        .sp-history-wrap{overflow-x:hidden;margin-top:14px;max-width:100%}
+        .sp-history-table{width:100%;max-width:100%;min-width:0!important;border-collapse:separate;border-spacing:0;display:grid;gap:10px;table-layout:auto}
+        .sp-history-table thead{display:none}
+        .sp-history-table tbody{display:grid;gap:10px;width:100%;max-width:100%;min-width:0!important}
+        .sp-history-table tr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;border:1px solid #dbe4ee;border-radius:14px;background:#f8fafc;padding:12px;max-width:100%;min-width:0!important}
+        .sp-history-table td{display:grid;gap:4px;max-width:100%;min-width:0!important;padding:0;border:0;font-size:13px;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+        .sp-history-table td::before{content:attr(data-label);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#64748b}
+        .sp-history-table td[data-label="ReferÃªncia externa"],
+        .sp-history-table td[data-label="AÃ§Ãµes"]{grid-column:span 2}
         .sp-history-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+        .sp-history-table td:nth-child(7),
+        .sp-history-table td:nth-child(8){grid-column:span 2}
         .sp-pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
         .sp-pagination-controls{display:flex;gap:8px;flex-wrap:wrap}
         .sp-page-btn{border:1px solid #cbd5e1;background:#fff;color:#0f172a;border-radius:9px;padding:7px 10px;text-decoration:none;min-width:36px;text-align:center}
@@ -245,18 +252,21 @@ $historyTo = (int) ($subscriptionHistoryPagination['to'] ?? 0);
         .sp-page-btn.is-disabled{pointer-events:none;opacity:.45}
 
         @media (max-width:1120px){.sp-layout{grid-template-columns:1fr}}
-        @media (max-width:900px){.sp-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media (max-width:900px){
+            .sp-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+            .sp-history-table tr{grid-template-columns:repeat(2,minmax(0,1fr))}
+            .sp-history-table td:nth-child(7),
+            .sp-history-table td:nth-child(8){grid-column:1 / -1}
+            .sp-history-table td[data-label="ReferÃªncia externa"],
+            .sp-history-table td[data-label="AÃ§Ãµes"]{grid-column:1 / -1}
+        }
         @media (max-width:760px){
             .sp-kpis,.sp-meta,.sp-payment-options,.sp-history-toolbar,.sp-qr,.sp-migration-layout,.sp-migration-kpis,.sp-migration-cycles{grid-template-columns:1fr}
-            .sp-history-wrap{overflow:visible}
-            .sp-history-table,.sp-history-table tbody,.sp-history-table tr,.sp-history-table td{display:block;width:100%}
-            .sp-history-table thead{display:none}
-            .sp-history-table{border-collapse:separate;border-spacing:0 10px}
-            .sp-history-table tbody{display:grid;gap:10px}
-            .sp-history-table tr{border:1px solid #dbe4ee;border-radius:12px;background:#f8fafc;padding:4px 0}
-            .sp-history-table td{display:grid;grid-template-columns:112px minmax(0,1fr);gap:10px;padding:8px 12px;border-bottom:1px dashed #dbe4ee}
-            .sp-history-table td:last-child{border-bottom:none}
-            .sp-history-table td::before{content:attr(data-label);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#64748b}
+            .sp-history-table tr{grid-template-columns:1fr}
+            .sp-history-table td:nth-child(7),
+            .sp-history-table td:nth-child(8){grid-column:auto}
+            .sp-history-table td[data-label="ReferÃªncia externa"],
+            .sp-history-table td[data-label="AÃ§Ãµes"]{grid-column:auto}
         }
     </style>
 
