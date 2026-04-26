@@ -255,6 +255,7 @@ $formatLimitValue = static function (?int $value): string {
         color:#081b2e;
         transform:translateY(-1px);
     }
+    .site-nav .site-nav-cta{display:none}
     .header-actions{display:flex;align-items:center;gap:12px}
     .header-actions .btn-secondary{
         min-height:48px;
@@ -2281,6 +2282,17 @@ $formatLimitValue = static function (?int $value): string {
         }
         .site-nav.is-open{display:flex}
         .site-nav a{padding:14px 16px;border-radius:16px}
+        .site-nav .site-nav-cta{
+            display:flex;
+            justify-content:center;
+            color:#fff;
+            background:linear-gradient(135deg,var(--primary) 0%, #f95f2b 100%);
+            box-shadow:0 14px 24px rgba(249,95,43,.22);
+        }
+        .site-nav .site-nav-cta:hover{
+            color:#fff;
+            background:linear-gradient(135deg,var(--primary-deep) 0%, #e84f20 100%);
+        }
         .menu-toggle{display:inline-flex;align-items:center;justify-content:center}
         .header-actions .btn-secondary{display:none}
         .site-header-inner{
@@ -2373,6 +2385,7 @@ $formatLimitValue = static function (?int $value): string {
                     <?php if (!is_array($item)): continue; endif; ?>
                     <a href="<?= htmlspecialchars((string) ($item['href'] ?? '#')) ?>"><?= htmlspecialchars((string) ($item['label'] ?? 'Menu')) ?></a>
                 <?php endforeach; ?>
+                <a class="site-nav-cta" href="<?= htmlspecialchars(base_url('/login')) ?>">Acessar agora</a>
             </nav>
 
             <div class="header-actions">
