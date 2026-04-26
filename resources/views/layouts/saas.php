@@ -75,6 +75,17 @@ $routeMatches = static function (string $path, array $routes): bool {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars(base_url('/img/logo-mesimenu.ico')) ?>">
     <link rel="shortcut icon" href="<?= htmlspecialchars(base_url('/img/logo-mesimenu.ico')) ?>">
+    <script>
+        (() => {
+            try {
+                if (window.localStorage && window.localStorage.getItem('mesimenu:saas-sidebar-collapsed') === '1') {
+                    document.documentElement.classList.add('sidebar-state-collapsed-saas');
+                }
+            } catch (_error) {
+                document.documentElement.classList.remove('sidebar-state-collapsed-saas');
+            }
+        })();
+    </script>
     <style>
         :root{
             --theme-primary:#1d4ed8;
@@ -136,15 +147,24 @@ $routeMatches = static function (string $path, array $routes): bool {
             overflow:hidden;
             transition:padding .2s ease;
         }
-        .shell.sidebar-collapsed{grid-template-columns:78px minmax(0,1fr)}
-        .shell.sidebar-collapsed .sidebar{padding:66px 10px 18px}
+        .shell.sidebar-collapsed,
+        .sidebar-state-collapsed-saas .shell{grid-template-columns:78px minmax(0,1fr)}
+        .shell.sidebar-collapsed .sidebar,
+        .sidebar-state-collapsed-saas .shell .sidebar{padding:66px 10px 18px}
         .shell.sidebar-collapsed .sidebar h2,
         .shell.sidebar-collapsed .sidebar p,
         .shell.sidebar-collapsed .sidebar-label,
         .shell.sidebar-collapsed .nav-link-copy,
-        .shell.sidebar-collapsed .nav-link-arrow{display:none}
+        .shell.sidebar-collapsed .nav-link-arrow,
+        .sidebar-state-collapsed-saas .shell .sidebar h2,
+        .sidebar-state-collapsed-saas .shell .sidebar p,
+        .sidebar-state-collapsed-saas .shell .sidebar-label,
+        .sidebar-state-collapsed-saas .shell .nav-link-copy,
+        .sidebar-state-collapsed-saas .shell .nav-link-arrow{display:none}
         .shell.sidebar-collapsed .nav-link,
-        .shell.sidebar-collapsed .logout-button{justify-content:center;padding:10px 8px}
+        .shell.sidebar-collapsed .logout-button,
+        .sidebar-state-collapsed-saas .shell .nav-link,
+        .sidebar-state-collapsed-saas .shell .logout-button{justify-content:center;padding:10px 8px}
         .sidebar h2{margin:0;font-size:23px;line-height:1.1}
         .sidebar p{margin:0;color:#94a3b8;font-size:12px}
         .sidebar-label{margin:8px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#64748b;font-weight:700}
@@ -245,8 +265,10 @@ $routeMatches = static function (string $path, array $routes): bool {
 
         @media (max-width:980px){
             .shell{grid-template-columns:1fr}
-            .shell.sidebar-collapsed{grid-template-columns:1fr}
-            .shell.sidebar-collapsed .sidebar{display:none}
+            .shell.sidebar-collapsed,
+            .sidebar-state-collapsed-saas .shell{grid-template-columns:1fr}
+            .shell.sidebar-collapsed .sidebar,
+            .sidebar-state-collapsed-saas .shell .sidebar{display:none}
             .sidebar{padding:64px 14px 14px;border-right:0;border-bottom:1px solid rgba(148,163,184,.2)}
             .nav-links{grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:8px}
             .nav-link-copy small{display:none}
@@ -337,6 +359,7 @@ $routeMatches = static function (string $path, array $routes): bool {
         }
 
         sidebarShell.classList.toggle('sidebar-collapsed', collapsed);
+        document.documentElement.classList.toggle('sidebar-state-collapsed-saas', collapsed);
         sidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
         sidebarToggle.setAttribute('aria-label', collapsed ? 'Mostrar menu lateral' : 'Recolher menu lateral');
 

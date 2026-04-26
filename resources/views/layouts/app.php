@@ -91,6 +91,17 @@ $routeMatches = static function (string $path, array $routes): bool {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars(base_url('/img/logo-mesimenu.ico')) ?>">
     <link rel="shortcut icon" href="<?= htmlspecialchars(base_url('/img/logo-mesimenu.ico')) ?>">
+    <script>
+        (() => {
+            try {
+                if (window.localStorage && window.localStorage.getItem('mesimenu:company-sidebar-collapsed') === '1') {
+                    document.documentElement.classList.add('sidebar-state-collapsed-company');
+                }
+            } catch (_error) {
+                document.documentElement.classList.remove('sidebar-state-collapsed-company');
+            }
+        })();
+    </script>
     <style>
         :root{
             --theme-primary:<?= htmlspecialchars($themePrimary) ?>;
@@ -160,18 +171,30 @@ $routeMatches = static function (string $path, array $routes): bool {
             overflow:hidden;
             transition:padding .2s ease;
         }
-        .shell.sidebar-collapsed{grid-template-columns:78px minmax(0,1fr)}
-        .shell.sidebar-collapsed .sidebar{padding:66px 10px 18px}
-        .shell.sidebar-collapsed .brand-stack{justify-items:center}
-        .shell.sidebar-collapsed .brand-logo-wrap{width:42px;height:42px;border-radius:12px}
+        .shell.sidebar-collapsed,
+        .sidebar-state-collapsed-company .shell{grid-template-columns:78px minmax(0,1fr)}
+        .shell.sidebar-collapsed .sidebar,
+        .sidebar-state-collapsed-company .shell .sidebar{padding:66px 10px 18px}
+        .shell.sidebar-collapsed .brand-stack,
+        .sidebar-state-collapsed-company .shell .brand-stack{justify-items:center}
+        .shell.sidebar-collapsed .brand-logo-wrap,
+        .sidebar-state-collapsed-company .shell .brand-logo-wrap{width:42px;height:42px;border-radius:12px}
         .shell.sidebar-collapsed .brand-title,
         .shell.sidebar-collapsed .brand-headline,
         .shell.sidebar-collapsed .brand-company,
         .shell.sidebar-collapsed .sidebar-group-title,
         .shell.sidebar-collapsed .nav-link-copy,
-        .shell.sidebar-collapsed .nav-link-arrow{display:none}
+        .shell.sidebar-collapsed .nav-link-arrow,
+        .sidebar-state-collapsed-company .shell .brand-title,
+        .sidebar-state-collapsed-company .shell .brand-headline,
+        .sidebar-state-collapsed-company .shell .brand-company,
+        .sidebar-state-collapsed-company .shell .sidebar-group-title,
+        .sidebar-state-collapsed-company .shell .nav-link-copy,
+        .sidebar-state-collapsed-company .shell .nav-link-arrow{display:none}
         .shell.sidebar-collapsed .nav-link,
-        .shell.sidebar-collapsed .logout-button{justify-content:center;padding:10px 8px}
+        .shell.sidebar-collapsed .logout-button,
+        .sidebar-state-collapsed-company .shell .nav-link,
+        .sidebar-state-collapsed-company .shell .logout-button{justify-content:center;padding:10px 8px}
         .brand-stack{display:grid;gap:10px}
         .brand-logo-wrap{
             width:88px;
@@ -535,8 +558,10 @@ $routeMatches = static function (string $path, array $routes): bool {
 
         @media (max-width:980px){
             .shell{grid-template-columns:1fr}
-            .shell.sidebar-collapsed{grid-template-columns:1fr}
-            .shell.sidebar-collapsed .sidebar{display:none}
+            .shell.sidebar-collapsed,
+            .sidebar-state-collapsed-company .shell{grid-template-columns:1fr}
+            .shell.sidebar-collapsed .sidebar,
+            .sidebar-state-collapsed-company .shell .sidebar{display:none}
             .sidebar{padding:64px 14px 14px;border-right:0;border-bottom:1px solid rgba(148,163,184,.2)}
             .brand-stack{grid-template-columns:auto 1fr;align-items:center;gap:8px 12px}
             .brand-logo-wrap{width:70px;height:70px}
@@ -746,6 +771,7 @@ $routeMatches = static function (string $path, array $routes): bool {
         }
 
         sidebarShell.classList.toggle('sidebar-collapsed', collapsed);
+        document.documentElement.classList.toggle('sidebar-state-collapsed-company', collapsed);
         sidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
         sidebarToggle.setAttribute('aria-label', collapsed ? 'Mostrar menu lateral' : 'Recolher menu lateral');
 
