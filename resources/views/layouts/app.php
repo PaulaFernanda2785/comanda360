@@ -91,6 +91,12 @@ $routeMatches = static function (string $path, array $routes): bool {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars(base_url('/img/logo-mesimenu.ico')) ?>">
     <link rel="shortcut icon" href="<?= htmlspecialchars(base_url('/img/logo-mesimenu.ico')) ?>">
+    <?php if ($logoUrl !== ''): ?>
+        <link rel="preload" as="image" href="<?= htmlspecialchars($logoUrl) ?>" fetchpriority="high">
+    <?php endif; ?>
+    <?php if ($bannerUrl !== ''): ?>
+        <link rel="preload" as="image" href="<?= htmlspecialchars($bannerUrl) ?>" fetchpriority="high">
+    <?php endif; ?>
     <script>
         (() => {
             try {
@@ -671,7 +677,7 @@ $routeMatches = static function (string $path, array $routes): bool {
         <div class="brand-stack">
             <div class="brand-logo-wrap">
                 <?php if ($logoUrl !== ''): ?>
-                    <img src="<?= htmlspecialchars($logoUrl) ?>" alt="Logo do estabelecimento">
+                    <img src="<?= htmlspecialchars($logoUrl) ?>" alt="Logo do estabelecimento" loading="eager" decoding="async" fetchpriority="high">
                 <?php endif; ?>
             </div>
             <p class="brand-title"><?= htmlspecialchars($brandTitle !== '' ? $brandTitle : $companyName) ?></p>

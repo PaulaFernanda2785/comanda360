@@ -26,6 +26,12 @@ $footerText = trim((string) ($theme['footer_text'] ?? 'MesiMenu - Atendimento di
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($title ?? 'Menu digital') ?></title>
     <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars(base_url('/img/logo-mesimenu.ico')) ?>">
+    <?php if ($logoUrl !== ''): ?>
+        <link rel="preload" as="image" href="<?= htmlspecialchars($logoUrl) ?>" fetchpriority="high">
+    <?php endif; ?>
+    <?php if ($bannerUrl !== ''): ?>
+        <link rel="preload" as="image" href="<?= htmlspecialchars($bannerUrl) ?>" fetchpriority="high">
+    <?php endif; ?>
     <style>
         :root{
             --dm-primary: <?= htmlspecialchars((string) ($theme['primary_color'] ?? '#1d4ed8')) ?>;
@@ -147,7 +153,7 @@ $footerText = trim((string) ($theme['footer_text'] ?? 'MesiMenu - Atendimento di
             <div class="dm-brand">
                 <div class="dm-logo">
                     <?php if ($logoUrl !== ''): ?>
-                        <img src="<?= htmlspecialchars($logoUrl) ?>" alt="Logo da empresa">
+                        <img src="<?= htmlspecialchars($logoUrl) ?>" alt="Logo da empresa" loading="eager" decoding="async" fetchpriority="high">
                     <?php else: ?>
                         <?= htmlspecialchars(substr($companyName !== '' ? $companyName : 'ME', 0, 2)) ?>
                     <?php endif; ?>

@@ -28,13 +28,13 @@ final class MediaController extends Controller
     public function company(Request $request): Response
     {
         $rawPath = trim((string) $request->input('path', ''));
-        return $this->servePublicImage($rawPath, ['#^uploads/company/#']);
+        return $this->servePublicImage($request, $rawPath, ['#^uploads/company/#']);
     }
 
     public function product(Request $request): Response
     {
         $rawPath = trim((string) $request->input('path', ''));
-        return $this->servePublicImage($rawPath, ['#^uploads/products/#', '#^uploads/company/\d+/products/#']);
+        return $this->servePublicImage($request, $rawPath, ['#^uploads/products/#', '#^uploads/company/\d+/products/#']);
     }
 
     public function tableQr(Request $request): Response
@@ -263,7 +263,7 @@ final class MediaController extends Controller
         return $cachedContent;
     }
 
-    private function servePublicImage(string $rawPath, array $allowedPatterns): Response
+    private function servePublicImage(Request $request, string $rawPath, array $allowedPatterns): Response
     {
         if ($rawPath === '') {
             return Response::make('Imagem não informada.', 404, ['Content-Type' => 'text/plain; charset=UTF-8']);
@@ -309,15 +309,52 @@ final class MediaController extends Controller
             return Response::make('Tipo de imagem não permitido.', 415, ['Content-Type' => 'text/plain; charset=UTF-8']);
         }
 
+        $fileSize = filesize($absolutePath);
+        $fileMtime = filemtime($absolutePath);
+        $fileSize = is_int($fileSize) ? $fileSize : 0;
+        $fileMtime = is_int($fileMtime) ? $fileMtime : time();
+        $etag = '"' . sha1($relativePath . '|' . $fileMtime . '|' . $fileSize) . '"';
+        $cacheHeaders = [
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+            'ETag' => $etag,
+            'Last-Modified' => gmdate('D, d M Y H:i:s', $fileMtime) . ' GMT',
+            'Expires' => gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT',
+        ];
+
+        if ($this->clientHasFreshImage($request, $etag, $fileMtime)) {
+            return Response::make('', 304, $cacheHeaders);
+        }
+
         $content = file_get_contents($absolutePath);
         if ($content === false) {
             return Response::make('Falha ao ler imagem.', 500, ['Content-Type' => 'text/plain; charset=UTF-8']);
         }
 
-        return Response::make($content, 200, [
+        return Response::make($content, 200, $cacheHeaders + [
             'Content-Type' => $mime,
-            'Cache-Control' => 'public, max-age=31536000',
+            'Content-Length' => (string) strlen($content),
         ]);
+    }
+
+    private function clientHasFreshImage(Request $request, string $etag, int $fileMtime): bool
+    {
+        $ifNoneMatch = trim((string) ($request->server['HTTP_IF_NONE_MATCH'] ?? ''));
+        if ($ifNoneMatch !== '') {
+            foreach (explode(',', $ifNoneMatch) as $candidate) {
+                $candidate = trim($candidate);
+                if ($candidate === $etag || $candidate === 'W/' . $etag) {
+                    return true;
+                }
+            }
+        }
+
+        $ifModifiedSince = trim((string) ($request->server['HTTP_IF_MODIFIED_SINCE'] ?? ''));
+        if ($ifModifiedSince === '') {
+            return false;
+        }
+
+        $clientTime = strtotime($ifModifiedSince);
+        return $clientTime !== false && $clientTime >= $fileMtime;
     }
 
     private function isAllowedQrPayload(string $payload): bool
