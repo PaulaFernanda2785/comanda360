@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace App\Services\Admin;
 
-use App\Core\Database;
 use App\Exceptions\ValidationException;
 use App\Repositories\CompanyRepository;
 use App\Repositories\PlanRepository;
@@ -12,7 +11,6 @@ use App\Repositories\SubscriptionRepository;
 use App\Services\Shared\PlanFeatureCatalogService;
 use App\Services\Shared\SubscriptionPlanMigrationService;
 use DateTimeImmutable;
-use Throwable;
 
 final class SubscriptionPortalService
 {
@@ -157,117 +155,22 @@ final class SubscriptionPortalService
 
     public function payChargeWithCard(int $companyId, array $input): void
     {
-        $paymentId = (int) ($input['subscription_payment_id'] ?? 0);
-        $paymentMethod = $this->normalizeCardMethod($input['payment_method'] ?? '');
-        $cardBrand = $this->normalizeCardBrand($input['card_brand'] ?? '');
-        $cardLastDigits = $this->normalizeCardLastDigits($input['card_last_digits'] ?? '');
-
-        $payment = $this->loadCompanyPayment($companyId, $paymentId);
-        $this->assertPayableCharge($payment);
-
-        $db = Database::connection();
-        $db->beginTransaction();
-
-        try {
-            $this->subscriptions->updateBillingProfile((int) $payment['subscription_id'], [
-                'preferred_payment_method' => $paymentMethod,
-                'auto_charge_enabled' => 1,
-                'card_brand' => $cardBrand,
-                'card_last_digits' => $cardLastDigits,
-            ]);
-
-            $details = [
-                'source' => 'company_dashboard',
-                'mode' => 'manual_card',
-                'card_brand' => $cardBrand,
-                'card_last_digits' => $cardLastDigits,
-                'captured_at' => date('c'),
-            ];
-
-            $this->subscriptionPayments->updateRecord($paymentId, [
-                'status' => 'pago',
-                'payment_method' => $paymentMethod,
-                'paid_at' => date('Y-m-d H:i:s'),
-                'due_date' => (string) $payment['due_date'],
-                'transaction_reference' => $this->buildChargeReference('MANUAL', $paymentId, $paymentMethod),
-                'charge_origin' => $payment['charge_origin'] ?? 'manual',
-                'pix_code' => null,
-                'pix_qr_payload' => null,
-                'pix_qr_image_base64' => $payment['pix_qr_image_base64'] ?? null,
-                'pix_ticket_url' => $payment['pix_ticket_url'] ?? null,
-                'payment_details_json' => json_encode($details, JSON_UNESCAPED_SLASHES),
-                'gateway_payment_id' => $payment['gateway_payment_id'] ?? null,
-                'gateway_payment_url' => $payment['gateway_payment_url'] ?? null,
-                'gateway_status' => $payment['gateway_status'] ?? null,
-                'gateway_webhook_payload_json' => $payment['gateway_webhook_payload_json'] ?? null,
-                'gateway_last_synced_at' => $payment['gateway_last_synced_at'] ?? null,
-            ]);
-
-            $db->commit();
-        } catch (Throwable $e) {
-            if ($db->inTransaction()) {
-                $db->rollBack();
-            }
-            throw $e;
-        }
-
-        $this->synchronizeByCompany($companyId);
+        throw new ValidationException('Pagamento com cartao deve ser confirmado pelo checkout seguro do gateway. Nao e permitido registrar baixa manual pelo ambiente da empresa.');
     }
 
     public function confirmPixPayment(int $companyId, array $input): void
     {
         $paymentId = (int) ($input['subscription_payment_id'] ?? 0);
-        $transactionReference = $this->normalizeNullableText($input['transaction_reference'] ?? null);
-
         $payment = $this->loadCompanyPayment($companyId, $paymentId);
         $this->assertPayableCharge($payment);
 
-        $pixPayload = $this->ensurePixPayload($payment);
-        $db = Database::connection();
-        $db->beginTransaction();
-
-        try {
-            $this->subscriptions->updateBillingProfile((int) $payment['subscription_id'], [
-                'preferred_payment_method' => 'pix',
-                'auto_charge_enabled' => 0,
-                'card_brand' => null,
-                'card_last_digits' => null,
-            ]);
-
-            $details = [
-                'source' => 'company_dashboard',
-                'mode' => 'manual_pix',
-                'confirmed_at' => date('c'),
-            ];
-
-            $this->subscriptionPayments->updateRecord($paymentId, [
-                'status' => 'pago',
-                'payment_method' => 'pix',
-                'paid_at' => date('Y-m-d H:i:s'),
-                'due_date' => (string) $payment['due_date'],
-                'transaction_reference' => $transactionReference ?? $this->buildChargeReference('PIX', $paymentId, 'pix'),
-                'charge_origin' => 'pix',
-                'pix_code' => $pixPayload['pix_code'],
-                'pix_qr_payload' => $pixPayload['pix_qr_payload'],
-                'pix_qr_image_base64' => $payment['pix_qr_image_base64'] ?? null,
-                'pix_ticket_url' => $payment['pix_ticket_url'] ?? null,
-                'payment_details_json' => json_encode($details, JSON_UNESCAPED_SLASHES),
-                'gateway_payment_id' => $payment['gateway_payment_id'] ?? null,
-                'gateway_payment_url' => $payment['gateway_payment_url'] ?? null,
-                'gateway_status' => $payment['gateway_status'] ?? null,
-                'gateway_webhook_payload_json' => $payment['gateway_webhook_payload_json'] ?? null,
-                'gateway_last_synced_at' => $payment['gateway_last_synced_at'] ?? null,
-            ]);
-
-            $db->commit();
-        } catch (Throwable $e) {
-            if ($db->inTransaction()) {
-                $db->rollBack();
-            }
-            throw $e;
+        if (trim((string) ($payment['gateway_payment_id'] ?? '')) !== '') {
+            $this->gatewayService->syncPaymentById($paymentId);
+            $this->synchronizeByCompany($companyId);
+            return;
         }
 
-        $this->synchronizeByCompany($companyId);
+        throw new ValidationException('Pagamento PIX deve ser confirmado pelo gateway ou baixado manualmente pelo administrador SaaS. Gere um QR PIX real antes de tentar sincronizar.');
     }
 
     public function disableAutoCharge(int $companyId): void
@@ -402,6 +305,16 @@ final class SubscriptionPortalService
             return $this->defaultAccessState();
         }
 
+        if ($this->isActiveGatewayCardSubscription($subscription)) {
+            $state = $this->defaultAccessState();
+            $openPayments = $this->subscriptionPayments->listOpenBySubscriptionId((int) ($subscription['id'] ?? 0));
+            $nextPayment = $openPayments[0] ?? null;
+            if (is_array($nextPayment)) {
+                $state['next_due_date'] = (string) ($nextPayment['due_date'] ?? '');
+            }
+            return $state;
+        }
+
         $openPayments = $this->subscriptionPayments->listOpenBySubscriptionId((int) ($subscription['id'] ?? 0));
         $nextPayment = $openPayments[0] ?? null;
         if (!is_array($nextPayment)) {
@@ -461,6 +374,7 @@ final class SubscriptionPortalService
         $preferredMethod = trim((string) ($subscription['preferred_payment_method'] ?? ''));
         $autoChargeEnabled = !empty($subscription['auto_charge_enabled']);
         $usesAutoCard = $autoChargeEnabled && in_array($preferredMethod, self::CARD_METHODS, true);
+        $activeGatewayCard = $this->isActiveGatewayCardSubscription($subscription);
 
         $payments = $this->subscriptionPayments->listBySubscriptionId($subscriptionId, 240);
         $today = new DateTimeImmutable('today');
@@ -477,62 +391,41 @@ final class SubscriptionPortalService
             }
 
             $dueDate = $this->dateOrToday((string) ($payment['due_date'] ?? ''));
-            if ($usesAutoCard && $dueDate <= $today) {
-                $details = [
-                    'source' => 'billing_sync',
-                    'mode' => 'auto_card',
-                    'card_brand' => $this->normalizeNullableText($subscription['card_brand'] ?? null),
-                    'card_last_digits' => $this->normalizeNullableText($subscription['card_last_digits'] ?? null),
-                    'captured_at' => date('c'),
-                ];
-
-                $this->subscriptionPayments->updateRecord($paymentId, [
-                    'status' => 'pago',
-                    'payment_method' => $preferredMethod,
-                    'paid_at' => date('Y-m-d H:i:s'),
-                    'due_date' => (string) $payment['due_date'],
-                    'transaction_reference' => $this->buildChargeReference('AUTO', $paymentId, $preferredMethod),
-                    'charge_origin' => 'auto',
-                    'pix_code' => null,
-                    'pix_qr_payload' => null,
-                    'pix_qr_image_base64' => $payment['pix_qr_image_base64'] ?? null,
-                    'pix_ticket_url' => $payment['pix_ticket_url'] ?? null,
-                    'payment_details_json' => json_encode($details, JSON_UNESCAPED_SLASHES),
-                    'gateway_payment_id' => $payment['gateway_payment_id'] ?? null,
-                    'gateway_payment_url' => $payment['gateway_payment_url'] ?? null,
-                    'gateway_status' => $payment['gateway_status'] ?? null,
-                    'gateway_webhook_payload_json' => $payment['gateway_webhook_payload_json'] ?? null,
-                    'gateway_last_synced_at' => $payment['gateway_last_synced_at'] ?? null,
-                ]);
-                continue;
+            $targetStatus = $paymentStatus;
+            if ($activeGatewayCard && $paymentStatus === 'vencido') {
+                $targetStatus = 'pendente';
+            } elseif (!$activeGatewayCard && $paymentStatus === 'pendente' && $dueDate < $today) {
+                $targetStatus = 'vencido';
             }
 
-            if (!$usesAutoCard) {
+            $pixPayload = [
+                'pix_code' => $payment['pix_code'] ?? null,
+                'pix_qr_payload' => $payment['pix_qr_payload'] ?? null,
+            ];
+            if (!$usesAutoCard
+                && trim((string) ($pixPayload['pix_code'] ?? '')) === ''
+                && trim((string) ($pixPayload['pix_qr_payload'] ?? '')) === '') {
                 $pixPayload = $this->ensurePixPayload($payment);
-                $targetStatus = $paymentStatus;
-                if ($paymentStatus === 'pendente' && $dueDate < $today) {
-                    $targetStatus = 'vencido';
-                }
-
-                $this->subscriptionPayments->updateRecord($paymentId, [
-                    'status' => $targetStatus,
-                    'payment_method' => 'pix',
-                    'paid_at' => null,
-                    'due_date' => (string) $payment['due_date'],
-                    'transaction_reference' => null,
-                    'charge_origin' => 'pix',
-                    'pix_code' => $pixPayload['pix_code'],
-                    'pix_qr_payload' => $pixPayload['pix_qr_payload'],
-                    'pix_qr_image_base64' => $payment['pix_qr_image_base64'] ?? null,
-                    'pix_ticket_url' => $payment['pix_ticket_url'] ?? null,
-                    'payment_details_json' => $payment['payment_details_json'] ?? null,
-                    'gateway_payment_id' => $payment['gateway_payment_id'] ?? null,
-                    'gateway_payment_url' => $payment['gateway_payment_url'] ?? null,
-                    'gateway_status' => $payment['gateway_status'] ?? null,
-                    'gateway_webhook_payload_json' => $payment['gateway_webhook_payload_json'] ?? null,
-                    'gateway_last_synced_at' => $payment['gateway_last_synced_at'] ?? null,
-                ]);
             }
+
+            $this->subscriptionPayments->updateRecord($paymentId, [
+                'status' => $targetStatus,
+                'payment_method' => $this->normalizeNullableText($payment['payment_method'] ?? null) ?? ($usesAutoCard ? $preferredMethod : 'pix'),
+                'paid_at' => null,
+                'due_date' => (string) $payment['due_date'],
+                'transaction_reference' => $this->normalizeNullableText($payment['transaction_reference'] ?? null),
+                'charge_origin' => $this->normalizeNullableText($payment['charge_origin'] ?? null) ?? ($usesAutoCard ? 'auto' : 'pix'),
+                'pix_code' => $pixPayload['pix_code'],
+                'pix_qr_payload' => $pixPayload['pix_qr_payload'],
+                'pix_qr_image_base64' => $payment['pix_qr_image_base64'] ?? null,
+                'pix_ticket_url' => $payment['pix_ticket_url'] ?? null,
+                'payment_details_json' => $payment['payment_details_json'] ?? null,
+                'gateway_payment_id' => $payment['gateway_payment_id'] ?? null,
+                'gateway_payment_url' => $payment['gateway_payment_url'] ?? null,
+                'gateway_status' => $payment['gateway_status'] ?? null,
+                'gateway_webhook_payload_json' => $payment['gateway_webhook_payload_json'] ?? null,
+                'gateway_last_synced_at' => $payment['gateway_last_synced_at'] ?? null,
+            ]);
         }
 
         $this->applyCreditBalanceToOpenPayments($subscriptionId);
@@ -543,7 +436,7 @@ final class SubscriptionPortalService
         $hasPaid = false;
         foreach ($payments as $payment) {
             $paymentStatus = trim((string) ($payment['status'] ?? ''));
-            if ($paymentStatus === 'vencido') {
+            if ($paymentStatus === 'vencido' && !$activeGatewayCard) {
                 $hasOverdue = true;
             }
             if ($paymentStatus === 'pago') {
@@ -557,6 +450,9 @@ final class SubscriptionPortalService
         if ($status === 'cancelada') {
             $targetSubscriptionStatus = 'cancelada';
             $targetCompanyStatus = 'cancelada';
+        } elseif ($activeGatewayCard) {
+            $targetSubscriptionStatus = 'ativa';
+            $targetCompanyStatus = 'ativa';
         } elseif ($hasOverdue) {
             $targetSubscriptionStatus = 'vencida';
             $targetCompanyStatus = 'inadimplente';
@@ -869,11 +765,13 @@ final class SubscriptionPortalService
 
         $today = new DateTimeImmutable('today');
         $blockers = [];
-        foreach ($openPayments as $payment) {
-            $dueDate = $this->dateOrToday((string) ($payment['due_date'] ?? ''));
-            if ($dueDate <= $today) {
-                $blockers[] = 'A migracao esta bloqueada porque existe cobranca do ciclo atual em aberto ou vencida.';
-                break;
+        if (!$this->isActiveGatewayCardSubscription($subscription)) {
+            foreach ($openPayments as $payment) {
+                $dueDate = $this->dateOrToday((string) ($payment['due_date'] ?? ''));
+                if ($dueDate <= $today) {
+                    $blockers[] = 'A migracao esta bloqueada porque existe cobranca do ciclo atual em aberto ou vencida.';
+                    break;
+                }
             }
         }
 
@@ -1204,44 +1102,26 @@ final class SubscriptionPortalService
         }
     }
 
-    private function normalizeCardMethod(mixed $value): string
-    {
-        $method = strtolower(trim((string) $value));
-        if (!in_array($method, self::CARD_METHODS, true)) {
-            throw new ValidationException('Selecione credito ou debito para registrar o pagamento com cartao.');
-        }
-
-        return $method;
-    }
-
-    private function normalizeCardBrand(mixed $value): string
-    {
-        $brand = trim((string) $value);
-        if ($brand === '') {
-            throw new ValidationException('Informe a bandeira do cartao utilizada na cobranca.');
-        }
-
-        if (strlen($brand) > 30) {
-            throw new ValidationException('A bandeira do cartao deve ter no maximo 30 caracteres.');
-        }
-
-        return $brand;
-    }
-
-    private function normalizeCardLastDigits(mixed $value): string
-    {
-        $digits = preg_replace('/\D+/', '', (string) $value) ?? '';
-        if (strlen($digits) !== 4) {
-            throw new ValidationException('Informe apenas os 4 ultimos digitos do cartao.');
-        }
-
-        return $digits;
-    }
-
     private function normalizeNullableText(mixed $value): ?string
     {
         $text = trim((string) ($value ?? ''));
         return $text !== '' ? $text : null;
+    }
+
+    private function isActiveGatewayCardSubscription(array $subscription): bool
+    {
+        $preferredMethod = strtolower(trim((string) ($subscription['preferred_payment_method'] ?? '')));
+        if (empty($subscription['auto_charge_enabled']) || !in_array($preferredMethod, self::CARD_METHODS, true)) {
+            return false;
+        }
+
+        $gatewaySubscriptionId = trim((string) ($subscription['gateway_subscription_id'] ?? ''));
+        if ($gatewaySubscriptionId === '') {
+            return false;
+        }
+
+        $gatewayStatus = strtolower(trim((string) ($subscription['gateway_status'] ?? '')));
+        return in_array($gatewayStatus, ['authorized', 'active'], true);
     }
 
     private function mergePaymentDetails(array $payment, array $merge): array

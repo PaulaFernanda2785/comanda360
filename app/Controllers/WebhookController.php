@@ -96,7 +96,7 @@ final class WebhookController extends Controller
             'payload' => $this->truncateForLog($payload),
             'merged' => $merged,
             'headers' => [
-                'x_signature' => (string) ($request->server['HTTP_X_SIGNATURE'] ?? ''),
+                'x_signature_present' => trim((string) ($request->server['HTTP_X_SIGNATURE'] ?? '')) !== '',
                 'x_request_id' => (string) ($request->server['HTTP_X_REQUEST_ID'] ?? ''),
                 'content_type' => (string) ($request->server['CONTENT_TYPE'] ?? ''),
                 'user_agent' => (string) ($request->server['HTTP_USER_AGENT'] ?? ''),

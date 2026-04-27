@@ -48,6 +48,14 @@ final class SubscriptionGatewayService
             throw new ValidationException('A cobranca ja foi quitada e nao precisa de novo QR PIX.');
         }
 
+        if ((string) ($payment['status'] ?? '') === 'cancelado') {
+            throw new ValidationException('Nao e possivel gerar PIX para uma cobranca cancelada.');
+        }
+
+        if (round((float) ($payment['amount'] ?? 0), 2) <= 0) {
+            throw new ValidationException('Nao e possivel gerar PIX para cobranca sem valor financeiro.');
+        }
+
         if (trim((string) ($payment['gateway_payment_id'] ?? '')) !== ''
             && trim((string) ($payment['pix_qr_image_base64'] ?? '')) !== '') {
             return;
@@ -199,11 +207,12 @@ final class SubscriptionGatewayService
             $paymentResponse = $this->gateway->getPayment($gatewayPaymentId);
             $transactionData = $paymentResponse['point_of_interaction']['transaction_data'] ?? [];
             $status = $this->mapGatewayPaymentStatus((string) ($paymentResponse['status'] ?? ''));
+            $paidAt = $this->resolveGatewayPaidAt($paymentResponse, $payment);
 
             $this->subscriptionPayments->updateRecord((int) ($payment['id'] ?? 0), [
                 'status' => $status,
                 'payment_method' => $this->mapGatewayMethod((string) ($paymentResponse['payment_method_id'] ?? 'pix')),
-                'paid_at' => $status === 'pago' ? date('Y-m-d H:i:s') : null,
+                'paid_at' => $status === 'pago' ? $paidAt : null,
                 'due_date' => (string) ($payment['due_date'] ?? date('Y-m-d')),
                 'transaction_reference' => (string) ($paymentResponse['external_reference'] ?? $payment['transaction_reference'] ?? ''),
                 'charge_origin' => (string) ($payment['charge_origin'] ?? 'pix'),
@@ -218,6 +227,10 @@ final class SubscriptionGatewayService
                 'gateway_webhook_payload_json' => json_encode($paymentResponse, JSON_UNESCAPED_SLASHES),
                 'gateway_last_synced_at' => date('Y-m-d H:i:s'),
             ]);
+
+            if ($status === 'pago') {
+                $this->applyPaidPaymentState($payment);
+            }
         }
     }
 
@@ -244,11 +257,12 @@ final class SubscriptionGatewayService
         $paymentResponse = $this->gateway->getPayment($gatewayPaymentId);
         $transactionData = $paymentResponse['point_of_interaction']['transaction_data'] ?? [];
         $status = $this->mapGatewayPaymentStatus((string) ($paymentResponse['status'] ?? ''));
+        $paidAt = $this->resolveGatewayPaidAt($paymentResponse, $payment);
 
         $this->subscriptionPayments->updateRecord($paymentId, [
             'status' => $status,
             'payment_method' => $this->mapGatewayMethod((string) ($paymentResponse['payment_method_id'] ?? ($payment['payment_method'] ?? 'pix'))),
-            'paid_at' => $status === 'pago' ? ((string) ($payment['paid_at'] ?? '') !== '' ? (string) $payment['paid_at'] : date('Y-m-d H:i:s')) : null,
+            'paid_at' => $status === 'pago' ? $paidAt : null,
             'due_date' => (string) ($payment['due_date'] ?? date('Y-m-d')),
             'transaction_reference' => (string) ($paymentResponse['external_reference'] ?? $payment['transaction_reference'] ?? ''),
             'charge_origin' => (string) ($payment['charge_origin'] ?? 'pix'),
@@ -263,6 +277,10 @@ final class SubscriptionGatewayService
             'gateway_webhook_payload_json' => json_encode($paymentResponse, JSON_UNESCAPED_SLASHES),
             'gateway_last_synced_at' => date('Y-m-d H:i:s'),
         ]);
+
+        if ($status === 'pago') {
+            $this->applyPaidPaymentState($payment);
+        }
     }
 
     public function processWebhook(array $query, array $server): array
@@ -287,10 +305,11 @@ final class SubscriptionGatewayService
             if ($payment !== null) {
                 $status = $this->mapGatewayPaymentStatus((string) ($paymentResponse['status'] ?? ''));
                 $transactionData = $paymentResponse['point_of_interaction']['transaction_data'] ?? [];
+                $paidAt = $this->resolveGatewayPaidAt($paymentResponse, $payment);
                 $this->subscriptionPayments->updateRecord((int) $payment['id'], [
                     'status' => $status,
                     'payment_method' => $this->mapGatewayMethod((string) ($paymentResponse['payment_method_id'] ?? '')),
-                    'paid_at' => $status === 'pago' ? date('Y-m-d H:i:s') : null,
+                    'paid_at' => $status === 'pago' ? $paidAt : null,
                     'due_date' => (string) ($payment['due_date'] ?? date('Y-m-d')),
                     'transaction_reference' => (string) ($paymentResponse['external_reference'] ?? $payment['transaction_reference'] ?? ''),
                     'charge_origin' => 'pix',
@@ -306,7 +325,9 @@ final class SubscriptionGatewayService
                     'gateway_last_synced_at' => date('Y-m-d H:i:s'),
                 ]);
 
-                $this->accessProvisioning->activateIfEligible((int) ($payment['company_id'] ?? 0));
+                if ($status === 'pago') {
+                    $this->applyPaidPaymentState($payment);
+                }
             }
 
             return ['type' => 'payment', 'data_id' => $dataId];
@@ -355,6 +376,51 @@ final class SubscriptionGatewayService
         return ['type' => $type, 'data_id' => $dataId];
     }
 
+    private function applyPaidPaymentState(array $payment): void
+    {
+        $companyId = (int) ($payment['company_id'] ?? 0);
+        $subscriptionId = (int) ($payment['subscription_id'] ?? 0);
+        if ($companyId <= 0 || $subscriptionId <= 0) {
+            return;
+        }
+
+        $subscription = $this->subscriptions->findById($subscriptionId);
+        if ($subscription !== null && (string) ($subscription['status'] ?? '') !== 'cancelada') {
+            $this->subscriptions->updateStatus($subscriptionId, 'ativa');
+            $this->companies->updateSubscriptionSnapshot($companyId, [
+                'plan_id' => $subscription['plan_id'] ?? null,
+                'subscription_status' => 'ativa',
+                'trial_ends_at' => null,
+                'subscription_starts_at' => $subscription['starts_at'] ?? null,
+                'subscription_ends_at' => $subscription['ends_at'] ?? null,
+            ]);
+        }
+
+        $this->accessProvisioning->activateIfEligible($companyId);
+    }
+
+    private function resolveGatewayPaidAt(array $paymentResponse, array $currentPayment): string
+    {
+        $existingPaidAt = trim((string) ($currentPayment['paid_at'] ?? ''));
+        if ($existingPaidAt !== '') {
+            return $existingPaidAt;
+        }
+
+        foreach (['date_approved', 'money_release_date', 'date_last_updated'] as $key) {
+            $raw = trim((string) ($paymentResponse[$key] ?? ''));
+            if ($raw === '') {
+                continue;
+            }
+
+            $timestamp = strtotime($raw);
+            if ($timestamp !== false) {
+                return date('Y-m-d H:i:s', $timestamp);
+            }
+        }
+
+        return date('Y-m-d H:i:s');
+    }
+
     private function buildChargeDescription(array $subscription, array $payment): string
     {
         return sprintf(
@@ -370,8 +436,8 @@ final class SubscriptionGatewayService
         $gatewayStatus = strtolower(trim($gatewayStatus));
         return match ($gatewayStatus) {
             'approved' => 'pago',
-            'cancelled', 'canceled' => 'cancelado',
-            'rejected' => 'vencido',
+            'cancelled', 'canceled', 'refunded', 'charged_back' => 'cancelado',
+            'rejected', 'expired' => 'vencido',
             default => 'pendente',
         };
     }

@@ -64,8 +64,21 @@ final class CompanyAccessProvisioningService
         $subscriptionStatus = strtolower(trim((string) ($subscription['status'] ?? '')));
         $companySubscriptionStatus = strtolower(trim((string) ($subscription['company_subscription_status'] ?? '')));
 
+        if ($subscriptionStatus === 'cancelada' || $companySubscriptionStatus === 'cancelada') {
+            return false;
+        }
+
         if ($subscriptionStatus === 'ativa' || $companySubscriptionStatus === 'ativa') {
             return true;
+        }
+
+        $today = date('Y-m-d');
+        foreach ($this->subscriptionPayments->listOpenBySubscriptionId($subscriptionId) as $payment) {
+            $status = strtolower(trim((string) ($payment['status'] ?? '')));
+            $dueDate = trim((string) ($payment['due_date'] ?? ''));
+            if ($status === 'vencido' || ($status === 'pendente' && $dueDate !== '' && $dueDate < $today)) {
+                return false;
+            }
         }
 
         foreach ($this->subscriptionPayments->listBySubscriptionId($subscriptionId, 120) as $payment) {

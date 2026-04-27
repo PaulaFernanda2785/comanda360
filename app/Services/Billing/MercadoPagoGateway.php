@@ -76,6 +76,20 @@ final class MercadoPagoGateway
             return false;
         }
 
+        if (!ctype_digit($ts)) {
+            return false;
+        }
+
+        $timestamp = (int) $ts;
+        if ($timestamp > 20000000000) {
+            $timestamp = (int) floor($timestamp / 1000);
+        }
+        $maxAge = max(300, (int) ($this->config['webhook_max_age_seconds'] ?? 86400));
+        $now = time();
+        if ($timestamp > ($now + 300) || ($now - $timestamp) > $maxAge) {
+            return false;
+        }
+
         $manifest = 'id:' . $dataId . ';request-id:' . $xRequestId . ';ts:' . $ts . ';';
         $sha = hash_hmac('sha256', $manifest, $secret);
         return hash_equals($sha, $hash);
