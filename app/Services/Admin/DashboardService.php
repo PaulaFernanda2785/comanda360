@@ -6,6 +6,7 @@ namespace App\Services\Admin;
 use App\Exceptions\ValidationException;
 use App\Repositories\DashboardRepository;
 use App\Services\Shared\PlanFeatureCatalogService;
+use App\Services\Shared\PublicMenuDisplayPreferences;
 use App\Services\Shared\SupportAttachmentService;
 
 final class DashboardService
@@ -363,6 +364,10 @@ final class DashboardService
         $title = trim((string) ($input['title'] ?? ''));
         $description = trim((string) ($input['description'] ?? ''));
         $footerText = trim((string) ($input['footer_text'] ?? ''));
+        $publicDisplayPreferences = PublicMenuDisplayPreferences::normalize([
+            PublicMenuDisplayPreferences::SHOW_TOTALS => $input[PublicMenuDisplayPreferences::SHOW_TOTALS] ?? 0,
+            PublicMenuDisplayPreferences::SHOW_TICKETS => $input[PublicMenuDisplayPreferences::SHOW_TICKETS] ?? 0,
+        ]);
 
         $primaryColor = $this->normalizeHexColor($input['primary_color'] ?? null, self::DEFAULT_PRIMARY_COLOR);
         $secondaryColor = $this->normalizeHexColor($input['secondary_color'] ?? null, self::DEFAULT_SECONDARY_COLOR);
@@ -414,7 +419,8 @@ final class DashboardService
             $bannerPath,
             $title,
             $description,
-            $footerText
+            $footerText,
+            $publicDisplayPreferences
         ): void {
             $this->repository->updateCompanyName($companyId, $companyName);
             $this->repository->upsertCompanyTheme($companyId, [
@@ -427,6 +433,8 @@ final class DashboardService
                 'title' => $title !== '' ? $title : $companyName,
                 'description' => $description !== '' ? $description : null,
                 'footer_text' => $footerText !== '' ? $footerText : self::DEFAULT_FOOTER_TEXT,
+                PublicMenuDisplayPreferences::SHOW_TOTALS => $publicDisplayPreferences[PublicMenuDisplayPreferences::SHOW_TOTALS],
+                PublicMenuDisplayPreferences::SHOW_TICKETS => $publicDisplayPreferences[PublicMenuDisplayPreferences::SHOW_TICKETS],
             ]);
         });
 
@@ -468,6 +476,8 @@ final class DashboardService
             'title' => $companyName,
             'description' => null,
             'footer_text' => self::DEFAULT_FOOTER_TEXT,
+            PublicMenuDisplayPreferences::SHOW_TOTALS => true,
+            PublicMenuDisplayPreferences::SHOW_TICKETS => true,
         ]);
 
         if ($currentLogoPath !== null) {

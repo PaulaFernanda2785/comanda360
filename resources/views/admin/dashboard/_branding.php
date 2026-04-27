@@ -9,6 +9,8 @@ $primaryColor = trim((string) ($company['primary_color'] ?? '#1d4ed8'));
 $secondaryColor = trim((string) ($company['secondary_color'] ?? '#0f172a'));
 $accentColor = trim((string) ($company['accent_color'] ?? '#0ea5e9'));
 $mainCardColor = trim((string) ($company['main_card_color'] ?? '#0f172a'));
+$showPublicTotals = !array_key_exists('show_public_totals', $company) || (int) ($company['show_public_totals'] ?? 1) === 1;
+$showPublicTickets = !array_key_exists('show_public_tickets', $company) || (int) ($company['show_public_tickets'] ?? 1) === 1;
 
 $logoUrl = $logoPath !== '' ? company_image_url($logoPath) : '';
 $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
@@ -47,14 +49,27 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
         .branding-preview-main-card{padding:12px;background:linear-gradient(118deg,var(--brand-preview-main-card,#0f172a) 0%,#1e293b 58%,#334155 100%);color:#fff}
         .branding-preview-main-card strong{display:block;font-size:14px}
         .branding-preview-main-card small{display:block;margin-top:4px;color:#dbeafe}
+        .branding-privacy-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+        .branding-privacy-option{position:relative;border:1px solid #dbeafe;border-radius:14px;background:linear-gradient(180deg,#fff,#f8fafc);padding:14px;box-shadow:0 10px 24px rgba(15,23,42,.04)}
+        .branding-privacy-option label{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;margin:0;cursor:pointer}
+        .branding-privacy-copy{min-width:0}
+        .branding-privacy-copy strong{display:block;color:#0f172a;font-size:14px}
+        .branding-privacy-copy small{display:block;color:#64748b;font-size:12px;line-height:1.45;margin-top:4px}
+        .branding-switch-input{position:absolute;opacity:0;pointer-events:none}
+        .branding-switch{width:54px;height:30px;border-radius:999px;background:#cbd5e1;border:1px solid #94a3b8;padding:3px;display:inline-flex;align-items:center;transition:background .18s ease,border-color .18s ease,box-shadow .18s ease}
+        .branding-switch:before{content:"";width:22px;height:22px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.22);transition:transform .18s ease}
+        .branding-switch-input:checked + .branding-switch{background:#16a34a;border-color:#15803d;box-shadow:0 0 0 3px rgba(22,163,74,.14)}
+        .branding-switch-input:checked + .branding-switch:before{transform:translateX(24px)}
+        .branding-switch-input:focus-visible + .branding-switch{outline:3px solid rgba(29,78,216,.24);outline-offset:2px}
         .branding-upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
         .branding-upload-card{border:1px solid #dbeafe;border-radius:12px;padding:12px;background:#fff}
-        .dropzone{border:2px dashed #93c5fd;border-radius:14px;padding:16px;text-align:center;background:linear-gradient(180deg,#eff6ff,#f8fafc);cursor:pointer}
-        .dropzone.dragover{border-color:#1d4ed8;background:#dbeafe}
+        .dropzone{border:2px dashed #93c5fd;border-radius:14px;padding:18px;text-align:center;background:linear-gradient(180deg,#eff6ff,#f8fafc);cursor:default;transition:border-color .18s ease,background .18s ease,box-shadow .18s ease}
+        .dropzone:focus{outline:3px solid rgba(29,78,216,.18);outline-offset:2px}
+        .dropzone.dragover{border-color:#1d4ed8;background:#dbeafe;box-shadow:0 12px 26px rgba(29,78,216,.12)}
         .dropzone p{margin:6px 0;color:#475569}
         .dropzone small{color:#64748b}
-        .upload-actions{margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-        .upload-file-name{font-size:12px;color:#64748b}
+        .upload-actions{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+        .upload-file-name{font-size:12px;color:#64748b;min-width:180px}
         .brand-media-preview{margin-top:12px;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;min-height:140px;background:#f8fafc;display:flex;align-items:center;justify-content:center}
         .brand-media-preview img{width:100%;max-height:220px;object-fit:cover;display:block}
         .brand-media-preview .empty-state{padding:14px;color:#64748b;text-align:center}
@@ -73,7 +88,7 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
         .branding-access-badge{padding:4px 8px;border-radius:999px;background:#e0e7ff;color:#312e81;font-size:11px;font-weight:600}
         @media (max-width:1180px){
             .branding-layout{grid-template-columns:1fr}
-            .branding-color-grid,.branding-upload-grid{grid-template-columns:1fr}
+            .branding-color-grid,.branding-upload-grid,.branding-privacy-grid{grid-template-columns:1fr}
         }
         @media (max-width:760px){
             .branding-form-grid{grid-template-columns:1fr}
@@ -86,7 +101,7 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
                 <div class="branding-hero-body">
                     <div>
                         <h3>Personalização visual por estabelecimento</h3>
-                        <p>Defina nome comercial, cores do sistema, logo no menu/tickets e banner do cabeçalho. O upload abaixo aceita selecionar, arrastar e colar imagem (`Ctrl+V`).</p>
+                        <p>Defina nome comercial, cores do sistema, logo no menu/tickets e banner do cabeçalho. O upload abaixo aceita arrastar e colar imagem (`Ctrl+V`).</p>
                         <div class="branding-hero-actions">
                             <button class="btn-outline-danger" type="submit" form="restoreFactoryThemeForm" onclick="return confirm('Restaurar o estilo de fábrica e remover a logo e o banner atuais?');">
                                 Restaurar estilo de fábrica
@@ -179,6 +194,31 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
                             <small>Hero operacional aplicado ao topo do dashboard e das telas padronizadas.</small>
                         </div>
                     </div>
+
+                    <div class="branding-privacy-grid">
+                        <article class="branding-privacy-option">
+                            <input type="hidden" name="show_public_totals" value="0">
+                            <label for="show_public_totals">
+                                <span class="branding-privacy-copy">
+                                    <strong>Exibir valores totais no menu digital</strong>
+                                    <small>Controla total da mesa, total da comanda, total do carrinho, total do pedido e subtotais calculados na area publica do QR Code.</small>
+                                </span>
+                                <input class="branding-switch-input" id="show_public_totals" name="show_public_totals" type="checkbox" value="1"<?= $showPublicTotals ? ' checked' : '' ?>>
+                                <span class="branding-switch" aria-hidden="true"></span>
+                            </label>
+                        </article>
+                        <article class="branding-privacy-option">
+                            <input type="hidden" name="show_public_tickets" value="0">
+                            <label for="show_public_tickets">
+                                <span class="branding-privacy-copy">
+                                    <strong>Permitir tickets publicos pelo QR Code</strong>
+                                    <small>Controla os botoes e o acesso aos tickets de pedido, comanda e mesa na pagina publica.</small>
+                                </span>
+                                <input class="branding-switch-input" id="show_public_tickets" name="show_public_tickets" type="checkbox" value="1"<?= $showPublicTickets ? ' checked' : '' ?>>
+                                <span class="branding-switch" aria-hidden="true"></span>
+                            </label>
+                        </article>
+                    </div>
                 </div>
 
                 <div class="card">
@@ -188,17 +228,16 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
                             <p class="ticket-note">Aparece no menu lateral e nos tickets gerados.</p>
 
                             <div id="logo_dropzone" class="dropzone" tabindex="0">
-                                <p><strong>Selecione, arraste ou cole (Ctrl+V) a logo aqui</strong></p>
+                                <p><strong>Arraste ou cole (Ctrl+V) a logo aqui</strong></p>
                                 <small>Formatos: JPG, PNG, WEBP ou GIF. Máximo: 10MB.</small>
                             </div>
                             <p class="ticket-note" style="margin-top:8px">Tamanho recomendado da logo: <strong>512 x 512 px</strong> (mínimo 256 x 256 px) para manter boa leitura no menu e tickets.</p>
-                            <div class="field" style="margin-top:10px">
+                            <div class="field is-hidden">
                                 <input id="logo_file" name="logo_file" type="file" accept="image/*">
                             </div>
                             <div class="upload-actions">
-                                <button class="btn secondary" type="button" id="logo_choose_btn">Selecionar logo</button>
+                                <span class="upload-file-name" id="logo_selected_file">Nenhuma imagem recebida.</span>
                                 <button class="btn-modern-danger" type="button" id="remove_logo_button">Remover logo</button>
-                                <span class="upload-file-name" id="logo_selected_file">Nenhum arquivo selecionado.</span>
                             </div>
 
                             <div class="brand-media-preview">
@@ -215,17 +254,16 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
                             <p class="ticket-note">Fica no topo junto do usuário logado e perfil.</p>
 
                             <div id="banner_dropzone" class="dropzone" tabindex="0">
-                                <p><strong>Selecione, arraste ou cole (Ctrl+V) o banner aqui</strong></p>
+                                <p><strong>Arraste ou cole (Ctrl+V) o banner aqui</strong></p>
                                 <small>Formatos: JPG, PNG, WEBP ou GIF. Máximo: 10MB.</small>
                             </div>
                             <p class="ticket-note" style="margin-top:8px">Tamanho recomendado do banner: <strong>1920 x 420 px</strong> (mínimo 1366 x 300 px) para melhor visibilidade no cabeçalho.</p>
-                            <div class="field" style="margin-top:10px">
+                            <div class="field is-hidden">
                                 <input id="banner_file" name="banner_file" type="file" accept="image/*">
                             </div>
                             <div class="upload-actions">
-                                <button class="btn secondary" type="button" id="banner_choose_btn">Selecionar banner</button>
+                                <span class="upload-file-name" id="banner_selected_file">Nenhuma imagem recebida.</span>
                                 <button class="btn-modern-danger" type="button" id="remove_banner_button">Remover banner</button>
-                                <span class="upload-file-name" id="banner_selected_file">Nenhum arquivo selecionado.</span>
                             </div>
 
                             <div class="brand-media-preview">
@@ -365,7 +403,6 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
         const setupBrandUpload = (kind) => {
             const input = document.getElementById(kind + '_file');
             const dropzone = document.getElementById(kind + '_dropzone');
-            const chooseButton = document.getElementById(kind + '_choose_btn');
             const selectedFileLabel = document.getElementById(kind + '_selected_file');
             const hiddenBase64 = document.getElementById(kind + '_data_base64');
             const hiddenName = document.getElementById(kind + '_data_name');
@@ -433,27 +470,9 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
                 });
             }
 
-            if (chooseButton instanceof HTMLElement && input instanceof HTMLInputElement) {
-                chooseButton.addEventListener('click', () => {
-                    activeUploadKind = kind;
-                    input.click();
-                });
-            }
-
             if (dropzone instanceof HTMLElement && input instanceof HTMLInputElement) {
-                dropzone.addEventListener('click', () => {
-                    activeUploadKind = kind;
-                    input.click();
-                });
                 dropzone.addEventListener('focus', () => {
                     activeUploadKind = kind;
-                });
-                dropzone.addEventListener('keydown', (event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        activeUploadKind = kind;
-                        input.click();
-                    }
                 });
 
                 ['dragenter', 'dragover'].forEach((eventName) => {
@@ -491,7 +510,7 @@ $bannerUrl = $bannerPath !== '' ? company_image_url($bannerPath) : '';
                         input.value = '';
                     }
                     if (selectedFileLabel instanceof HTMLElement) {
-                        selectedFileLabel.textContent = 'Nenhum arquivo selecionado.';
+                        selectedFileLabel.textContent = 'Nenhuma imagem recebida.';
                     }
                     if (previewImage instanceof HTMLImageElement) {
                         previewImage.src = '';

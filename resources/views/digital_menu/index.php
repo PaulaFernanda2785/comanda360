@@ -28,6 +28,8 @@ $cartUrl = base_url('/menu-digital/cart?empresa=' . rawurlencode($companySlug) .
 $tableTicketUrl = base_url('/menu-digital/ticket?empresa=' . rawurlencode($companySlug) . '&mesa=' . $tableNumber . '&token=' . rawurlencode($token) . '&scope=table');
 $cartStorageKey = 'digital-menu-cart:' . $companySlug . ':' . $tableNumber . ':' . $token . ':' . $currentCommandId;
 $lastOrderId = isset($_GET['last_order_id']) ? (int) $_GET['last_order_id'] : 0;
+$showPublicTotals = !array_key_exists('show_public_totals', $menuTheme) || (int) ($menuTheme['show_public_totals'] ?? 1) === 1;
+$showPublicTickets = !array_key_exists('show_public_tickets', $menuTheme) || (int) ($menuTheme['show_public_tickets'] ?? 1) === 1;
 $formatMoney = static fn (float $value): string => 'R$ ' . number_format($value, 2, ',', '.');
 $formatDate = static function (?string $value): string {
     $raw = trim((string) ($value ?? ''));
@@ -253,8 +255,8 @@ if (!is_string($productsJson)) {
                         <span>Pedidos lançados na mesa</span>
                     </div>
                     <div class="dm-signal">
-                        <strong><?= $formatMoney((float) ($tableSummary['total_amount'] ?? 0)) ?></strong>
-                        <span>Valor acumulado da mesa</span>
+                        <strong><?= $showPublicTotals ? $formatMoney((float) ($tableSummary['total_amount'] ?? 0)) : (int) ($tableSummary['active_orders'] ?? 0) ?></strong>
+                        <span><?= $showPublicTotals ? 'Valor acumulado da mesa' : 'Pedidos ativos na mesa' ?></span>
                     </div>
                     <div class="dm-signal">
                         <strong><?= $currentCommand !== null ? '#' . $currentCommandId : '---' ?></strong>
@@ -283,7 +285,7 @@ if (!is_string($productsJson)) {
                             <div class="dm-quick-card"><strong><?= (int) ($currentSummary['total_orders'] ?? 0) ?></strong><span>Pedidos da sua comanda</span></div>
                             <div class="dm-quick-card"><strong><?= (int) ($currentSummary['preparing'] ?? 0) + (int) ($currentSummary['received'] ?? 0) ?></strong><span>Em produção</span></div>
                             <div class="dm-quick-card"><strong><?= (int) ($currentSummary['ready'] ?? 0) ?></strong><span>Prontos</span></div>
-                            <div class="dm-quick-card"><strong><?= $formatMoney((float) ($currentSummary['total_amount'] ?? 0)) ?></strong><span>Total da sua comanda</span></div>
+                            <div class="dm-quick-card"><strong><?= $showPublicTotals ? $formatMoney((float) ($currentSummary['total_amount'] ?? 0)) : (int) ($currentSummary['delivered'] ?? 0) ?></strong><span><?= $showPublicTotals ? 'Total da sua comanda' : 'Entregues' ?></span></div>
                         </div>
                     </section>
                 <?php else: ?>
@@ -412,10 +414,10 @@ if (!is_string($productsJson)) {
                     <div class="dm-section-head">
                         <div>
                             <h2>Comandas abertas da mesa</h2>
-                            <p>Visão compartilhada da mesa: comandas abertas, pedidos, totais e tickets. Nenhuma comanda consegue ver pedidos de outras mesas.</p>
+                            <p>Visão compartilhada da mesa: comandas abertas e pedidos em andamento. Nenhuma comanda consegue ver pedidos de outras mesas.</p>
                         </div>
                         <div class="dm-action-bar" style="margin-top:0">
-                            <?php if ((int) ($tableSummary['orders_count'] ?? 0) > 0): ?>
+                            <?php if ($showPublicTickets && (int) ($tableSummary['orders_count'] ?? 0) > 0): ?>
                                 <a class="btn-soft" href="<?= htmlspecialchars($tableTicketUrl) ?>">Ticket geral da mesa</a>
                             <?php endif; ?>
                             <span class="dm-refresh-status">Atualização automática a cada <?= htmlspecialchars($refreshIntervalLabel) ?></span>
@@ -458,7 +460,7 @@ if (!is_string($productsJson)) {
                                         <div class="dm-command-metric"><strong><?= (int) ($summary['active_orders'] ?? 0) ?></strong><span>Pedidos ativos</span></div>
                                         <div class="dm-command-metric"><strong><?= (int) ($summary['ready'] ?? 0) ?></strong><span>Prontos</span></div>
                                         <div class="dm-command-metric"><strong><?= (int) ($summary['preparing'] ?? 0) + (int) ($summary['received'] ?? 0) ?></strong><span>Em produção</span></div>
-                                        <div class="dm-command-metric"><strong><?= $formatMoney((float) ($summary['total_amount'] ?? 0)) ?></strong><span>Total da comanda</span></div>
+                                        <div class="dm-command-metric"><strong><?= $showPublicTotals ? $formatMoney((float) ($summary['total_amount'] ?? 0)) : (int) ($summary['delivered'] ?? 0) ?></strong><span><?= $showPublicTotals ? 'Total da comanda' : 'Entregues' ?></span></div>
                                     </div>
 
                                     <?php if ($orders === []): ?>
@@ -478,7 +480,9 @@ if (!is_string($productsJson)) {
                                                             <strong><?= htmlspecialchars((string) ($order['order_number'] ?? 'Pedido')) ?></strong>
                                                             <small><?= htmlspecialchars($statusLabel) ?> - <?= htmlspecialchars($formatDate((string) ($order['created_at'] ?? ''))) ?></small>
                                                         </div>
-                                                        <strong><?= $formatMoney((float) ($order['total_amount'] ?? 0)) ?></strong>
+                                                        <?php if ($showPublicTotals): ?>
+                                                            <strong><?= $formatMoney((float) ($order['total_amount'] ?? 0)) ?></strong>
+                                                        <?php endif; ?>
                                                     </div>
                                                     <?php if (!empty($order['latest_status_note'])): ?>
                                                         <p class="dm-note" style="margin:8px 0 0"><?= htmlspecialchars((string) $order['latest_status_note']) ?></p>
@@ -487,7 +491,9 @@ if (!is_string($productsJson)) {
                                                         <?php foreach ($orderItems as $item): ?>
                                                             <div class="dm-order-item">
                                                                 <strong><?= (int) ($item['quantity'] ?? 0) ?>x <?= htmlspecialchars((string) ($item['name'] ?? 'Item')) ?></strong>
-                                                                <span><?= $formatMoney((float) ($item['line_subtotal'] ?? 0)) ?></span>
+                                                                <?php if ($showPublicTotals): ?>
+                                                                    <span><?= $formatMoney((float) ($item['line_subtotal'] ?? 0)) ?></span>
+                                                                <?php endif; ?>
                                                                 <?php if (!empty($item['additionals'])): ?>
                                                                     <small>
                                                                         <?php
@@ -505,16 +511,18 @@ if (!is_string($productsJson)) {
                                                             </div>
                                                         <?php endforeach; ?>
                                                     </div>
-                                                    <div class="dm-action-bar">
-                                                        <a class="btn-soft" href="<?= htmlspecialchars($orderTicketUrl) ?>">Ver ticket do pedido</a>
-                                                    </div>
+                                                    <?php if ($showPublicTickets): ?>
+                                                        <div class="dm-action-bar">
+                                                            <a class="btn-soft" href="<?= htmlspecialchars($orderTicketUrl) ?>">Ver ticket do pedido</a>
+                                                        </div>
+                                                    <?php endif; ?>
                                                 </article>
                                             <?php endforeach; ?>
                                         </div>
                                     <?php endif; ?>
 
                                     <div class="dm-action-bar">
-                                        <?php if (!empty($panel['has_orders'])): ?>
+                                        <?php if ($showPublicTickets && !empty($panel['has_orders'])): ?>
                                             <a class="btn-secondary" href="<?= htmlspecialchars($commandTicketUrl) ?>">Ticket individual da comanda</a>
                                         <?php endif; ?>
                                     </div>
@@ -544,12 +552,12 @@ if (!is_string($productsJson)) {
                 <section class="dm-glass-card">
                     <div class="dm-section-head">
                         <div>
-                            <h2>Tickets e consulta</h2>
-                            <p>Acompanhe os pedidos da mesa e consulte os tickets já emitidos.</p>
+                            <h2><?= $showPublicTickets ? 'Tickets e consulta' : 'Consulta da mesa' ?></h2>
+                            <p><?= $showPublicTickets ? 'Acompanhe os pedidos da mesa e consulte os tickets ja emitidos.' : 'Acompanhe os pedidos da mesa pelo resumo operacional.' ?></p>
                         </div>
                     </div>
                     <div class="dm-action-bar" style="margin-top:0">
-                        <?php if ((int) ($tableSummary['orders_count'] ?? 0) > 0): ?>
+                        <?php if ($showPublicTickets && (int) ($tableSummary['orders_count'] ?? 0) > 0): ?>
                             <a class="btn-secondary" href="<?= htmlspecialchars($tableTicketUrl) ?>">Imprimir ticket geral da mesa</a>
                         <?php endif; ?>
                         <a class="btn-soft" href="#categoryTabs">Ir para o cardápio</a>
@@ -567,7 +575,9 @@ if (!is_string($productsJson)) {
                     <span id="digitalCartDockMeta">Nenhum item adicionado ainda.</span>
                 </div>
                 <div class="dm-chip-row" style="justify-content:flex-end;align-items:center">
-                    <span class="dm-cart-dock-total" id="digitalCartDockTotal">R$ 0,00</span>
+                    <?php if ($showPublicTotals): ?>
+                        <span class="dm-cart-dock-total" id="digitalCartDockTotal">R$ 0,00</span>
+                    <?php endif; ?>
                     <button class="btn" type="button" id="digitalCartDockButton" disabled>Ver carrinho</button>
                 </div>
             </div>
@@ -728,13 +738,15 @@ if (!is_string($productsJson)) {
         };
 
         const syncCartDock = () => {
-            if (!cartDock || !cartDockMeta || !cartDockTotal || !cartDockButton) {
+            if (!cartDock || !cartDockMeta || !cartDockButton) {
                 return;
             }
 
             if (cart.length === 0) {
                 cartDockMeta.textContent = 'Nenhum item adicionado ainda.';
-                cartDockTotal.textContent = money(0);
+                if (cartDockTotal) {
+                    cartDockTotal.textContent = money(0);
+                }
                 cartDockButton.disabled = true;
                 return;
             }
@@ -742,7 +754,9 @@ if (!is_string($productsJson)) {
             const total = cart.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
             const quantity = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
             cartDockMeta.textContent = `${quantity} item(ns) prontos para revisar na etapa final do pedido.`;
-            cartDockTotal.textContent = money(total);
+            if (cartDockTotal) {
+                cartDockTotal.textContent = money(total);
+            }
             cartDockButton.disabled = false;
         };
 

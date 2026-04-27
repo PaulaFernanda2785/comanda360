@@ -340,6 +340,8 @@ CREATE TABLE company_themes (
     title VARCHAR(150) NULL COMMENT 'Título exibido na área pública',
     description TEXT NULL COMMENT 'Descrição pública do estabelecimento',
     footer_text VARCHAR(255) NULL COMMENT 'Texto de rodapé do cardápio/site',
+    show_public_totals TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Exibe valores totais na área pública do menu digital',
+    show_public_tickets TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Permite consulta de tickets na área pública do menu digital',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Data de criação',
     updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Data da última atualização',
 
@@ -1832,14 +1834,16 @@ INSERT INTO company_settings (
 );
 
 INSERT INTO company_themes (
-    id, company_id, primary_color, secondary_color, accent_color, main_card_color, logo_path, banner_path, title, description, footer_text
+    id, company_id, primary_color, secondary_color, accent_color, main_card_color, logo_path, banner_path, title, description, footer_text, show_public_totals, show_public_tickets
 ) VALUES (
     1, 1, '#D62828', '#1D3557', '#F4A261', '#1D3557',
     'uploads/logos/sabor-mesa-logo.png',
     'uploads/banners/sabor-mesa-banner.png',
     'Restaurante Sabor & Mesa',
     'Experiência digital para pedidos por mesa, balcão e delivery.',
-    'Restaurante Sabor & Mesa - Atendimento digital'
+    'Restaurante Sabor & Mesa - Atendimento digital',
+    1,
+    1
 );
 
 -- =========================================================

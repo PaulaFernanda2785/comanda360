@@ -66,7 +66,9 @@ final class DashboardRepository extends BaseRepository
                 ct.banner_path,
                 ct.title,
                 ct.description,
-                ct.footer_text
+                ct.footer_text,
+                ct.show_public_totals,
+                ct.show_public_tickets
             FROM companies c
             LEFT JOIN company_themes ct
                 ON ct.company_id = c.id
@@ -107,6 +109,8 @@ final class DashboardRepository extends BaseRepository
                 title,
                 description,
                 footer_text,
+                show_public_totals,
+                show_public_tickets,
                 created_at,
                 updated_at
             ) VALUES (
@@ -120,6 +124,8 @@ final class DashboardRepository extends BaseRepository
                 :title,
                 :description,
                 :footer_text,
+                :show_public_totals,
+                :show_public_tickets,
                 NOW(),
                 NOW()
             )
@@ -133,6 +139,8 @@ final class DashboardRepository extends BaseRepository
                 title = VALUES(title),
                 description = VALUES(description),
                 footer_text = VALUES(footer_text),
+                show_public_totals = VALUES(show_public_totals),
+                show_public_tickets = VALUES(show_public_tickets),
                 updated_at = NOW()
         ");
 
@@ -147,6 +155,8 @@ final class DashboardRepository extends BaseRepository
             'title' => $theme['title'] ?? null,
             'description' => $theme['description'] ?? null,
             'footer_text' => $theme['footer_text'] ?? null,
+            'show_public_totals' => !empty($theme['show_public_totals']) ? 1 : 0,
+            'show_public_tickets' => !empty($theme['show_public_tickets']) ? 1 : 0,
         ]);
     }
 

@@ -16,6 +16,7 @@ use App\Services\Admin\CommandService;
 use App\Services\Admin\CompanyPlanFeatureService;
 use App\Services\Admin\OrderService;
 use App\Services\Admin\ProductService;
+use App\Services\Shared\PublicMenuDisplayPreferences;
 
 final class DigitalMenuService
 {
@@ -52,7 +53,7 @@ final class DigitalMenuService
             'logo_path' => '',
             'banner_path' => '',
             'footer_text' => 'MesiMenu - Atendimento digital da mesa.',
-        ];
+        ] + PublicMenuDisplayPreferences::defaults();
     }
 
     public function entry(array $input): array
@@ -136,6 +137,11 @@ final class DigitalMenuService
     public function ticketContext(array $input): array
     {
         $access = $this->resolveAccess($input);
+        $theme = is_array($access['theme'] ?? null) ? $access['theme'] : $this->defaultTheme();
+        if (empty($theme[PublicMenuDisplayPreferences::SHOW_TICKETS])) {
+            throw new ValidationException('A consulta de tickets pelo menu digital esta desativada para esta empresa.');
+        }
+
         $companyId = (int) ($access['company']['id'] ?? 0);
         $commandId = (int) ($input['command_id'] ?? 0);
         $orderId = (int) ($input['order_id'] ?? 0);
@@ -248,6 +254,10 @@ final class DigitalMenuService
         $theme['main_card_color'] = $this->normalizeColor($profile['main_card_color'] ?? null, $theme['main_card_color']);
         $theme['logo_path'] = trim((string) ($profile['logo_path'] ?? ''));
         $theme['banner_path'] = trim((string) ($profile['banner_path'] ?? ''));
+        $theme = array_merge($theme, PublicMenuDisplayPreferences::normalize([
+            PublicMenuDisplayPreferences::SHOW_TOTALS => $profile['show_public_totals'] ?? null,
+            PublicMenuDisplayPreferences::SHOW_TICKETS => $profile['show_public_tickets'] ?? null,
+        ]));
 
         return $theme;
     }

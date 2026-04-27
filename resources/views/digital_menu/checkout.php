@@ -11,6 +11,7 @@ $companySlug = trim((string) ($company['slug'] ?? ''));
 $tableNumber = (int) ($table['number'] ?? 0);
 $token = trim((string) ($access['token'] ?? ''));
 $currentCommandId = (int) ($currentCommand['id'] ?? 0);
+$showPublicTotals = !array_key_exists('show_public_totals', $menuTheme ?? []) || (int) (($menuTheme ?? [])['show_public_totals'] ?? 1) === 1;
 $menuBaseUrl = $companySlug !== '' && $tableNumber > 0 && $token !== ''
     ? base_url('/menu-digital?empresa=' . rawurlencode($companySlug) . '&mesa=' . $tableNumber . '&token=' . rawurlencode($token))
     : base_url('/menu-digital');
@@ -158,13 +159,15 @@ $formatMoney = static fn (float $value): string => 'R$ ' . number_format($value,
                         <span><?= $currentCommand !== null ? 'Comanda atual #' . $currentCommandId : 'Sem comanda ativa' ?></span>
                     </div>
                     <div class="dm-summary-box">
-                        <strong><?= $formatMoney((float) ($currentSummary['total_amount'] ?? 0)) ?></strong>
-                        <span>Total atual da sua comanda antes deste novo pedido</span>
+                        <strong><?= $showPublicTotals ? $formatMoney((float) ($currentSummary['total_amount'] ?? 0)) : (int) ($currentSummary['total_orders'] ?? 0) ?></strong>
+                        <span><?= $showPublicTotals ? 'Total atual da sua comanda antes deste novo pedido' : 'Pedido(s) ja lancado(s) na sua comanda' ?></span>
                     </div>
-                    <div class="dm-total-line">
-                        <span>Total do pedido</span>
-                        <strong id="digitalCheckoutTotal">R$ 0,00</strong>
-                    </div>
+                    <?php if ($showPublicTotals): ?>
+                        <div class="dm-total-line">
+                            <span>Total do pedido</span>
+                            <strong id="digitalCheckoutTotal">R$ 0,00</strong>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </aside>
         </div>
@@ -232,14 +235,16 @@ $formatMoney = static fn (float $value): string => 'R$ ' . number_format($value,
         };
 
         const renderCart = () => {
-            if (!cartList || !cartHiddenFields || !cartSubmit || !cartTotal || !cartQuantity) {
+            if (!cartList || !cartHiddenFields || !cartSubmit || !cartQuantity) {
                 return;
             }
 
             if (!currentCommandEnabled || cart.length === 0) {
                 cartList.innerHTML = '<div class="dm-empty">Nenhum item foi adicionado ao carrinho.</div>';
                 cartHiddenFields.innerHTML = '';
-                cartTotal.textContent = money(0);
+                if (cartTotal) {
+                    cartTotal.textContent = money(0);
+                }
                 cartQuantity.textContent = '0';
                 cartSubmit.disabled = true;
                 return;
@@ -264,7 +269,7 @@ $formatMoney = static fn (float $value): string => 'R$ ' . number_format($value,
                                 <strong>${item.quantity}x ${escapeHtml(item.name)}</strong>
                                 <div class="dm-review-meta">${escapeHtml(additionalsLabel)}</div>
                             </div>
-                            <span>${money(item.lineTotal)}</span>
+                            ${cartTotal ? `<span>${money(item.lineTotal)}</span>` : ''}
                         </div>
                         ${item.notes ? `<div class="dm-review-note">Observação: ${escapeHtml(item.notes)}</div>` : ''}
                         <div class="dm-review-actions">
@@ -293,7 +298,9 @@ $formatMoney = static fn (float $value): string => 'R$ ' . number_format($value,
             });
 
             cartList.innerHTML = html;
-            cartTotal.textContent = money(total);
+            if (cartTotal) {
+                cartTotal.textContent = money(total);
+            }
             cartQuantity.textContent = String(quantity);
             cartSubmit.disabled = false;
         };

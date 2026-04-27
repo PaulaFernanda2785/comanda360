@@ -21,7 +21,9 @@ final class AppShellRepository extends BaseRepository
                 ct.banner_path,
                 ct.title,
                 ct.description,
-                ct.footer_text
+                ct.footer_text,
+                ct.show_public_totals,
+                ct.show_public_tickets
             FROM companies c
             LEFT JOIN company_themes ct
                 ON ct.company_id = c.id

@@ -368,6 +368,8 @@ CREATE TABLE IF NOT EXISTS company_themes (
     title VARCHAR(150) NULL COMMENT 'Título exibido na área pública',
     description TEXT NULL COMMENT 'Descrição pública do estabelecimento',
     footer_text VARCHAR(255) NULL COMMENT 'Texto de rodapé do cardápio/site',
+    show_public_totals TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Exibe valores totais na área pública do menu digital',
+    show_public_tickets TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Permite consulta de tickets na área pública do menu digital',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Data de criação',
     updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Data da última atualização',
     CONSTRAINT uq_company_themes_company_id UNIQUE (company_id),

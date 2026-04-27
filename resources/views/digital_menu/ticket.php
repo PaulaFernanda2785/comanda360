@@ -17,6 +17,7 @@ $token = trim((string) ($access['token'] ?? ''));
 $backUrl = base_url('/menu-digital?empresa=' . rawurlencode($companySlug) . '&mesa=' . $tableNumber . '&token=' . rawurlencode($token));
 $logoPath = trim((string) ($menuTheme['logo_path'] ?? ''));
 $logoUrl = $logoPath !== '' ? company_image_url($logoPath) : '';
+$showPublicTotals = !array_key_exists('show_public_totals', $menuTheme) || (int) ($menuTheme['show_public_totals'] ?? 1) === 1;
 $formatMoney = static fn (float $value): string => 'R$ ' . number_format($value, 2, ',', '.');
 $formatDate = static function (?string $value): string {
     $raw = trim((string) ($value ?? ''));
@@ -163,7 +164,9 @@ $displayCreatedAt = $formatDate((string) ($contextOrder['created_at'] ?? ''));
                                     • <?= htmlspecialchars($formatDate((string) ($bundleOrder['created_at'] ?? ''))) ?>
                                 </span>
                             </div>
-                            <strong><?= $formatMoney((float) ($bundleOrder['total_amount'] ?? 0)) ?></strong>
+                            <?php if ($showPublicTotals): ?>
+                                <strong><?= $formatMoney((float) ($bundleOrder['total_amount'] ?? 0)) ?></strong>
+                            <?php endif; ?>
                         </div>
 
                         <?php foreach ($bundleItems as $item): ?>
@@ -175,12 +178,14 @@ $displayCreatedAt = $formatDate((string) ($contextOrder['created_at'] ?? ''));
                                             <small>Observação: <?= htmlspecialchars((string) $item['notes']) ?></small>
                                         <?php endif; ?>
                                     </div>
-                                    <strong><?= $formatMoney((float) ($item['line_subtotal'] ?? 0)) ?></strong>
+                                    <?php if ($showPublicTotals): ?>
+                                        <strong><?= $formatMoney((float) ($item['line_subtotal'] ?? 0)) ?></strong>
+                                    <?php endif; ?>
                                 </div>
                                 <?php if (!empty($item['additionals'])): ?>
                                     <div class="dm-ticket-additionals">
                                         <?php foreach ((array) $item['additionals'] as $additional): ?>
-                                            <span><?= (int) ($additional['quantity'] ?? 0) ?>x <?= htmlspecialchars((string) ($additional['name'] ?? 'Adicional')) ?> • <?= $formatMoney((float) ($additional['line_subtotal'] ?? 0)) ?></span>
+                                            <span><?= (int) ($additional['quantity'] ?? 0) ?>x <?= htmlspecialchars((string) ($additional['name'] ?? 'Adicional')) ?><?= $showPublicTotals ? ' - ' . $formatMoney((float) ($additional['line_subtotal'] ?? 0)) : '' ?></span>
                                         <?php endforeach; ?>
                                     </div>
                                 <?php endif; ?>
@@ -198,12 +203,14 @@ $displayCreatedAt = $formatDate((string) ($contextOrder['created_at'] ?? ''));
                                     <small>Observação: <?= htmlspecialchars((string) $item['notes']) ?></small>
                                 <?php endif; ?>
                             </div>
-                            <strong><?= $formatMoney((float) ($item['line_subtotal'] ?? 0)) ?></strong>
+                            <?php if ($showPublicTotals): ?>
+                                <strong><?= $formatMoney((float) ($item['line_subtotal'] ?? 0)) ?></strong>
+                            <?php endif; ?>
                         </div>
                         <?php if (!empty($item['additionals'])): ?>
                             <div class="dm-ticket-additionals">
                                 <?php foreach ((array) $item['additionals'] as $additional): ?>
-                                    <span><?= (int) ($additional['quantity'] ?? 0) ?>x <?= htmlspecialchars((string) ($additional['name'] ?? 'Adicional')) ?> • <?= $formatMoney((float) ($additional['line_subtotal'] ?? 0)) ?></span>
+                                    <span><?= (int) ($additional['quantity'] ?? 0) ?>x <?= htmlspecialchars((string) ($additional['name'] ?? 'Adicional')) ?><?= $showPublicTotals ? ' - ' . $formatMoney((float) ($additional['line_subtotal'] ?? 0)) : '' ?></span>
                                 <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
@@ -211,10 +218,12 @@ $displayCreatedAt = $formatDate((string) ($contextOrder['created_at'] ?? ''));
                 <?php endforeach; ?>
             <?php endif; ?>
 
-            <div class="dm-ticket-total">
-                <span>Total do ticket</span>
-                <strong><?= $formatMoney($displayTotal) ?></strong>
-            </div>
+            <?php if ($showPublicTotals): ?>
+                <div class="dm-ticket-total">
+                    <span>Total do ticket</span>
+                    <strong><?= $formatMoney($displayTotal) ?></strong>
+                </div>
+            <?php endif; ?>
         </div>
     </section>
 </div>
