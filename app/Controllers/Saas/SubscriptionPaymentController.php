@@ -70,6 +70,23 @@ final class SubscriptionPaymentController extends Controller
         }
     }
 
+    public function updateStatus(Request $request): Response
+    {
+        $paymentId = (int) ($request->input('subscription_payment_id', 0));
+        $redirectTo = $this->resolvePaymentsRedirect($request);
+        $guard = $this->guardSingleSubmit($request, 'saas.subscription_payments.status.' . $paymentId, $redirectTo);
+        if ($guard !== null) {
+            return $guard;
+        }
+
+        try {
+            $this->service->updateStatus($request->all(), Auth::user() ?? []);
+            return $this->backWithSuccess('Status da cobranca atualizado e sincronizado com a assinatura da empresa.', $redirectTo);
+        } catch (ValidationException $e) {
+            return $this->backWithError($e->getMessage(), $redirectTo);
+        }
+    }
+
     public function markOverdue(Request $request): Response
     {
         $paymentId = (int) ($request->input('subscription_payment_id', 0));

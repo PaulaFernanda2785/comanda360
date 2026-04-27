@@ -195,6 +195,7 @@ $router->get('/saas/subscription-payments/create', [SaasSubscriptionPaymentContr
 $router->post('/saas/subscription-payments/store', [SaasSubscriptionPaymentController::class, 'store'], $saasAccess('subscriptions.manage'));
 $router->post('/saas/subscription-payments/generate-gateway-pix', [SaasSubscriptionPaymentController::class, 'generateGatewayPix'], $saasAccess('subscriptions.manage'));
 $router->post('/saas/subscription-payments/sync-gateway', [SaasSubscriptionPaymentController::class, 'syncGateway'], $saasAccess('subscriptions.manage'));
+$router->post('/saas/subscription-payments/status', [SaasSubscriptionPaymentController::class, 'updateStatus'], $saasAccess('subscriptions.manage'));
 $router->post('/saas/subscription-payments/mark-paid', [SaasSubscriptionPaymentController::class, 'markPaid'], $saasAccess('subscriptions.manage'));
 $router->post('/saas/subscription-payments/mark-overdue', [SaasSubscriptionPaymentController::class, 'markOverdue'], $saasAccess('subscriptions.manage'));
 $router->post('/saas/subscription-payments/cancel', [SaasSubscriptionPaymentController::class, 'cancel'], $saasAccess('subscriptions.manage'));

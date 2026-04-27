@@ -127,6 +127,87 @@ final class SubscriptionPaymentService
         ]);
     }
 
+    public function updateStatus(array $input, array $actor = []): void
+    {
+        $paymentId = (int) ($input['subscription_payment_id'] ?? 0);
+        $status = strtolower(trim((string) ($input['status'] ?? '')));
+        $paymentMethod = $this->normalizeNullableText($input['payment_method'] ?? null);
+        $transactionReference = $this->normalizeNullableText($input['transaction_reference'] ?? null);
+
+        if ($paymentId <= 0) {
+            throw new ValidationException('Cobranca invalida para edicao de status.');
+        }
+
+        if (!in_array($status, ['pendente', 'pago', 'vencido', 'cancelado'], true)) {
+            throw new ValidationException('Selecione um status valido para a cobranca.');
+        }
+
+        $payment = $this->subscriptionPayments->findById($paymentId);
+        if ($payment === null) {
+            throw new ValidationException('Cobranca nao encontrada.');
+        }
+
+        $details = $this->mergePaymentDetails($payment, [
+            'last_status_edit' => [
+                'source' => 'saas_manual',
+                'previous_status' => trim((string) ($payment['status'] ?? '')),
+                'new_status' => $status,
+                'edited_at' => date('c'),
+            ],
+        ]);
+
+        if (!empty($actor) && (int) ($actor['is_saas_user'] ?? 0) === 1) {
+            $details['last_status_edit']['actor'] = [
+                'user_id' => (int) ($actor['id'] ?? 0),
+                'name' => trim((string) ($actor['name'] ?? '')),
+                'email' => trim((string) ($actor['email'] ?? '')),
+                'role_name' => trim((string) ($actor['role_name'] ?? 'Administrador SaaS')),
+            ];
+        }
+
+        if ($status === 'pago') {
+            $details['source'] = 'saas_manual';
+            $details['mode'] = 'manual_status_edit_paid';
+            $details['marked_paid_at'] = date('c');
+
+            if (!empty($actor) && (int) ($actor['is_saas_user'] ?? 0) === 1) {
+                $details['saas_admin_signature'] = [
+                    'user_id' => (int) ($actor['id'] ?? 0),
+                    'name' => trim((string) ($actor['name'] ?? '')),
+                    'email' => trim((string) ($actor['email'] ?? '')),
+                    'role_name' => trim((string) ($actor['role_name'] ?? 'Administrador SaaS')),
+                    'signed_at' => date('c'),
+                    'type' => 'manual_status_edit_paid',
+                ];
+            }
+        }
+
+        $this->subscriptionPayments->updateRecord($paymentId, [
+            'status' => $status,
+            'payment_method' => $status === 'pago'
+                ? ($paymentMethod ?? $this->normalizeNullableText($payment['payment_method'] ?? null) ?? 'pix')
+                : ($paymentMethod ?? $this->normalizeNullableText($payment['payment_method'] ?? null)),
+            'paid_at' => $status === 'pago'
+                ? (((string) ($payment['paid_at'] ?? '') !== '') ? (string) $payment['paid_at'] : date('Y-m-d H:i:s'))
+                : null,
+            'due_date' => (string) ($payment['due_date'] ?? date('Y-m-d')),
+            'transaction_reference' => $transactionReference ?? $this->normalizeNullableText($payment['transaction_reference'] ?? null),
+            'charge_origin' => $payment['charge_origin'] ?? 'manual',
+            'pix_code' => $payment['pix_code'] ?? null,
+            'pix_qr_payload' => $payment['pix_qr_payload'] ?? null,
+            'pix_qr_image_base64' => $payment['pix_qr_image_base64'] ?? null,
+            'pix_ticket_url' => $payment['pix_ticket_url'] ?? null,
+            'payment_details_json' => json_encode($details, JSON_UNESCAPED_SLASHES),
+            'gateway_payment_id' => $payment['gateway_payment_id'] ?? null,
+            'gateway_payment_url' => $payment['gateway_payment_url'] ?? null,
+            'gateway_status' => $payment['gateway_status'] ?? null,
+            'gateway_webhook_payload_json' => $payment['gateway_webhook_payload_json'] ?? null,
+            'gateway_last_synced_at' => $payment['gateway_last_synced_at'] ?? null,
+        ]);
+
+        $this->synchronizePaymentCompany($payment);
+    }
+
     public function markPaid(array $input, array $actor = []): void
     {
         $paymentId = (int) ($input['subscription_payment_id'] ?? 0);
@@ -185,6 +266,8 @@ final class SubscriptionPaymentService
             'gateway_webhook_payload_json' => $payment['gateway_webhook_payload_json'] ?? null,
             'gateway_last_synced_at' => $payment['gateway_last_synced_at'] ?? null,
         ]);
+
+        $this->synchronizePaymentCompany($payment);
     }
 
     public function markOverdue(array $input): void
@@ -210,6 +293,8 @@ final class SubscriptionPaymentService
             $this->normalizeNullableText($payment['transaction_reference'] ?? null),
             null
         );
+
+        $this->synchronizePaymentCompany($payment);
     }
 
     public function cancel(array $input): void
@@ -235,6 +320,8 @@ final class SubscriptionPaymentService
             $this->normalizeNullableText($payment['transaction_reference'] ?? null),
             null
         );
+
+        $this->synchronizePaymentCompany($payment);
     }
 
     public function syncGateway(array $input): void
@@ -404,5 +491,15 @@ final class SubscriptionPaymentService
         }
 
         return $details;
+    }
+
+    private function synchronizePaymentCompany(array $payment): void
+    {
+        $companyId = (int) ($payment['company_id'] ?? 0);
+        if ($companyId <= 0) {
+            return;
+        }
+
+        $this->subscriptionPortal->synchronizeCompanyBilling($companyId);
     }
 }

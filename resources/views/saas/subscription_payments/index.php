@@ -16,6 +16,13 @@ $statusOptions = [
     'cancelado' => 'Canceladas',
 ];
 
+$editableStatusOptions = [
+    'pendente' => 'Pendente',
+    'pago' => 'Pago',
+    'vencido' => 'Vencido',
+    'cancelado' => 'Cancelado',
+];
+
 $totalCharges = (int) ($summary['total_charges'] ?? ($pagination['total'] ?? count($subscriptionPayments)));
 $pendingCharges = (int) ($summary['pending_charges'] ?? 0);
 $overdueCharges = (int) ($summary['overdue_charges'] ?? 0);
@@ -138,6 +145,10 @@ $chargeModeLabel = static function (bool $bound): string {
     .saas-billing-callout{border-radius:12px;padding:12px;font-size:13px;line-height:1.5}
     .saas-billing-callout.auto{border:1px solid #bbf7d0;background:#f0fdf4;color:#166534}
     .saas-billing-callout.manual{border:1px solid #fde68a;background:#fffbeb;color:#92400e}
+    .saas-billing-status-editor{border:1px solid #dbeafe;background:#f8fbff;border-radius:12px;padding:12px;display:grid;grid-template-columns:minmax(170px,.7fr) minmax(160px,auto);gap:10px;align-items:end}
+    .saas-billing-status-editor .field{margin:0}
+    .saas-billing-status-observation{grid-column:1 / -1}
+    .saas-billing-status-observation textarea{min-height:76px;resize:vertical}
     .saas-billing-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
     .saas-billing-actions form{margin:0}
     .saas-billing-inline-input{min-width:220px}
@@ -177,6 +188,8 @@ $chargeModeLabel = static function (bool $bound): string {
         .saas-billing-kpis,.saas-billing-filter-grid,.saas-billing-details-grid{grid-template-columns:1fr}
         .saas-billing-hero h1{font-size:22px}
         .saas-billing-inline-input{min-width:0;width:100%}
+        .saas-billing-status-editor{grid-template-columns:1fr}
+        .saas-billing-status-observation{grid-column:auto}
     }
 </style>
 
@@ -335,6 +348,25 @@ $chargeModeLabel = static function (bool $bound): string {
                                                 Esta cobrança ainda não entrou no trilho automático. Primeiro gere o PIX real no gateway. Sem isso, o sistema não consegue confirmar pagamento sozinho.
                                             <?php endif; ?>
                                         </div>
+
+                                        <form class="saas-billing-status-editor" method="POST" action="<?= htmlspecialchars(base_url('/saas/subscription-payments/status')) ?>">
+                                            <?= form_security_fields('saas.subscription_payments.status.' . $chargeId) ?>
+                                            <input type="hidden" name="subscription_payment_id" value="<?= $chargeId ?>">
+                                            <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery) ?>">
+                                            <div class="field">
+                                                <label for="charge_status_<?= $chargeId ?>">Editar status</label>
+                                                <select id="charge_status_<?= $chargeId ?>" name="status" required>
+                                                    <?php foreach ($editableStatusOptions as $value => $label): ?>
+                                                        <option value="<?= htmlspecialchars($value) ?>" <?= $chargeStatus === $value ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </div>
+                                            <button class="btn" type="submit">Salvar status</button>
+                                            <div class="field saas-billing-status-observation">
+                                                <label for="charge_reference_<?= $chargeId ?>">Observacoes</label>
+                                                <textarea id="charge_reference_<?= $chargeId ?>" name="transaction_reference" placeholder="Informe comprovante, txid, motivo da alteracao ou observacao administrativa."><?= htmlspecialchars((string) ($charge['transaction_reference'] ?? '')) ?></textarea>
+                                            </div>
+                                        </form>
 
                                         <div class="saas-billing-actions">
                                             <?php if (!$chargeHasGatewayBinding && !in_array($chargeStatus, ['pago', 'cancelado'], true)): ?>
