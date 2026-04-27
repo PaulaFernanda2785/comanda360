@@ -38,6 +38,18 @@ final class SubscriptionPaymentService
         );
 
         $items = is_array($page['items'] ?? null) ? $page['items'] : [];
+        if ($this->normalizeExpiredGatewayPixCharges($items)) {
+            $page = $this->subscriptionPayments->listForSaasPaginated(
+                [
+                    'search' => $normalizedFilters['search'],
+                    'status' => $normalizedFilters['status'],
+                ],
+                $normalizedFilters['page'],
+                $normalizedFilters['per_page']
+            );
+            $items = is_array($page['items'] ?? null) ? $page['items'] : [];
+        }
+
         $total = (int) ($page['total'] ?? 0);
         $currentPage = (int) ($page['page'] ?? 1);
         $perPage = (int) ($page['per_page'] ?? self::PAYMENT_LIST_PER_PAGE);
@@ -491,6 +503,46 @@ final class SubscriptionPaymentService
         }
 
         return $details;
+    }
+
+    private function normalizeExpiredGatewayPixCharges(array $payments): bool
+    {
+        $companyIds = [];
+        foreach ($payments as $payment) {
+            if (!is_array($payment) || !$this->isUnpaidGatewayPixCanceled($payment)) {
+                continue;
+            }
+
+            $companyId = (int) ($payment['company_id'] ?? 0);
+            if ($companyId > 0) {
+                $companyIds[$companyId] = true;
+            }
+        }
+
+        foreach (array_keys($companyIds) as $companyId) {
+            $this->subscriptionPortal->synchronizeCompanyBilling((int) $companyId);
+        }
+
+        return $companyIds !== [];
+    }
+
+    private function isUnpaidGatewayPixCanceled(array $payment): bool
+    {
+        if (strtolower(trim((string) ($payment['status'] ?? ''))) !== 'cancelado') {
+            return false;
+        }
+
+        if (trim((string) ($payment['gateway_payment_id'] ?? '')) === '') {
+            return false;
+        }
+
+        if (trim((string) ($payment['paid_at'] ?? '')) !== '') {
+            return false;
+        }
+
+        $method = strtolower(trim((string) ($payment['payment_method'] ?? '')));
+        $origin = strtolower(trim((string) ($payment['charge_origin'] ?? '')));
+        return $method === 'pix' || $origin === 'pix';
     }
 
     private function synchronizePaymentCompany(array $payment): void

@@ -48,7 +48,7 @@ final class SubscriptionGatewayService
             throw new ValidationException('A cobranca ja foi quitada e nao precisa de novo QR PIX.');
         }
 
-        if ((string) ($payment['status'] ?? '') === 'cancelado') {
+        if ((string) ($payment['status'] ?? '') === 'cancelado' && !$this->isUnpaidGatewayPixCharge($payment)) {
             throw new ValidationException('Nao e possivel gerar PIX para uma cobranca cancelada.');
         }
 
@@ -56,19 +56,19 @@ final class SubscriptionGatewayService
             throw new ValidationException('Nao e possivel gerar PIX para cobranca sem valor financeiro.');
         }
 
-        if (trim((string) ($payment['gateway_payment_id'] ?? '')) !== ''
-            && trim((string) ($payment['pix_qr_image_base64'] ?? '')) !== '') {
+        if ($this->hasReusablePixCharge($payment)) {
             return;
         }
 
         $companyEmail = $this->resolveCompanyEmail($subscription, 'gerar PIX no gateway');
 
         $reference = sprintf(
-            'SUB-%d-%02d%04d-%d',
+            'SUB-%d-%02d%04d-%d-%s',
             $companyId,
             (int) ($payment['reference_month'] ?? 0),
             (int) ($payment['reference_year'] ?? 0),
-            $paymentId
+            $paymentId,
+            date('YmdHis')
         );
 
         $response = $this->gateway->createPixPayment([
@@ -206,7 +206,7 @@ final class SubscriptionGatewayService
 
             $paymentResponse = $this->gateway->getPayment($gatewayPaymentId);
             $transactionData = $paymentResponse['point_of_interaction']['transaction_data'] ?? [];
-            $status = $this->mapGatewayPaymentStatus((string) ($paymentResponse['status'] ?? ''));
+            $status = $this->mapGatewayPaymentStatus($paymentResponse);
             $paidAt = $this->resolveGatewayPaidAt($paymentResponse, $payment);
 
             $this->subscriptionPayments->updateRecord((int) ($payment['id'] ?? 0), [
@@ -256,7 +256,7 @@ final class SubscriptionGatewayService
 
         $paymentResponse = $this->gateway->getPayment($gatewayPaymentId);
         $transactionData = $paymentResponse['point_of_interaction']['transaction_data'] ?? [];
-        $status = $this->mapGatewayPaymentStatus((string) ($paymentResponse['status'] ?? ''));
+        $status = $this->mapGatewayPaymentStatus($paymentResponse);
         $paidAt = $this->resolveGatewayPaidAt($paymentResponse, $payment);
 
         $this->subscriptionPayments->updateRecord($paymentId, [
@@ -303,7 +303,7 @@ final class SubscriptionGatewayService
             $paymentResponse = $this->gateway->getPayment($dataId);
             $payment = $this->subscriptionPayments->findByGatewayPaymentId($dataId);
             if ($payment !== null) {
-                $status = $this->mapGatewayPaymentStatus((string) ($paymentResponse['status'] ?? ''));
+                $status = $this->mapGatewayPaymentStatus($paymentResponse);
                 $transactionData = $paymentResponse['point_of_interaction']['transaction_data'] ?? [];
                 $paidAt = $this->resolveGatewayPaidAt($paymentResponse, $payment);
                 $this->subscriptionPayments->updateRecord((int) $payment['id'], [
@@ -337,8 +337,7 @@ final class SubscriptionGatewayService
             $subscriptionResponse = $this->gateway->getSubscription($dataId);
             $subscription = $this->subscriptions->findByGatewaySubscriptionId($dataId);
             if ($subscription !== null) {
-                $status = trim((string) ($subscriptionResponse['status'] ?? ''));
-                $billingStatus = in_array($status, ['authorized', 'active'], true) ? 'ativa' : (in_array($status, ['cancelled', 'cancelled_by_payer'], true) ? 'cancelada' : 'trial');
+                $status = strtolower(trim((string) ($subscriptionResponse['status'] ?? '')));
 
                 $this->subscriptions->updateGatewayProfile((int) $subscription['id'], [
                     'gateway_provider' => 'mercado_pago',
@@ -349,25 +348,31 @@ final class SubscriptionGatewayService
                     'gateway_last_synced_at' => date('Y-m-d H:i:s'),
                 ]);
 
-                $this->subscriptions->updateStatus((int) $subscription['id'], $billingStatus);
-                $this->companies->updateSubscriptionSnapshot((int) ($subscription['company_id'] ?? 0), [
-                    'plan_id' => $subscription['plan_id'] ?? null,
-                    'subscription_status' => $billingStatus === 'ativa' ? 'ativa' : ($billingStatus === 'cancelada' ? 'cancelada' : 'trial'),
-                    'trial_ends_at' => null,
-                    'subscription_starts_at' => $subscription['starts_at'] ?? null,
-                    'subscription_ends_at' => $subscription['ends_at'] ?? null,
-                ]);
-
-                if ($billingStatus === 'ativa') {
+                if (in_array($status, ['authorized', 'active'], true)) {
+                    $this->subscriptions->updateStatus((int) $subscription['id'], 'ativa');
+                    $this->companies->updateSubscriptionSnapshot((int) ($subscription['company_id'] ?? 0), [
+                        'plan_id' => $subscription['plan_id'] ?? null,
+                        'subscription_status' => 'ativa',
+                        'trial_ends_at' => null,
+                        'subscription_starts_at' => $subscription['starts_at'] ?? null,
+                        'subscription_ends_at' => $subscription['ends_at'] ?? null,
+                    ]);
                     $this->subscriptions->updateBillingProfile((int) $subscription['id'], [
                         'preferred_payment_method' => $this->resolveGatewayCardMethod($subscriptionResponse),
                         'auto_charge_enabled' => 1,
                         'card_brand' => $this->normalizeGatewayCardBrand((string) ($subscriptionResponse['payment_method_id'] ?? '')),
                         'card_last_digits' => null,
                     ]);
-                }
 
-                $this->accessProvisioning->activateIfEligible((int) ($subscription['company_id'] ?? 0));
+                    $this->accessProvisioning->activateIfEligible((int) ($subscription['company_id'] ?? 0));
+                } elseif (in_array($status, ['cancelled', 'cancelled_by_payer', 'canceled'], true)) {
+                    $this->subscriptions->updateBillingProfile((int) $subscription['id'], [
+                        'preferred_payment_method' => 'pix',
+                        'auto_charge_enabled' => 0,
+                        'card_brand' => null,
+                        'card_last_digits' => null,
+                    ]);
+                }
             }
 
             return ['type' => 'preapproval', 'data_id' => $dataId];
@@ -431,12 +436,49 @@ final class SubscriptionGatewayService
         );
     }
 
-    private function mapGatewayPaymentStatus(string $gatewayStatus): string
+    private function hasReusablePixCharge(array $payment): bool
     {
-        $gatewayStatus = strtolower(trim($gatewayStatus));
+        $paymentStatus = strtolower(trim((string) ($payment['status'] ?? '')));
+        if ($paymentStatus !== 'pendente') {
+            return false;
+        }
+
+        $gatewayPaymentId = trim((string) ($payment['gateway_payment_id'] ?? ''));
+        $pixImage = trim((string) ($payment['pix_qr_image_base64'] ?? ''));
+        if ($gatewayPaymentId === '' || $pixImage === '') {
+            return false;
+        }
+
+        $gatewayStatus = strtolower(trim((string) ($payment['gateway_status'] ?? '')));
+        return !in_array($gatewayStatus, ['cancelled', 'canceled', 'expired', 'rejected', 'refunded', 'charged_back'], true);
+    }
+
+    private function isUnpaidGatewayPixCharge(array $payment): bool
+    {
+        $gatewayPaymentId = trim((string) ($payment['gateway_payment_id'] ?? ''));
+        if ($gatewayPaymentId === '') {
+            return false;
+        }
+
+        if (trim((string) ($payment['paid_at'] ?? '')) !== '') {
+            return false;
+        }
+
+        $method = strtolower(trim((string) ($payment['payment_method'] ?? '')));
+        $origin = strtolower(trim((string) ($payment['charge_origin'] ?? '')));
+        return $method === 'pix' || $origin === 'pix';
+    }
+
+    private function mapGatewayPaymentStatus(array $paymentResponse): string
+    {
+        $gatewayStatus = strtolower(trim((string) ($paymentResponse['status'] ?? '')));
+        $statusDetail = strtolower(trim((string) ($paymentResponse['status_detail'] ?? '')));
+        $paymentMethod = strtolower(trim((string) ($paymentResponse['payment_method_id'] ?? '')));
+
         return match ($gatewayStatus) {
             'approved' => 'pago',
-            'cancelled', 'canceled', 'refunded', 'charged_back' => 'cancelado',
+            'cancelled', 'canceled' => ($statusDetail === 'expired' || $paymentMethod === 'pix') ? 'vencido' : 'cancelado',
+            'refunded', 'charged_back' => 'cancelado',
             'rejected', 'expired' => 'vencido',
             default => 'pendente',
         };

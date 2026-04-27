@@ -386,13 +386,19 @@ final class SubscriptionPortalService
             }
 
             $paymentStatus = trim((string) ($payment['status'] ?? ''));
-            if ($paymentStatus === 'cancelado' || $paymentStatus === 'pago') {
+            if ($paymentStatus === 'pago') {
+                continue;
+            }
+
+            if ($paymentStatus === 'cancelado' && !$this->isUnpaidGatewayPixCharge($payment)) {
                 continue;
             }
 
             $dueDate = $this->dateOrToday((string) ($payment['due_date'] ?? ''));
             $targetStatus = $paymentStatus;
-            if ($activeGatewayCard && $paymentStatus === 'vencido') {
+            if ($paymentStatus === 'cancelado' && $this->isUnpaidGatewayPixCharge($payment)) {
+                $targetStatus = 'vencido';
+            } elseif ($activeGatewayCard && $paymentStatus === 'vencido') {
                 $targetStatus = 'pendente';
             } elseif (!$activeGatewayCard && $paymentStatus === 'pendente' && $dueDate < $today) {
                 $targetStatus = 'vencido';
@@ -1122,6 +1128,21 @@ final class SubscriptionPortalService
 
         $gatewayStatus = strtolower(trim((string) ($subscription['gateway_status'] ?? '')));
         return in_array($gatewayStatus, ['authorized', 'active'], true);
+    }
+
+    private function isUnpaidGatewayPixCharge(array $payment): bool
+    {
+        if (trim((string) ($payment['gateway_payment_id'] ?? '')) === '') {
+            return false;
+        }
+
+        if (trim((string) ($payment['paid_at'] ?? '')) !== '') {
+            return false;
+        }
+
+        $method = strtolower(trim((string) ($payment['payment_method'] ?? '')));
+        $origin = strtolower(trim((string) ($payment['charge_origin'] ?? '')));
+        return $method === 'pix' || $origin === 'pix';
     }
 
     private function mergePaymentDetails(array $payment, array $merge): array
