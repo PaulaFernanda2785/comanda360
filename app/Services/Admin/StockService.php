@@ -12,7 +12,8 @@ use Throwable;
 final class StockService
 {
     private const ITEMS_PER_PAGE = 10;
-    private const MOVEMENTS_PER_PAGE = 10;
+    private const MOVEMENTS_PER_PAGE = 15;
+    private const AUTOMATIC_STOCK_PER_PAGE = 15;
 
     private const ALLOWED_ITEM_STATUS = [
         'ativo',
@@ -28,6 +29,11 @@ final class StockService
         'entry',
         'exit',
         'adjustment',
+    ];
+
+    private const ALLOWED_AUTOMATIC_STOCK_ISSUES = [
+        'missing_recipe',
+        'missing_consumption',
     ];
 
     private const ALLOWED_REFERENCE_TYPES = [
@@ -82,6 +88,15 @@ final class StockService
             $normalized['movement_page'],
             self::MOVEMENTS_PER_PAGE
         );
+        $automaticStockPage = $this->stock->listSoldProductsWithoutAutomaticConsumptionPaginated(
+            $companyId,
+            [
+                'search' => $normalized['automatic_stock_search'],
+                'issue' => $normalized['automatic_stock_issue'],
+            ],
+            $normalized['automatic_stock_page'],
+            self::AUTOMATIC_STOCK_PER_PAGE
+        );
 
         $productsForLink = $this->stock->listProductsForLink($companyId);
 
@@ -96,7 +111,8 @@ final class StockService
             'recipe_stock_items' => $this->stock->listActiveItemsForRecipe($companyId),
             'recipe_rows' => $this->stock->listRecipeRows($companyId),
             'production_alerts' => $this->buildProductionAlerts($companyId, $productsForLink),
-            'sold_without_auto_stock' => $this->stock->listSoldProductsWithoutAutomaticConsumption($companyId, 10),
+            'sold_without_auto_stock' => is_array($automaticStockPage['items'] ?? null) ? $automaticStockPage['items'] : [],
+            'automatic_stock_pagination' => $this->buildPaginationPayload($automaticStockPage),
             'stock_automation_ready' => $this->stock->tableExists('stock_recipe_items') && $this->stock->tableExists('stock_consumptions'),
             'status_options' => self::ALLOWED_ITEM_STATUS,
             'alert_options' => self::ALLOWED_ALERT_FILTERS,
@@ -109,7 +125,7 @@ final class StockService
     public function createItem(int $companyId, int $userId, array $input): int
     {
         if ($userId <= 0) {
-            throw new ValidationException('Usuario invalido para cadastrar item de estoque.');
+            throw new ValidationException('Usuário inválido para cadastrar item de estoque.');
         }
 
         $payload = $this->normalizeItemPayload($companyId, $input, null);
@@ -159,12 +175,12 @@ final class StockService
     public function updateItem(int $companyId, int $itemId, array $input): void
     {
         if ($itemId <= 0) {
-            throw new ValidationException('Item de estoque invalido para edicao.');
+            throw new ValidationException('Item de estoque inválido para edição.');
         }
 
         $existing = $this->stock->findItemById($companyId, $itemId);
         if ($existing === null) {
-            throw new ValidationException('Item de estoque nao encontrado para a empresa autenticada.');
+            throw new ValidationException('Item de estoque não encontrado para a empresa autenticada.');
         }
 
         $payload = $this->normalizeItemPayload($companyId, $input, $existing);
@@ -187,22 +203,22 @@ final class StockService
     public function recordMovement(int $companyId, int $userId, array $input): void
     {
         if ($userId <= 0) {
-            throw new ValidationException('Usuario invalido para movimentar estoque.');
+            throw new ValidationException('Usuário inválido para movimentar estoque.');
         }
 
         $itemId = (int) ($input['stock_item_id'] ?? 0);
         if ($itemId <= 0) {
-            throw new ValidationException('Selecione um item valido para movimentacao.');
+            throw new ValidationException('Selecione um item válido para movimentação.');
         }
 
         $item = $this->stock->findItemById($companyId, $itemId);
         if ($item === null) {
-            throw new ValidationException('Item de estoque nao encontrado para movimentacao.');
+            throw new ValidationException('Item de estoque não encontrado para movimentação.');
         }
 
         $type = strtolower(trim((string) ($input['movement_type'] ?? '')));
         if (!in_array($type, self::ALLOWED_MOVEMENT_TYPES, true)) {
-            throw new ValidationException('Tipo de movimentacao invalido.');
+            throw new ValidationException('Tipo de movimentação inválido.');
         }
 
         $currentQuantity = round((float) ($item['current_quantity'] ?? 0), 3);
@@ -212,12 +228,12 @@ final class StockService
         if ($type === 'adjustment') {
             $targetQuantity = $this->parseDecimal($input['target_quantity'] ?? null, 'saldo alvo', true);
             if ($targetQuantity < 0) {
-                throw new ValidationException('O saldo alvo do ajuste nao pode ser negativo.');
+                throw new ValidationException('O saldo correto após ajuste não pode ser negativo.');
             }
 
             $movedQuantity = round(abs($targetQuantity - $currentQuantity), 3);
             if ($movedQuantity <= 0) {
-                throw new ValidationException('O ajuste informado nao altera o saldo atual.');
+                throw new ValidationException('O ajuste informado não altera o saldo atual.');
             }
 
             $nextQuantity = round($targetQuantity, 3);
@@ -229,7 +245,7 @@ final class StockService
                 $nextQuantity = round($currentQuantity + $movedQuantity, 3);
             } else {
                 if ($movedQuantity > $currentQuantity) {
-                    throw new ValidationException('A saida informada e maior que o saldo disponivel do item.');
+                    throw new ValidationException('A saída informada é maior que o saldo disponível do item.');
                 }
 
                 $nextQuantity = round($currentQuantity - $movedQuantity, 3);
@@ -281,16 +297,16 @@ final class StockService
     public function updateRecipe(int $companyId, array $input): void
     {
         if (!$this->stock->tableExists('stock_recipe_items')) {
-            throw new ValidationException('Estrutura de ficha tecnica ainda nao instalada. Execute o patch SQL de evolucao do estoque.');
+            throw new ValidationException('Estrutura de ficha técnica ainda não instalada. Execute o patch SQL de evolução do estoque.');
         }
 
         $productId = (int) ($input['recipe_product_id'] ?? 0);
         if ($productId <= 0) {
-            throw new ValidationException('Selecione um produto valido para a ficha tecnica.');
+            throw new ValidationException('Selecione um produto válido para a ficha técnica.');
         }
 
         if ($this->products->findByIdForCompany($companyId, $productId) === null) {
-            throw new ValidationException('Produto da ficha tecnica nao pertence a empresa autenticada.');
+            throw new ValidationException('Produto da ficha técnica não pertence à empresa autenticada.');
         }
 
         $stockItemIds = $input['recipe_stock_item_id'] ?? [];
@@ -298,7 +314,7 @@ final class StockService
         $wastePercents = $input['recipe_waste_percent'] ?? [];
 
         if (!is_array($stockItemIds) || !is_array($quantities) || !is_array($wastePercents)) {
-            throw new ValidationException('Formato da ficha tecnica invalido.');
+            throw new ValidationException('Formato da ficha técnica inválido.');
         }
 
         $rows = [];
@@ -313,18 +329,18 @@ final class StockService
             }
 
             if ($stockItemId <= 0) {
-                throw new ValidationException('Selecione um item de estoque valido na ficha tecnica.');
+                throw new ValidationException('Selecione um item de estoque válido na ficha técnica.');
             }
 
             $item = $this->stock->findItemById($companyId, $stockItemId);
             if ($item === null) {
-                throw new ValidationException('Item de estoque da ficha tecnica nao pertence a empresa autenticada.');
+                throw new ValidationException('Item de estoque da ficha técnica não pertence à empresa autenticada.');
             }
 
             $quantity = $this->parseDecimal($rawQuantity, 'consumo por unidade', false);
-            $waste = $this->parseNullableDecimal($rawWaste, 'perda tecnica') ?? 0.0;
+            $waste = $this->parseNullableDecimal($rawWaste, 'perda técnica') ?? 0.0;
             if ($waste < 0 || $waste > 100) {
-                throw new ValidationException('A perda tecnica deve ficar entre 0 e 100%.');
+                throw new ValidationException('A perda técnica deve ficar entre 0 e 100%.');
             }
 
             $rows[$stockItemId] = [
@@ -375,8 +391,19 @@ final class StockService
             $movementType = '';
         }
 
+        $automaticStockSearch = trim((string) ($filters['stock_auto_search'] ?? ''));
+        if (strlen($automaticStockSearch) > 80) {
+            $automaticStockSearch = substr($automaticStockSearch, 0, 80);
+        }
+
+        $automaticStockIssue = strtolower(trim((string) ($filters['stock_auto_issue'] ?? '')));
+        if ($automaticStockIssue !== '' && !in_array($automaticStockIssue, self::ALLOWED_AUTOMATIC_STOCK_ISSUES, true)) {
+            $automaticStockIssue = '';
+        }
+
         $page = max(1, (int) ($filters['stock_page'] ?? 1));
         $movementPage = max(1, (int) ($filters['stock_movement_page'] ?? 1));
+        $automaticStockPage = max(1, (int) ($filters['stock_auto_page'] ?? 1));
 
         return [
             'search' => $search,
@@ -384,8 +411,11 @@ final class StockService
             'alert' => $alert,
             'movement_search' => $movementSearch,
             'movement_type' => $movementType,
+            'automatic_stock_search' => $automaticStockSearch,
+            'automatic_stock_issue' => $automaticStockIssue,
             'page' => $page,
             'movement_page' => $movementPage,
+            'automatic_stock_page' => $automaticStockPage,
         ];
     }
 
@@ -453,7 +483,7 @@ final class StockService
 
         $minimumQuantity = $this->parseNullableDecimal($input['minimum_quantity'] ?? ($existing['minimum_quantity'] ?? null), 'estoque minimo');
         if ($minimumQuantity !== null && $minimumQuantity < 0) {
-            throw new ValidationException('O estoque minimo nao pode ser negativo.');
+            throw new ValidationException('O estoque mínimo não pode ser negativo.');
         }
 
         $unit = strtolower(trim((string) ($input['unit_of_measure'] ?? ($existing['unit_of_measure'] ?? 'un'))));
@@ -463,7 +493,7 @@ final class StockService
 
         $status = strtolower(trim((string) ($input['status'] ?? ($existing['status'] ?? 'ativo'))));
         if (!in_array($status, self::ALLOWED_ITEM_STATUS, true)) {
-            throw new ValidationException('Status invalido para o item de estoque.');
+            throw new ValidationException('Status inválido para o item de estoque.');
         }
 
         return [
@@ -505,7 +535,7 @@ final class StockService
         $normalized = array_keys($productIds);
         foreach ($normalized as $productId) {
             if ($this->products->findByIdForCompany($companyId, (int) $productId) === null) {
-                throw new ValidationException('Produto vinculado invalido para este item de estoque.');
+                throw new ValidationException('Produto vinculado inválido para este item de estoque.');
             }
         }
 
@@ -539,12 +569,12 @@ final class StockService
     {
         $raw = str_replace(',', '.', trim((string) ($value ?? '')));
         if ($raw === '' || !is_numeric($raw)) {
-            throw new ValidationException('Informe um valor valido para ' . $label . '.');
+            throw new ValidationException('Informe um valor válido para ' . $label . '.');
         }
 
         $parsed = round((float) $raw, 3);
         if ($allowZero ? $parsed < 0 : $parsed <= 0) {
-            throw new ValidationException('O valor informado para ' . $label . ' nao e valido.');
+            throw new ValidationException('O valor informado para ' . $label . ' não é válido.');
         }
 
         return $parsed;
@@ -558,7 +588,7 @@ final class StockService
         }
 
         if (!is_numeric($raw)) {
-            throw new ValidationException('Informe um valor valido para ' . $label . '.');
+            throw new ValidationException('Informe um valor válido para ' . $label . '.');
         }
 
         return round((float) $raw, 3);

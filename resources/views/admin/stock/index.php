@@ -6,6 +6,7 @@ $movements = is_array($stockPanel['movements'] ?? null) ? $stockPanel['movements
 $filters = is_array($stockPanel['filters'] ?? null) ? $stockPanel['filters'] : [];
 $itemPagination = is_array($stockPanel['item_pagination'] ?? null) ? $stockPanel['item_pagination'] : [];
 $movementPagination = is_array($stockPanel['movement_pagination'] ?? null) ? $stockPanel['movement_pagination'] : [];
+$automaticStockPagination = is_array($stockPanel['automatic_stock_pagination'] ?? null) ? $stockPanel['automatic_stock_pagination'] : [];
 $products = is_array($stockPanel['products'] ?? null) ? $stockPanel['products'] : [];
 $recipeStockItems = is_array($stockPanel['recipe_stock_items'] ?? null) ? $stockPanel['recipe_stock_items'] : [];
 $recipeRows = is_array($stockPanel['recipe_rows'] ?? null) ? $stockPanel['recipe_rows'] : [];
@@ -22,6 +23,8 @@ $stockStatus = trim((string) ($filters['status'] ?? ''));
 $stockAlert = trim((string) ($filters['alert'] ?? ''));
 $stockMovementSearch = trim((string) ($filters['movement_search'] ?? ''));
 $stockMovementType = trim((string) ($filters['movement_type'] ?? ''));
+$stockAutoSearch = trim((string) ($filters['automatic_stock_search'] ?? ''));
+$stockAutoIssue = trim((string) ($filters['automatic_stock_issue'] ?? ''));
 
 $statusOptions = [
     '' => 'Todos os status',
@@ -42,6 +45,12 @@ $movementTypeOptions = [
     'adjustment' => 'Ajustes',
 ];
 
+$automaticStockIssueOptions = [
+    '' => 'Todos os problemas',
+    'missing_recipe' => 'Sem ficha técnica',
+    'missing_consumption' => 'Sem baixa registrada',
+];
+
 $referenceTypeLabels = [
     'manual' => 'Manual',
     'purchase' => 'Compra',
@@ -58,7 +67,7 @@ $buildStockUrl = static function (array $overrides = []) use ($currentQuery): st
     $params = array_merge($currentQuery, $overrides);
 
     foreach ($params as $key => $value) {
-        if (in_array($key, ['stock_search', 'stock_status', 'stock_alert', 'stock_page', 'stock_movement_search', 'stock_movement_type', 'stock_movement_page'], true)
+        if (in_array($key, ['stock_search', 'stock_status', 'stock_alert', 'stock_page', 'stock_movement_search', 'stock_movement_type', 'stock_movement_page', 'stock_auto_search', 'stock_auto_issue', 'stock_auto_page'], true)
             && trim((string) $value) === '') {
             unset($params[$key]);
         }
@@ -346,6 +355,8 @@ $renderProductPicker = static function (string $pickerId, array $products, array
     .stock-recipe-builder{display:grid;gap:12px}
     .stock-recipe-grid{display:grid;gap:8px}
     .stock-recipe-row{display:grid;grid-template-columns:minmax(180px,1.4fr) minmax(120px,.7fr) minmax(110px,.6fr) auto;gap:8px;align-items:end}
+    .stock-recipe-row .field{margin:0}
+    .stock-recipe-remove{align-self:end;min-height:42px;white-space:nowrap}
     .stock-recipe-current{display:flex;gap:8px;flex-wrap:wrap}
     .stock-recipe-pill{padding:6px 10px;border-radius:999px;border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;font-size:12px;font-weight:700}
 
@@ -443,6 +454,9 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                     <input type="hidden" name="stock_movement_search" value="<?= htmlspecialchars($stockMovementSearch) ?>">
                     <input type="hidden" name="stock_movement_type" value="<?= htmlspecialchars($stockMovementType) ?>">
                     <input type="hidden" name="stock_movement_page" value="<?= htmlspecialchars((string) ($movementPagination['page'] ?? 1)) ?>">
+                    <input type="hidden" name="stock_auto_search" value="<?= htmlspecialchars($stockAutoSearch) ?>">
+                    <input type="hidden" name="stock_auto_issue" value="<?= htmlspecialchars($stockAutoIssue) ?>">
+                    <input type="hidden" name="stock_auto_page" value="<?= htmlspecialchars((string) ($automaticStockPagination['page'] ?? 1)) ?>">
 
                     <div class="stock-filter-grid">
                         <div class="field">
@@ -604,10 +618,10 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                                                 </div>
                                                 <div class="field">
                                                     <label for="stock_quantity_<?= (int) ($item['id'] ?? 0) ?>">Quantidade</label>
-                                                    <input id="stock_quantity_<?= (int) ($item['id'] ?? 0) ?>" name="quantity" type="number" min="0.001" step="0.001" placeholder="Use para entrada ou saida">
+                                                    <input id="stock_quantity_<?= (int) ($item['id'] ?? 0) ?>" name="quantity" type="number" min="0.001" step="0.001" placeholder="Use para entrada ou saída">
                                                 </div>
                                                 <div class="field">
-                                                    <label for="stock_target_<?= (int) ($item['id'] ?? 0) ?>">Saldo correto apos ajuste</label>
+                                                    <label for="stock_target_<?= (int) ($item['id'] ?? 0) ?>">Saldo correto após ajuste</label>
                                                     <input id="stock_target_<?= (int) ($item['id'] ?? 0) ?>" name="target_quantity" type="number" min="0" step="0.001" placeholder="Saldo final contado">
                                                 </div>
                                                 <div class="field">
@@ -628,7 +642,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
 
                                             <div class="stock-actions stock-actions--offset">
                                                 <button class="btn" type="submit">Registrar movimento</button>
-                                                <span class="stock-form-note">Entrada e saída usam quantidade. Ajuste usa o saldo correto apos contagem. Misturar os dois enfraquece a confiabilidade do histórico.</span>
+                                                <span class="stock-form-note">Entrada e saída usam quantidade. Ajuste usa o saldo correto após contagem. Misturar os dois enfraquece a confiabilidade do histórico.</span>
                                             </div>
                                         </form>
                                     </div>
@@ -659,7 +673,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                                     <?php $lastRenderedPage = $pageNumber; ?>
                                 <?php endforeach; ?>
                                 <?php if ((int) ($itemPagination['page'] ?? 1) < (int) ($itemPagination['last_page'] ?? 1)): ?>
-                                    <a class="stock-page-btn" href="<?= htmlspecialchars($buildStockUrl(['stock_page' => ((int) $itemPagination['page']) + 1])) ?>">Proxima</a>
+                                    <a class="stock-page-btn" href="<?= htmlspecialchars($buildStockUrl(['stock_page' => ((int) $itemPagination['page']) + 1])) ?>">Próxima</a>
                                 <?php endif; ?>
                             </div>
                         <?php endif; ?>
@@ -695,10 +709,44 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                         <h3>Baixa automática</h3>
                         <p class="stock-note">Produtos vendidos sem baixa automática indicam itens sem ficha técnica ou pedidos antigos sem consumo registrado.</p>
                     </div>
+                    <div class="stock-badges">
+                        <span class="badge">Máximo de 15 por página</span>
+                    </div>
                 </div>
                 <div class="stock-summary-grid">
-                    <div class="stock-summary-item"><strong>Produtos vendidos sem baixa automática</strong><span><?= count($soldWithoutAutoStock) ?></span></div>
+                    <div class="stock-summary-item"><strong>Produtos vendidos sem baixa automática</strong><span><?= (int) ($automaticStockPagination['total'] ?? count($soldWithoutAutoStock)) ?></span></div>
                 </div>
+
+                <form method="GET" action="<?= htmlspecialchars(base_url('/admin/stock')) ?>" style="margin-top:12px">
+                    <input type="hidden" name="stock_search" value="<?= htmlspecialchars($stockSearch) ?>">
+                    <input type="hidden" name="stock_status" value="<?= htmlspecialchars($stockStatus) ?>">
+                    <input type="hidden" name="stock_alert" value="<?= htmlspecialchars($stockAlert) ?>">
+                    <input type="hidden" name="stock_page" value="<?= htmlspecialchars((string) ($itemPagination['page'] ?? 1)) ?>">
+                    <input type="hidden" name="stock_movement_search" value="<?= htmlspecialchars($stockMovementSearch) ?>">
+                    <input type="hidden" name="stock_movement_type" value="<?= htmlspecialchars($stockMovementType) ?>">
+                    <input type="hidden" name="stock_movement_page" value="<?= htmlspecialchars((string) ($movementPagination['page'] ?? 1)) ?>">
+
+                    <div class="stock-form-grid">
+                        <div class="field">
+                            <label for="stock_auto_search">Buscar produto</label>
+                            <input id="stock_auto_search" name="stock_auto_search" type="text" value="<?= htmlspecialchars($stockAutoSearch) ?>" placeholder="Produto ou ID">
+                        </div>
+                        <div class="field">
+                            <label for="stock_auto_issue">Problema</label>
+                            <select id="stock_auto_issue" name="stock_auto_issue">
+                                <?php foreach ($automaticStockIssueOptions as $value => $label): ?>
+                                    <option value="<?= htmlspecialchars($value) ?>" <?= $stockAutoIssue === $value ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="stock-actions stock-actions--offset">
+                        <input type="hidden" name="stock_auto_page" value="1">
+                        <button class="btn" type="submit">Filtrar baixa automática</button>
+                        <a class="btn secondary" href="<?= htmlspecialchars($buildStockUrl(['stock_auto_search' => '', 'stock_auto_issue' => '', 'stock_auto_page' => 1])) ?>">Limpar baixa automática</a>
+                    </div>
+                </form>
+
                 <div class="stock-movement-list" style="margin-top:12px">
                     <?php if ($soldWithoutAutoStock === []): ?>
                         <div class="stock-empty">Nenhum produto vendido sem baixa automática encontrado.</div>
@@ -721,6 +769,34 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
+
+                <?php if ((int) ($automaticStockPagination['total'] ?? 0) > 0): ?>
+                    <div class="stock-pagination" style="margin-top:14px">
+                        <div class="stock-note">
+                            Exibindo <?= htmlspecialchars((string) ($automaticStockPagination['from'] ?? 0)) ?> a <?= htmlspecialchars((string) ($automaticStockPagination['to'] ?? 0)) ?> de <?= htmlspecialchars((string) ($automaticStockPagination['total'] ?? 0)) ?> registros.
+                        </div>
+                        <?php if ((int) ($automaticStockPagination['last_page'] ?? 1) > 1): ?>
+                            <div class="stock-pagination-controls">
+                                <?php if ((int) ($automaticStockPagination['page'] ?? 1) > 1): ?>
+                                    <a class="stock-page-btn" href="<?= htmlspecialchars($buildStockUrl(['stock_auto_page' => ((int) $automaticStockPagination['page']) - 1])) ?>">Anterior</a>
+                                <?php endif; ?>
+                                <?php
+                                $lastRenderedAutoStockPage = 0;
+                                foreach (is_array($automaticStockPagination['pages'] ?? null) ? $automaticStockPagination['pages'] : [] as $pageNumber):
+                                    $pageNumber = (int) $pageNumber;
+                                    if ($lastRenderedAutoStockPage > 0 && $pageNumber - $lastRenderedAutoStockPage > 1): ?>
+                                        <span class="stock-page-ellipsis">...</span>
+                                    <?php endif; ?>
+                                    <a class="stock-page-btn<?= $pageNumber === (int) ($automaticStockPagination['page'] ?? 1) ? ' is-active' : '' ?>" href="<?= htmlspecialchars($buildStockUrl(['stock_auto_page' => $pageNumber])) ?>"><?= $pageNumber ?></a>
+                                    <?php $lastRenderedAutoStockPage = $pageNumber; ?>
+                                <?php endforeach; ?>
+                                <?php if ((int) ($automaticStockPagination['page'] ?? 1) < (int) ($automaticStockPagination['last_page'] ?? 1)): ?>
+                                    <a class="stock-page-btn" href="<?= htmlspecialchars($buildStockUrl(['stock_auto_page' => ((int) $automaticStockPagination['page']) + 1])) ?>">Próxima</a>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
             </section>
 
             <section class="card">
@@ -799,7 +875,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                             </div>
                             <div class="field full">
                                 <label>Produtos que usam este item</label>
-                                <?php $renderProductPicker('new_stock', $products, [], 'Use este vínculo quando o item abastece um ou mais produtos. O relacionamento organiza o controle, mas o consumo automático por venda depende de ficha técnica, que ainda não existe no módulo atual.'); ?>
+                                <?php $renderProductPicker('new_stock', $products, [], 'Use este vínculo quando o item abastece um ou mais produtos. O relacionamento organiza o controle, enquanto a baixa automática por venda depende da ficha técnica configurada no módulo de estoque.'); ?>
                             </div>
                         </div>
 
@@ -813,15 +889,15 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                 <section class="card">
                     <div class="stock-head">
                         <div>
-                            <h3>Ficha tecnica</h3>
-                            <p class="stock-note">Defina quanto cada produto consome de estoque. A baixa automatica acontece quando o pedido fica pago e finalizado.</p>
+                            <h3>Ficha técnica</h3>
+                            <p class="stock-note">Defina quanto cada produto consome de estoque. A baixa automática acontece quando o pedido fica pago e finalizado.</p>
                         </div>
                     </div>
 
                     <?php if (!$stockAutomationReady): ?>
-                        <div class="stock-empty" style="margin-top:12px">A estrutura de ficha tecnica ainda nao esta instalada no banco. Execute o patch SQL de evolucao do estoque antes de usar este modulo.</div>
+                        <div class="stock-empty" style="margin-top:12px">A estrutura de ficha técnica ainda não está instalada no banco. Execute o patch SQL de evolução do estoque antes de usar este módulo.</div>
                     <?php elseif ($products === [] || $recipeStockItems === []): ?>
-                        <div class="stock-empty" style="margin-top:12px">Cadastre produtos e itens ativos de estoque antes de montar a ficha tecnica.</div>
+                        <div class="stock-empty" style="margin-top:12px">Cadastre produtos e itens ativos de estoque antes de montar a ficha técnica.</div>
                     <?php else: ?>
                         <form class="stock-recipe-builder" method="POST" action="<?= htmlspecialchars(base_url('/admin/stock/recipes/update')) ?>" data-stock-recipe-form>
                             <?= form_security_fields('stock.recipes.update') ?>
@@ -838,14 +914,14 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                             </div>
 
                             <div class="stock-recipe-current" data-stock-recipe-current>
-                                <span class="stock-form-note">Selecione um produto para carregar a composicao atual.</span>
+                                <span class="stock-form-note">Selecione um produto para carregar a composição atual.</span>
                             </div>
 
                             <div class="stock-recipe-grid" data-stock-recipe-grid></div>
 
                             <div class="stock-actions">
                                 <button class="btn secondary" type="button" data-stock-recipe-add>Adicionar insumo</button>
-                                <button class="btn" type="submit">Salvar ficha tecnica</button>
+                                <button class="btn" type="submit">Salvar ficha técnica</button>
                             </div>
                             <span class="stock-form-note">Consumo por unidade deve usar a unidade do item de estoque. Ex.: produto vende 1 pizza e consome 0,250 kg de queijo.</span>
                         </form>
@@ -860,7 +936,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                         <p class="stock-note">Histórico de entradas, saídas e ajustes. O filtro da fila agora é independente do painel principal.</p>
                     </div>
                     <div class="stock-badges">
-                        <span class="badge">Máximo de 10 por página</span>
+                        <span class="badge">Máximo de 15 por página</span>
                     </div>
                 </div>
 
@@ -874,6 +950,9 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                     <input type="hidden" name="stock_status" value="<?= htmlspecialchars($stockStatus) ?>">
                     <input type="hidden" name="stock_alert" value="<?= htmlspecialchars($stockAlert) ?>">
                     <input type="hidden" name="stock_page" value="<?= htmlspecialchars((string) ($itemPagination['page'] ?? 1)) ?>">
+                    <input type="hidden" name="stock_auto_search" value="<?= htmlspecialchars($stockAutoSearch) ?>">
+                    <input type="hidden" name="stock_auto_issue" value="<?= htmlspecialchars($stockAutoIssue) ?>">
+                    <input type="hidden" name="stock_auto_page" value="<?= htmlspecialchars((string) ($automaticStockPagination['page'] ?? 1)) ?>">
 
                     <div class="stock-form-grid">
                         <div class="field">
@@ -958,7 +1037,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                                     <?php $lastRenderedMovementPage = $pageNumber; ?>
                                 <?php endforeach; ?>
                                 <?php if ((int) ($movementPagination['page'] ?? 1) < (int) ($movementPagination['last_page'] ?? 1)): ?>
-                                    <a class="stock-page-btn" href="<?= htmlspecialchars($buildStockUrl(['stock_movement_page' => ((int) $movementPagination['page']) + 1])) ?>">Proxima</a>
+                                    <a class="stock-page-btn" href="<?= htmlspecialchars($buildStockUrl(['stock_movement_page' => ((int) $movementPagination['page']) + 1])) ?>">Próxima</a>
                                 <?php endif; ?>
                             </div>
                         <?php endif; ?>
@@ -1089,7 +1168,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                 + '<div class="field"><label>Insumo</label><select name="recipe_stock_item_id[]">' + optionHtml(row.stock_item_id || 0) + '</select></div>'
                 + '<div class="field"><label>Consumo por unidade</label><input name="recipe_quantity_per_unit[]" type="number" min="0.001" step="0.001" value="' + escapeHtml(row.quantity_per_unit || '') + '" placeholder="0.000"></div>'
                 + '<div class="field"><label>Perda %</label><input name="recipe_waste_percent[]" type="number" min="0" max="100" step="0.01" value="' + escapeHtml(row.waste_percent || '0') + '"></div>'
-                + '<button class="btn secondary" type="button" data-stock-recipe-remove>Remover</button>';
+                + '<button class="btn secondary stock-recipe-remove" type="button" data-stock-recipe-remove>Remover</button>';
             grid.appendChild(wrapper);
         };
 
@@ -1099,7 +1178,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
             }
 
             if (!rows.length) {
-                current.innerHTML = '<span class="stock-form-note">Produto sem ficha tecnica cadastrada.</span>';
+                current.innerHTML = '<span class="stock-form-note">Produto sem ficha técnica cadastrada.</span>';
                 return;
             }
 
@@ -1119,7 +1198,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
             renderCurrent(rows);
 
             if (!productId) {
-                current.innerHTML = '<span class="stock-form-note">Selecione um produto para carregar a composicao atual.</span>';
+                current.innerHTML = '<span class="stock-form-note">Selecione um produto para carregar a composição atual.</span>';
                 return;
             }
 

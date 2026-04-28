@@ -392,6 +392,76 @@ final class StockRepository extends BaseRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
+    public function listSoldProductsWithoutAutomaticConsumptionPaginated(int $companyId, array $filters, int $page, int $perPage): array
+    {
+        $page = max(1, $page);
+        $perPage = max(1, min(50, $perPage));
+        $offset = ($page - 1) * $perPage;
+
+        if (!$this->tableExists('stock_recipe_items') || !$this->tableExists('stock_consumptions')) {
+            return [
+                'items' => [],
+                'total' => 0,
+                'page' => $page,
+                'per_page' => $perPage,
+                'last_page' => 1,
+            ];
+        }
+
+        [$whereSql, $havingSql, $params] = $this->buildAutomaticStockWhere($companyId, $filters);
+        $baseSql = "
+            FROM order_items oi
+            INNER JOIN orders o
+                ON o.id = oi.order_id
+               AND o.company_id = oi.company_id
+            LEFT JOIN stock_recipe_items sri
+                ON sri.company_id = oi.company_id
+               AND sri.product_id = oi.product_id
+               AND sri.status = 'ativo'
+            LEFT JOIN stock_consumptions sc
+                ON sc.company_id = oi.company_id
+               AND sc.order_item_id = oi.id
+            WHERE {$whereSql}
+            GROUP BY oi.product_id, oi.product_name_snapshot
+            {$havingSql}
+        ";
+
+        $countStmt = $this->db()->prepare("
+            SELECT COUNT(*)
+            FROM (
+                SELECT oi.product_id
+                {$baseSql}
+            ) automatic_stock_rows
+        ");
+        $countStmt->execute($params);
+        $total = (int) $countStmt->fetchColumn();
+
+        $stmt = $this->db()->prepare("
+            SELECT
+                oi.product_id,
+                oi.product_name_snapshot AS product_name,
+                COUNT(DISTINCT oi.id) AS sold_lines,
+                SUM(oi.quantity) AS sold_quantity,
+                MAX(o.created_at) AS last_sold_at,
+                CASE
+                    WHEN COUNT(DISTINCT sri.id) = 0 THEN 'missing_recipe'
+                    ELSE 'missing_consumption'
+                END AS issue_type
+            {$baseSql}
+            ORDER BY last_sold_at DESC, sold_quantity DESC
+            LIMIT {$perPage} OFFSET {$offset}
+        ");
+        $stmt->execute($params);
+
+        return [
+            'items' => $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [],
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage,
+            'last_page' => max(1, (int) ceil($total / $perPage)),
+        ];
+    }
+
     public function syncProductRecipe(int $companyId, int $productId, array $rows): void
     {
         if (!$this->tableExists('stock_recipe_items')) {
@@ -847,5 +917,41 @@ final class StockRepository extends BaseRepository
         }
 
         return [implode(' AND ', $where), $params];
+    }
+
+    private function buildAutomaticStockWhere(int $companyId, array $filters): array
+    {
+        $where = [
+            'oi.company_id = :company_id',
+            "oi.status = 'active'",
+            "o.status = 'finished'",
+            "o.payment_status = 'paid'",
+            'sc.id IS NULL',
+        ];
+        $having = [];
+        $params = ['company_id' => $companyId];
+
+        $search = trim((string) ($filters['search'] ?? ''));
+        if ($search !== '') {
+            $where[] = "(
+                LOWER(COALESCE(oi.product_name_snapshot, '')) LIKE :search
+                OR CAST(oi.product_id AS CHAR) = :product_id_search
+            )";
+            $params['search'] = '%' . strtolower($search) . '%';
+            $params['product_id_search'] = $search;
+        }
+
+        $issue = trim((string) ($filters['issue'] ?? ''));
+        if ($issue === 'missing_recipe') {
+            $having[] = 'COUNT(DISTINCT sri.id) = 0';
+        } elseif ($issue === 'missing_consumption') {
+            $having[] = 'COUNT(DISTINCT sri.id) > 0';
+        }
+
+        return [
+            implode(' AND ', $where),
+            $having !== [] ? 'HAVING ' . implode(' AND ', $having) : '',
+            $params,
+        ];
     }
 }

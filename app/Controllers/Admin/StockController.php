@@ -133,6 +133,9 @@ final class StockController extends Controller
             'stock_movement_search',
             'stock_movement_type',
             'stock_movement_page',
+            'stock_auto_search',
+            'stock_auto_issue',
+            'stock_auto_page',
         ];
 
         $safe = [];
