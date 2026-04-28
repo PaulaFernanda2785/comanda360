@@ -106,6 +106,9 @@ final class StockController extends Controller
 
         try {
             $this->service->updateRecipe($companyId, $request->all());
+            if ((string) $request->input('delete_recipe', '') === '1') {
+                return $this->backWithSuccess('Ficha tecnica excluida com sucesso.', $redirectTo);
+            }
             return $this->backWithSuccess('Ficha tecnica atualizada com sucesso.', $redirectTo);
         } catch (ValidationException $e) {
             return $this->backWithError($e->getMessage(), $redirectTo);

@@ -12,7 +12,8 @@ $recipeStockItems = is_array($stockPanel['recipe_stock_items'] ?? null) ? $stock
 $recipeRows = is_array($stockPanel['recipe_rows'] ?? null) ? $stockPanel['recipe_rows'] : [];
 $productionAlerts = is_array($stockPanel['production_alerts'] ?? null) ? $stockPanel['production_alerts'] : [];
 $insufficientProducts = is_array($productionAlerts['insufficient_products'] ?? null) ? $productionAlerts['insufficient_products'] : [];
-$soldWithoutAutoStock = is_array($stockPanel['sold_without_auto_stock'] ?? null) ? $stockPanel['sold_without_auto_stock'] : [];
+$automaticStockProducts = is_array($stockPanel['automatic_stock_products'] ?? null) ? $stockPanel['automatic_stock_products'] : [];
+$soldWithoutAutoStock = $automaticStockProducts;
 $stockAutomationReady = !empty($stockPanel['stock_automation_ready']);
 $unitOptions = is_array($stockPanel['unit_options'] ?? null) ? $stockPanel['unit_options'] : [];
 $referenceTypeOptions = is_array($stockPanel['reference_type_options'] ?? null) ? $stockPanel['reference_type_options'] : [];
@@ -46,7 +47,9 @@ $movementTypeOptions = [
 ];
 
 $automaticStockIssueOptions = [
-    '' => 'Todos os problemas',
+    '' => 'Todas as situações',
+    'with_recipe' => 'Com ficha técnica',
+    'configured' => 'Com baixa regular',
     'missing_recipe' => 'Sem ficha técnica',
     'missing_consumption' => 'Sem baixa registrada',
 ];
@@ -113,11 +116,95 @@ foreach ($recipeRows as $recipeRow) {
     $recipesByProductId[$recipeProductId][] = [
         'stock_item_id' => (int) ($recipeRow['stock_item_id'] ?? 0),
         'quantity_per_unit' => $formatQtyInput($recipeRow['quantity_per_unit'] ?? 0),
+        'consumption_unit' => (string) ($recipeRow['consumption_unit'] ?? $recipeRow['unit_of_measure'] ?? 'un'),
         'waste_percent' => $formatQtyInput($recipeRow['waste_percent'] ?? 0),
         'stock_item_name' => (string) ($recipeRow['stock_item_name'] ?? ''),
         'unit_of_measure' => (string) ($recipeRow['unit_of_measure'] ?? 'un'),
+        'current_quantity' => $formatQty($recipeRow['current_quantity'] ?? 0),
+        'minimum_quantity' => $formatQty($recipeRow['minimum_quantity'] ?? 0),
+        'current_quantity_raw' => (float) ($recipeRow['current_quantity'] ?? 0),
+        'minimum_quantity_raw' => (float) ($recipeRow['minimum_quantity'] ?? 0),
+        'stock_item_status' => (string) ($recipeRow['stock_item_status'] ?? 'ativo'),
     ];
 }
+
+$stockIngredientStatusMeta = static function (array $row): array {
+    $current = (float) ($row['current_quantity_raw'] ?? $row['current_quantity'] ?? 0);
+    $minimum = (float) ($row['minimum_quantity_raw'] ?? $row['minimum_quantity'] ?? 0);
+    $status = (string) ($row['stock_item_status'] ?? 'ativo');
+
+    if ($status !== 'ativo') {
+        return ['label' => 'Inativo', 'class' => 'badge status-overdue'];
+    }
+    if ($current <= 0) {
+        return ['label' => 'Sem saldo', 'class' => 'badge status-overdue'];
+    }
+    if ($minimum > 0 && $current <= $minimum) {
+        return ['label' => 'Estoque baixo', 'class' => 'badge status-pending'];
+    }
+
+    return ['label' => 'Disponível', 'class' => 'badge status-active'];
+};
+
+$buildSuggestions = static function (array $values): array {
+    $suggestions = [];
+    foreach ($values as $value) {
+        $value = trim((string) $value);
+        if ($value !== '') {
+            $suggestions[$value] = true;
+        }
+    }
+
+    return array_slice(array_keys($suggestions), 0, 120);
+};
+
+$productSuggestions = [];
+foreach ($products as $product) {
+    $productName = trim((string) ($product['name'] ?? ''));
+    $productSku = trim((string) ($product['sku'] ?? ''));
+    $productCategory = trim((string) ($product['category_name'] ?? ''));
+    $productSuggestions[] = $productName;
+    $productSuggestions[] = $productSku;
+    $productSuggestions[] = $productName . ($productSku !== '' ? ' | SKU ' . $productSku : '') . ($productCategory !== '' ? ' | ' . $productCategory : '');
+    $productSuggestions[] = (string) ($product['category_name'] ?? '');
+}
+$productSuggestions = $buildSuggestions($productSuggestions);
+
+$ingredientSuggestions = [];
+foreach ($recipeStockItems as $stockItem) {
+    $stockItemName = trim((string) ($stockItem['name'] ?? ''));
+    $stockItemSku = trim((string) ($stockItem['sku'] ?? ''));
+    $stockItemUnit = strtoupper((string) ($stockItem['unit_of_measure'] ?? 'un'));
+    $ingredientSuggestions[] = $stockItemName;
+    $ingredientSuggestions[] = $stockItemSku;
+    $ingredientSuggestions[] = $stockItemName . ($stockItemSku !== '' ? ' | SKU ' . $stockItemSku : '') . ' | ' . $stockItemUnit;
+    $ingredientSuggestions[] = (string) ($stockItem['unit_of_measure'] ?? '');
+}
+$ingredientSuggestions = $buildSuggestions($ingredientSuggestions);
+
+$stockSearchSuggestions = array_merge($productSuggestions, $ingredientSuggestions);
+foreach ($items as $item) {
+    $stockSearchSuggestions[] = (string) ($item['name'] ?? '');
+    $stockSearchSuggestions[] = (string) ($item['sku'] ?? '');
+    $stockSearchSuggestions[] = (string) ($item['linked_product_names'] ?? '');
+}
+$stockSearchSuggestions = $buildSuggestions($stockSearchSuggestions);
+
+$movementSearchSuggestions = $stockSearchSuggestions;
+foreach ($movements as $movement) {
+    $movementSearchSuggestions[] = (string) ($movement['reason'] ?? '');
+}
+$movementSearchSuggestions = $buildSuggestions($movementSearchSuggestions);
+
+$automaticStockStatusMeta = static function (array $row): array {
+    $issue = (string) ($row['issue_type'] ?? '');
+
+    return match ($issue) {
+        'missing_recipe' => ['label' => 'Sem ficha técnica', 'class' => 'badge status-overdue'],
+        'missing_consumption' => ['label' => 'Sem baixa registrada', 'class' => 'badge status-pending'],
+        default => ['label' => 'Com ficha técnica', 'class' => 'badge status-active'],
+    };
+};
 
 $stockAlertMeta = static function (array $item): array {
     $alert = (string) ($item['stock_alert'] ?? 'normal');
@@ -195,6 +282,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                         id="<?= htmlspecialchars($pickerId) ?>_search"
                         type="text"
                         placeholder="Nome, SKU ou categoria"
+                        list="stock_product_suggestions"
                         data-stock-picker-search
                     >
                 </div>
@@ -316,6 +404,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
     .stock-form-grid .field{margin:0}
     .stock-form-grid .field.full{grid-column:1 / -1}
     .stock-form-note{font-size:12px;color:#64748b;line-height:1.5}
+    .stock-smart-select-search{margin-bottom:6px}
 
     .stock-product-picker{border:1px solid #bfdbfe;border-radius:18px;background:linear-gradient(180deg,#f8fbff,#eef6ff);padding:14px;display:grid;gap:12px}
     .stock-picker-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
@@ -354,11 +443,20 @@ $renderProductPicker = static function (string $pickerId, array $products, array
 
     .stock-recipe-builder{display:grid;gap:12px}
     .stock-recipe-grid{display:grid;gap:8px}
-    .stock-recipe-row{display:grid;grid-template-columns:minmax(180px,1.4fr) minmax(120px,.7fr) minmax(110px,.6fr) auto;gap:8px;align-items:end}
+    .stock-recipe-row{display:grid;grid-template-columns:minmax(180px,1.4fr) minmax(120px,.65fr) minmax(90px,.45fr) minmax(100px,.5fr) auto;gap:8px;align-items:end}
     .stock-recipe-row .field{margin:0}
     .stock-recipe-remove{align-self:end;min-height:42px;white-space:nowrap}
     .stock-recipe-current{display:flex;gap:8px;flex-wrap:wrap}
     .stock-recipe-pill{padding:6px 10px;border-radius:999px;border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;font-size:12px;font-weight:700}
+    .stock-auto-card{gap:12px}
+    .stock-auto-card[open] .stock-auto-edit-toggle{display:none}
+    .stock-auto-recipe-summary{border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:10px;display:grid;gap:8px}
+    .stock-auto-recipe-summary strong{font-size:12px;color:#0f172a}
+    .stock-auto-ingredient-list{display:grid;gap:8px}
+    .stock-auto-ingredient{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc}
+    .stock-auto-ingredient span{font-size:12px;color:#334155}
+    .stock-auto-recipe-editor{border-top:1px solid #e2e8f0;padding-top:12px}
+    .stock-auto-recipe-editor[hidden]{display:none}
 
     .stock-empty{padding:14px;border:1px dashed #cbd5e1;border-radius:14px;background:#f8fafc;color:#64748b;font-size:13px;line-height:1.5}
     .stock-pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
@@ -395,6 +493,27 @@ $renderProductPicker = static function (string $pickerId, array $products, array
 </style>
 
 <div class="stock-page">
+    <datalist id="stock_search_suggestions">
+        <?php foreach ($stockSearchSuggestions as $suggestion): ?>
+            <option value="<?= htmlspecialchars((string) $suggestion) ?>"></option>
+        <?php endforeach; ?>
+    </datalist>
+    <datalist id="stock_product_suggestions">
+        <?php foreach ($productSuggestions as $suggestion): ?>
+            <option value="<?= htmlspecialchars((string) $suggestion) ?>"></option>
+        <?php endforeach; ?>
+    </datalist>
+    <datalist id="stock_ingredient_suggestions">
+        <?php foreach ($ingredientSuggestions as $suggestion): ?>
+            <option value="<?= htmlspecialchars((string) $suggestion) ?>"></option>
+        <?php endforeach; ?>
+    </datalist>
+    <datalist id="stock_movement_suggestions">
+        <?php foreach ($movementSearchSuggestions as $suggestion): ?>
+            <option value="<?= htmlspecialchars((string) $suggestion) ?>"></option>
+        <?php endforeach; ?>
+    </datalist>
+
     <div class="stock-hero">
         <div class="stock-hero-body">
             <div>
@@ -461,7 +580,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                     <div class="stock-filter-grid">
                         <div class="field">
                             <label for="stock_search">Busca</label>
-                            <input id="stock_search" name="stock_search" type="text" value="<?= htmlspecialchars($stockSearch) ?>" placeholder="Item, SKU, produto ou ID">
+                            <input id="stock_search" name="stock_search" type="text" value="<?= htmlspecialchars($stockSearch) ?>" placeholder="Item, SKU, produto ou ID" list="stock_search_suggestions" autocomplete="off">
                         </div>
                         <div class="field">
                             <label for="stock_status">Status</label>
@@ -707,14 +826,14 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                 <div class="stock-head">
                     <div>
                         <h3>Baixa automática</h3>
-                        <p class="stock-note">Produtos vendidos sem baixa automática indicam itens sem ficha técnica ou pedidos antigos sem consumo registrado.</p>
+                        <p class="stock-note">Gerencie a ficha técnica dos produtos que participam da baixa automática. A baixa acontece quando o pedido fica pago e finalizado.</p>
                     </div>
                     <div class="stock-badges">
                         <span class="badge">Máximo de 15 por página</span>
                     </div>
                 </div>
                 <div class="stock-summary-grid">
-                    <div class="stock-summary-item"><strong>Produtos vendidos sem baixa automática</strong><span><?= (int) ($automaticStockPagination['total'] ?? count($soldWithoutAutoStock)) ?></span></div>
+                    <div class="stock-summary-item"><strong>Produtos no controle automático</strong><span><?= (int) ($automaticStockPagination['total'] ?? count($soldWithoutAutoStock)) ?></span></div>
                 </div>
 
                 <form method="GET" action="<?= htmlspecialchars(base_url('/admin/stock')) ?>" style="margin-top:12px">
@@ -729,10 +848,10 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                     <div class="stock-form-grid">
                         <div class="field">
                             <label for="stock_auto_search">Buscar produto</label>
-                            <input id="stock_auto_search" name="stock_auto_search" type="text" value="<?= htmlspecialchars($stockAutoSearch) ?>" placeholder="Produto ou ID">
+                            <input id="stock_auto_search" name="stock_auto_search" type="text" value="<?= htmlspecialchars($stockAutoSearch) ?>" placeholder="Produto, SKU ou ID" list="stock_product_suggestions" autocomplete="off">
                         </div>
                         <div class="field">
-                            <label for="stock_auto_issue">Problema</label>
+                            <label for="stock_auto_issue">Situação</label>
                             <select id="stock_auto_issue" name="stock_auto_issue">
                                 <?php foreach ($automaticStockIssueOptions as $value => $label): ?>
                                     <option value="<?= htmlspecialchars($value) ?>" <?= $stockAutoIssue === $value ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
@@ -749,22 +868,100 @@ $renderProductPicker = static function (string $pickerId, array $products, array
 
                 <div class="stock-movement-list" style="margin-top:12px">
                     <?php if ($soldWithoutAutoStock === []): ?>
-                        <div class="stock-empty">Nenhum produto vendido sem baixa automática encontrado.</div>
+                        <div class="stock-empty">Nenhum produto com ficha técnica ou venda finalizada encontrado para baixa automática.</div>
                     <?php else: ?>
                         <?php foreach ($soldWithoutAutoStock as $row): ?>
-                            <article class="stock-movement">
+                            <?php
+                            $productId = (int) ($row['product_id'] ?? 0);
+                            $currentRecipeRows = $recipesByProductId[$productId] ?? [];
+                            $hasRecipe = $currentRecipeRows !== [];
+                            $statusMeta = $automaticStockStatusMeta($row);
+                            $editorRows = $hasRecipe ? $currentRecipeRows : [[]];
+                            ?>
+                            <article class="stock-movement stock-auto-card">
                                 <div class="stock-movement-top">
                                     <div class="stock-movement-meta">
                                         <strong><?= htmlspecialchars((string) ($row['product_name'] ?? 'Produto')) ?></strong>
                                         <small>
                                             Vendido: <?= htmlspecialchars($formatQty($row['sold_quantity'] ?? 0)) ?> un
                                             | Última venda: <?= htmlspecialchars($formatDate($row['last_sold_at'] ?? null)) ?>
+                                            | Pendentes de baixa: <?= (int) ($row['pending_consumption_lines'] ?? 0) ?>
                                         </small>
                                     </div>
-                                    <span class="badge status-pending">
-                                        <?= (string) ($row['issue_type'] ?? '') === 'missing_recipe' ? 'Sem ficha técnica' : 'Sem baixa registrada' ?>
-                                    </span>
+                                    <span class="<?= htmlspecialchars($statusMeta['class']) ?>"><?= htmlspecialchars($statusMeta['label']) ?></span>
                                 </div>
+
+                                <div class="stock-auto-recipe-summary">
+                                    <strong>Ficha técnica</strong>
+                                    <div class="stock-recipe-current">
+                                        <?php if (!$hasRecipe): ?>
+                                            <span class="stock-form-note">Produto sem ficha técnica cadastrada.</span>
+                                        <?php else: ?>
+                                            <div class="stock-auto-ingredient-list">
+                                                <?php foreach ($currentRecipeRows as $recipeRow): ?>
+                                                    <?php $ingredientMeta = $stockIngredientStatusMeta($recipeRow); ?>
+                                                    <div class="stock-auto-ingredient">
+                                                        <span>
+                                                            <strong><?= htmlspecialchars((string) ($recipeRow['stock_item_name'] ?? 'Insumo')) ?></strong>:
+                                                            <?= htmlspecialchars((string) ($recipeRow['quantity_per_unit'] ?? '0')) ?>
+                                                            <?= htmlspecialchars((string) ($recipeRow['consumption_unit'] ?? $recipeRow['unit_of_measure'] ?? 'un')) ?>
+                                                            | saldo <?= htmlspecialchars((string) ($recipeRow['current_quantity'] ?? '0')) ?> <?= htmlspecialchars((string) ($recipeRow['unit_of_measure'] ?? 'un')) ?>
+                                                        </span>
+                                                        <span class="<?= htmlspecialchars($ingredientMeta['class']) ?>"><?= htmlspecialchars($ingredientMeta['label']) ?></span>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+
+                                <?php if ($canManageStock && $stockAutomationReady && $recipeStockItems !== []): ?>
+                                    <button class="btn secondary stock-auto-edit-toggle" type="button" data-stock-inline-recipe-edit><?= $hasRecipe ? 'Editar ficha' : 'Criar ficha' ?></button>
+                                    <form class="stock-recipe-builder stock-auto-recipe-editor" method="POST" action="<?= htmlspecialchars(base_url('/admin/stock/recipes/update')) ?>" data-stock-inline-recipe-form hidden>
+                                        <?= form_security_fields('stock.recipes.update') ?>
+                                        <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery) ?>">
+                                        <input type="hidden" name="recipe_product_id" value="<?= $productId ?>">
+
+                                        <div class="stock-recipe-grid" data-stock-inline-recipe-grid>
+                                            <?php foreach ($editorRows as $recipeRow): ?>
+                                                <div class="stock-recipe-row">
+                                                    <div class="field">
+                                                        <label>Insumo</label>
+                                                        <input type="hidden" name="recipe_stock_item_id[]" value="<?= (int) ($recipeRow['stock_item_id'] ?? 0) ?>" data-stock-ingredient-id>
+                                                        <input type="text" value="<?= htmlspecialchars((string) ($recipeRow['stock_item_name'] ?? '')) ?>" placeholder="Buscar insumo" list="stock_ingredient_suggestions" autocomplete="off" data-stock-ingredient-input>
+                                                    </div>
+                                                    <div class="field">
+                                                        <label>Consumo por unidade</label>
+                                                        <input name="recipe_quantity_per_unit[]" type="number" min="0.001" step="0.001" value="<?= htmlspecialchars((string) ($recipeRow['quantity_per_unit'] ?? '')) ?>" placeholder="0.000">
+                                                    </div>
+                                                    <div class="field">
+                                                        <label>Unidade</label>
+                                                        <select name="recipe_consumption_unit[]" data-stock-consumption-unit data-auto-unit="<?= (int) ($recipeRow['stock_item_id'] ?? 0) > 0 ? '0' : '1' ?>">
+                                                            <?php foreach ($unitOptions as $unitOption): ?>
+                                                                <?php $selectedUnit = (string) ($recipeRow['consumption_unit'] ?? $recipeRow['unit_of_measure'] ?? 'un'); ?>
+                                                                <option value="<?= htmlspecialchars((string) $unitOption) ?>" <?= $selectedUnit === (string) $unitOption ? 'selected' : '' ?>><?= htmlspecialchars(strtoupper((string) $unitOption)) ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </div>
+                                                    <div class="field">
+                                                        <label>Perda %</label>
+                                                        <input name="recipe_waste_percent[]" type="number" min="0" max="100" step="0.01" value="<?= htmlspecialchars((string) ($recipeRow['waste_percent'] ?? '0')) ?>">
+                                                    </div>
+                                                    <button class="btn secondary stock-recipe-remove" type="button" data-stock-inline-recipe-remove>Remover</button>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+
+                                        <div class="stock-actions">
+                                            <button class="btn secondary" type="button" data-stock-inline-recipe-add>Adicionar insumo</button>
+                                            <button class="btn" type="submit">Salvar alteração</button>
+                                            <button class="btn secondary" type="button" data-stock-inline-recipe-cancel>Cancelar</button>
+                                            <?php if ($hasRecipe): ?>
+                                                <button class="btn secondary" type="submit" name="delete_recipe" value="1" data-stock-recipe-delete>Excluir ficha</button>
+                                            <?php endif; ?>
+                                        </div>
+                                    </form>
+                                <?php endif; ?>
                             </article>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -904,13 +1101,9 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                             <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery) ?>">
 
                             <div class="field">
-                                <label for="recipe_product_id">Produto</label>
-                                <select id="recipe_product_id" name="recipe_product_id" required data-stock-recipe-product>
-                                    <option value="">Selecione</option>
-                                    <?php foreach ($products as $product): ?>
-                                        <option value="<?= (int) ($product['id'] ?? 0) ?>"><?= htmlspecialchars((string) ($product['name'] ?? 'Produto')) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <label for="recipe_product_search">Produto</label>
+                                <input id="recipe_product_id" type="hidden" name="recipe_product_id" data-stock-recipe-product>
+                                <input id="recipe_product_search" type="text" placeholder="Buscar produto" list="stock_product_suggestions" autocomplete="off" data-stock-product-input required>
                             </div>
 
                             <div class="stock-recipe-current" data-stock-recipe-current>
@@ -965,7 +1158,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                         </div>
                         <div class="field">
                             <label for="stock_movement_search_side">Busca no histórico</label>
-                            <input id="stock_movement_search_side" name="stock_movement_search" type="text" value="<?= htmlspecialchars($stockMovementSearch) ?>" placeholder="Item, SKU, motivo ou ID">
+                            <input id="stock_movement_search_side" name="stock_movement_search" type="text" value="<?= htmlspecialchars($stockMovementSearch) ?>" placeholder="Item, SKU, motivo ou ID" list="stock_movement_suggestions" autocomplete="off">
                         </div>
                     </div>
                     <div class="stock-actions stock-actions--offset">
@@ -1050,6 +1243,171 @@ $renderProductPicker = static function (string $pickerId, array $products, array
 
 <script>
     (function () {
+        var normalizeText = function (value) {
+            return String(value || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .trim();
+        };
+
+        window.stockSmartText = normalizeText;
+        window.stockRecipeUnits = <?= json_encode(array_values($unitOptions), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?> || [];
+        window.stockRecipeStockItems = <?= json_encode(array_map(static fn (array $item): array => [
+            'id' => (int) ($item['id'] ?? 0),
+            'name' => (string) ($item['name'] ?? 'Item'),
+            'sku' => (string) ($item['sku'] ?? ''),
+            'unit' => (string) ($item['unit_of_measure'] ?? 'un'),
+            'label' => (string) ($item['name'] ?? 'Item') . (trim((string) ($item['sku'] ?? '')) !== '' ? ' | SKU ' . (string) ($item['sku'] ?? '') : '') . ' | ' . strtoupper((string) ($item['unit_of_measure'] ?? 'un')),
+        ], $recipeStockItems), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?> || [];
+        window.stockRecipeProducts = <?= json_encode(array_map(static fn (array $product): array => [
+            'id' => (int) ($product['id'] ?? 0),
+            'name' => (string) ($product['name'] ?? 'Produto'),
+            'sku' => (string) ($product['sku'] ?? ''),
+            'category' => (string) ($product['category_name'] ?? ''),
+            'label' => (string) ($product['name'] ?? 'Produto') . (trim((string) ($product['sku'] ?? '')) !== '' ? ' | SKU ' . (string) ($product['sku'] ?? '') : '') . (trim((string) ($product['category_name'] ?? '')) !== '' ? ' | ' . (string) ($product['category_name'] ?? '') : ''),
+        ], $products), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?> || [];
+
+        window.stockUnitOptionsHtml = function (selectedUnit) {
+            selectedUnit = String(selectedUnit || 'un').toLowerCase();
+            return window.stockRecipeUnits.map(function (unit) {
+                unit = String(unit || 'un').toLowerCase();
+                return '<option value="' + unit.replace(/[&<>"]/g, '') + '"' + (unit === selectedUnit ? ' selected' : '') + '>' + unit.toUpperCase() + '</option>';
+            }).join('');
+        };
+
+        window.stockFindIngredient = function (value) {
+            var query = normalizeText(value);
+            if (!query) {
+                return null;
+            }
+
+            var exact = window.stockRecipeStockItems.find(function (item) {
+                return normalizeText(item.label) === query
+                    || normalizeText(item.name) === query
+                    || normalizeText(item.sku) === query
+                    || String(item.id || '') === String(value || '').trim();
+            });
+            if (exact) {
+                return exact;
+            }
+
+            var matches = window.stockRecipeStockItems.filter(function (item) {
+                return normalizeText(item.label).indexOf(query) !== -1
+                    || normalizeText(item.name).indexOf(query) !== -1
+                    || normalizeText(item.sku).indexOf(query) !== -1;
+            });
+
+            return matches.length === 1 ? matches[0] : null;
+        };
+
+        window.stockIngredientLabel = function (item) {
+            if (!item) {
+                return '';
+            }
+
+            return item.label || (item.name + (item.sku ? ' | SKU ' + item.sku : '') + ' | ' + String(item.unit || 'un').toUpperCase());
+        };
+
+        window.stockBindIngredientSearches = function (root) {
+            var scope = root || document;
+            Array.prototype.slice.call(scope.querySelectorAll('[data-stock-ingredient-input]')).forEach(function (input) {
+                if (input.dataset.ingredientReady === '1') {
+                    return;
+                }
+
+                input.dataset.ingredientReady = '1';
+                var row = input.closest('.stock-recipe-row');
+                var hidden = row ? row.querySelector('[data-stock-ingredient-id]') : null;
+                var unitSelect = row ? row.querySelector('[data-stock-consumption-unit]') : null;
+                var sync = function () {
+                    var item = window.stockFindIngredient(input.value);
+                    if (!item) {
+                        if (hidden) {
+                            hidden.value = '';
+                        }
+                        return;
+                    }
+
+                    input.value = window.stockIngredientLabel(item);
+                    if (hidden) {
+                        hidden.value = String(item.id || '');
+                    }
+                    if (unitSelect && (!unitSelect.value || unitSelect.dataset.autoUnit !== '0')) {
+                        unitSelect.value = String(item.unit || 'un').toLowerCase();
+                        unitSelect.dataset.autoUnit = '1';
+                    }
+                };
+
+                input.addEventListener('change', sync);
+                input.addEventListener('blur', sync);
+                if (unitSelect) {
+                    unitSelect.addEventListener('change', function () {
+                        unitSelect.dataset.autoUnit = '0';
+                    });
+                }
+            });
+        };
+
+        window.stockSyncIngredientInputs = function (root) {
+            var scope = root || document;
+            Array.prototype.slice.call(scope.querySelectorAll('[data-stock-ingredient-input]')).forEach(function (input) {
+                var row = input.closest('.stock-recipe-row');
+                var hidden = row ? row.querySelector('[data-stock-ingredient-id]') : null;
+                var unitSelect = row ? row.querySelector('[data-stock-consumption-unit]') : null;
+                var item = window.stockFindIngredient(input.value);
+                if (!item) {
+                    return;
+                }
+
+                input.value = window.stockIngredientLabel(item);
+                if (hidden) {
+                    hidden.value = String(item.id || '');
+                }
+                if (unitSelect && !unitSelect.value) {
+                    unitSelect.value = String(item.unit || 'un').toLowerCase();
+                }
+            });
+        };
+
+        window.stockEnhanceSmartSelects = function (root) {
+            var scope = root || document;
+            var selects = Array.prototype.slice.call(scope.querySelectorAll('select[data-smart-select]'));
+
+            selects.forEach(function (select) {
+                if (select.dataset.smartSelectReady === '1') {
+                    return;
+                }
+
+                select.dataset.smartSelectReady = '1';
+                var type = select.getAttribute('data-smart-select') || 'opcao';
+                var input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'stock-smart-select-search';
+                input.placeholder = type === 'insumo' ? 'Buscar insumo' : 'Buscar produto';
+                input.setAttribute('autocomplete', 'off');
+                input.setAttribute('list', type === 'insumo' ? 'stock_ingredient_suggestions' : 'stock_product_suggestions');
+                select.parentNode.insertBefore(input, select);
+
+                input.addEventListener('input', function () {
+                    var query = normalizeText(input.value);
+                    Array.prototype.slice.call(select.options).forEach(function (option) {
+                        if (!option.value) {
+                            option.hidden = false;
+                            return;
+                        }
+
+                        option.hidden = query !== '' && normalizeText(option.textContent).indexOf(query) === -1;
+                    });
+                });
+            });
+        };
+
+        window.stockEnhanceSmartSelects(document);
+        window.stockBindIngredientSearches(document);
+    }());
+
+    (function () {
         var pickers = document.querySelectorAll('[data-stock-product-picker]');
         if (!pickers.length) {
             return;
@@ -1095,11 +1453,11 @@ $renderProductPicker = static function (string $pickerId, array $products, array
             };
 
             var applyFilter = function () {
-                var term = searchInput ? searchInput.value.trim().toLowerCase() : '';
+                var term = searchInput && window.stockSmartText ? window.stockSmartText(searchInput.value) : (searchInput ? searchInput.value.trim().toLowerCase() : '');
                 var visibleCount = 0;
 
                 options.forEach(function (option) {
-                    var haystack = option.getAttribute('data-stock-filter-text') || '';
+                    var haystack = window.stockSmartText ? window.stockSmartText(option.getAttribute('data-stock-filter-text') || '') : (option.getAttribute('data-stock-filter-text') || '');
                     var match = term === '' || haystack.indexOf(term) !== -1;
                     option.classList.toggle('is-hidden', !match);
                     if (match) {
@@ -1132,13 +1490,8 @@ $renderProductPicker = static function (string $pickerId, array $products, array
         }
 
         var recipes = <?= json_encode($recipesByProductId, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?> || {};
-        var stockItems = <?= json_encode(array_map(static fn (array $item): array => [
-            'id' => (int) ($item['id'] ?? 0),
-            'name' => (string) ($item['name'] ?? 'Item'),
-            'sku' => (string) ($item['sku'] ?? ''),
-            'unit' => (string) ($item['unit_of_measure'] ?? 'un'),
-        ], $recipeStockItems), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?> || [];
         var productSelect = form.querySelector('[data-stock-recipe-product]');
+        var productInput = form.querySelector('[data-stock-product-input]');
         var grid = form.querySelector('[data-stock-recipe-grid]');
         var current = form.querySelector('[data-stock-recipe-current]');
         var addButton = form.querySelector('[data-stock-recipe-add]');
@@ -1149,11 +1502,30 @@ $renderProductPicker = static function (string $pickerId, array $products, array
             });
         };
 
-        var optionHtml = function (selectedId) {
-            return '<option value="">Selecione</option>' + stockItems.map(function (item) {
-                var label = item.name + (item.sku ? ' | SKU ' + item.sku : '') + ' | ' + String(item.unit || 'un').toUpperCase();
-                return '<option value="' + Number(item.id || 0) + '"' + (Number(selectedId || 0) === Number(item.id || 0) ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
-            }).join('');
+        var findProduct = function (value) {
+            var query = window.stockSmartText ? window.stockSmartText(value) : String(value || '').toLowerCase().trim();
+            if (!query) {
+                return null;
+            }
+
+            var exact = (window.stockRecipeProducts || []).find(function (product) {
+                return (window.stockSmartText ? window.stockSmartText(product.label) : String(product.label || '').toLowerCase()) === query
+                    || (window.stockSmartText ? window.stockSmartText(product.name) : String(product.name || '').toLowerCase()) === query
+                    || (window.stockSmartText ? window.stockSmartText(product.sku) : String(product.sku || '').toLowerCase()) === query
+                    || String(product.id || '') === String(value || '').trim();
+            });
+            if (exact) {
+                return exact;
+            }
+
+            var matches = (window.stockRecipeProducts || []).filter(function (product) {
+                var label = window.stockSmartText ? window.stockSmartText(product.label) : String(product.label || '').toLowerCase();
+                var name = window.stockSmartText ? window.stockSmartText(product.name) : String(product.name || '').toLowerCase();
+                var sku = window.stockSmartText ? window.stockSmartText(product.sku) : String(product.sku || '').toLowerCase();
+                return label.indexOf(query) !== -1 || name.indexOf(query) !== -1 || sku.indexOf(query) !== -1;
+            });
+
+            return matches.length === 1 ? matches[0] : null;
         };
 
         var addRow = function (row) {
@@ -1164,12 +1536,19 @@ $renderProductPicker = static function (string $pickerId, array $products, array
             row = row || {};
             var wrapper = document.createElement('div');
             wrapper.className = 'stock-recipe-row';
+            var item = window.stockFindIngredient ? window.stockFindIngredient(row.stock_item_id || row.stock_item_name || '') : null;
+            var ingredientLabel = row.stock_item_name || (window.stockIngredientLabel ? window.stockIngredientLabel(item) : '');
+            var unit = row.consumption_unit || (item ? item.unit : row.unit_of_measure) || 'un';
             wrapper.innerHTML = ''
-                + '<div class="field"><label>Insumo</label><select name="recipe_stock_item_id[]">' + optionHtml(row.stock_item_id || 0) + '</select></div>'
+                + '<div class="field"><label>Insumo</label><input type="hidden" name="recipe_stock_item_id[]" value="' + Number(row.stock_item_id || 0) + '" data-stock-ingredient-id><input type="text" value="' + escapeHtml(ingredientLabel) + '" placeholder="Buscar insumo" list="stock_ingredient_suggestions" autocomplete="off" data-stock-ingredient-input></div>'
                 + '<div class="field"><label>Consumo por unidade</label><input name="recipe_quantity_per_unit[]" type="number" min="0.001" step="0.001" value="' + escapeHtml(row.quantity_per_unit || '') + '" placeholder="0.000"></div>'
+                + '<div class="field"><label>Unidade</label><select name="recipe_consumption_unit[]" data-stock-consumption-unit data-auto-unit="' + (row.stock_item_id ? '0' : '1') + '">' + (window.stockUnitOptionsHtml ? window.stockUnitOptionsHtml(unit) : '') + '</select></div>'
                 + '<div class="field"><label>Perda %</label><input name="recipe_waste_percent[]" type="number" min="0" max="100" step="0.01" value="' + escapeHtml(row.waste_percent || '0') + '"></div>'
                 + '<button class="btn secondary stock-recipe-remove" type="button" data-stock-recipe-remove>Remover</button>';
             grid.appendChild(wrapper);
+            if (window.stockBindIngredientSearches) {
+                window.stockBindIngredientSearches(wrapper);
+            }
         };
 
         var renderCurrent = function (rows) {
@@ -1183,7 +1562,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
             }
 
             current.innerHTML = rows.map(function (row) {
-                return '<span class="stock-recipe-pill">' + escapeHtml(row.stock_item_name) + ': ' + escapeHtml(row.quantity_per_unit) + ' ' + escapeHtml(row.unit_of_measure || 'un') + '</span>';
+                return '<span class="stock-recipe-pill">' + escapeHtml(row.stock_item_name) + ': ' + escapeHtml(row.quantity_per_unit) + ' ' + escapeHtml(row.consumption_unit || row.unit_of_measure || 'un') + '</span>';
             }).join('');
         };
 
@@ -1209,14 +1588,39 @@ $renderProductPicker = static function (string $pickerId, array $products, array
             }
         };
 
-        if (productSelect) {
-            productSelect.addEventListener('change', loadSelectedProduct);
+        if (productInput && productSelect) {
+            var syncProduct = function () {
+                var product = findProduct(productInput.value);
+                if (!product) {
+                    productSelect.value = '';
+                    grid.innerHTML = '';
+                    current.innerHTML = '<span class="stock-form-note">Informe um produto válido para carregar a composição atual.</span>';
+                    return;
+                }
+
+                productInput.value = product.label || product.name;
+                productSelect.value = String(product.id || '');
+                loadSelectedProduct();
+            };
+            productInput.addEventListener('change', syncProduct);
+            productInput.addEventListener('blur', syncProduct);
         }
         if (addButton) {
             addButton.addEventListener('click', function () {
                 addRow();
             });
         }
+        form.addEventListener('submit', function () {
+            if (window.stockSyncIngredientInputs) {
+                window.stockSyncIngredientInputs(form);
+            }
+            if (productInput && productSelect && !productSelect.value) {
+                var product = findProduct(productInput.value);
+                if (product) {
+                    productSelect.value = String(product.id || '');
+                }
+            }
+        });
         if (grid) {
             grid.addEventListener('click', function (event) {
                 var target = event.target;
@@ -1230,5 +1634,87 @@ $renderProductPicker = static function (string $pickerId, array $products, array
         }
 
         loadSelectedProduct();
+    }());
+
+    (function () {
+        var forms = Array.prototype.slice.call(document.querySelectorAll('[data-stock-inline-recipe-form]'));
+        if (!forms.length) {
+            return;
+        }
+
+        var escapeHtml = function (value) {
+            return String(value || '').replace(/[&<>"]/g, function (char) {
+                return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[char] || char;
+            });
+        };
+
+        var addRow = function (grid) {
+            var wrapper = document.createElement('div');
+            wrapper.className = 'stock-recipe-row';
+            wrapper.innerHTML = ''
+                + '<div class="field"><label>Insumo</label><input type="hidden" name="recipe_stock_item_id[]" value="" data-stock-ingredient-id><input type="text" value="" placeholder="Buscar insumo" list="stock_ingredient_suggestions" autocomplete="off" data-stock-ingredient-input></div>'
+                + '<div class="field"><label>Consumo por unidade</label><input name="recipe_quantity_per_unit[]" type="number" min="0.001" step="0.001" placeholder="0.000"></div>'
+                + '<div class="field"><label>Unidade</label><select name="recipe_consumption_unit[]" data-stock-consumption-unit data-auto-unit="1">' + (window.stockUnitOptionsHtml ? window.stockUnitOptionsHtml('un') : '') + '</select></div>'
+                + '<div class="field"><label>Perda %</label><input name="recipe_waste_percent[]" type="number" min="0" max="100" step="0.01" value="0"></div>'
+                + '<button class="btn secondary stock-recipe-remove" type="button" data-stock-inline-recipe-remove>Remover</button>';
+            grid.appendChild(wrapper);
+            if (window.stockBindIngredientSearches) {
+                window.stockBindIngredientSearches(wrapper);
+            }
+        };
+
+        forms.forEach(function (form) {
+            var card = form.closest('.stock-auto-card');
+            var editButton = card ? card.querySelector('[data-stock-inline-recipe-edit]') : null;
+            var grid = form.querySelector('[data-stock-inline-recipe-grid]');
+            var initialHtml = form.innerHTML;
+
+            if (editButton) {
+                editButton.addEventListener('click', function () {
+                    form.hidden = false;
+                    editButton.hidden = true;
+                });
+            }
+
+            form.addEventListener('submit', function () {
+                if (window.stockSyncIngredientInputs) {
+                    window.stockSyncIngredientInputs(form);
+                }
+            });
+
+            form.addEventListener('click', function (event) {
+                var target = event.target;
+                if (!target) {
+                    return;
+                }
+
+                if (target.matches('[data-stock-inline-recipe-add]') && grid) {
+                    addRow(grid);
+                }
+
+                if (target.matches('[data-stock-inline-recipe-remove]')) {
+                    var row = target.closest('.stock-recipe-row');
+                    if (row) {
+                        row.remove();
+                    }
+                }
+
+                if (target.matches('[data-stock-inline-recipe-cancel]')) {
+                    form.innerHTML = initialHtml;
+                    grid = form.querySelector('[data-stock-inline-recipe-grid]');
+                    if (window.stockBindIngredientSearches) {
+                        window.stockBindIngredientSearches(form);
+                    }
+                    form.hidden = true;
+                    if (editButton) {
+                        editButton.hidden = false;
+                    }
+                }
+
+                if (target.matches('[data-stock-recipe-delete]') && !window.confirm('Excluir a ficha técnica deste produto?')) {
+                    event.preventDefault();
+                }
+            });
+        });
     }());
 </script>

@@ -9,6 +9,7 @@ use PDOException;
 final class StockRepository extends BaseRepository
 {
     private array $tableExistsCache = [];
+    private array $columnExistsCache = [];
 
     public function tableExists(string $table): bool
     {
@@ -35,6 +36,40 @@ final class StockRepository extends BaseRepository
         }
 
         $this->tableExistsCache[$table] = $exists;
+        return $exists;
+    }
+
+    public function columnExists(string $table, string $column): bool
+    {
+        $table = trim($table);
+        $column = trim($column);
+        if ($table === '' || $column === '') {
+            return false;
+        }
+
+        $key = $table . '.' . $column;
+        if (array_key_exists($key, $this->columnExistsCache)) {
+            return $this->columnExistsCache[$key];
+        }
+
+        try {
+            $stmt = $this->db()->prepare("
+                SELECT COUNT(*)
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = :table
+                  AND COLUMN_NAME = :column
+            ");
+            $stmt->execute([
+                'table' => $table,
+                'column' => $column,
+            ]);
+            $exists = ((int) $stmt->fetchColumn()) > 0;
+        } catch (PDOException) {
+            $exists = false;
+        }
+
+        $this->columnExistsCache[$key] = $exists;
         return $exists;
     }
 
@@ -276,6 +311,10 @@ final class StockRepository extends BaseRepository
             return [];
         }
 
+        $consumptionUnitSelect = $this->columnExists('stock_recipe_items', 'consumption_unit')
+            ? 'sri.consumption_unit'
+            : 'si.unit_of_measure AS consumption_unit';
+
         $stmt = $this->db()->prepare("
             SELECT
                 sri.id,
@@ -285,6 +324,10 @@ final class StockRepository extends BaseRepository
                 sri.stock_item_id,
                 si.name AS stock_item_name,
                 si.unit_of_measure,
+                si.current_quantity,
+                si.minimum_quantity,
+                si.status AS stock_item_status,
+                {$consumptionUnitSelect},
                 sri.quantity_per_unit,
                 sri.waste_percent,
                 sri.status,
@@ -325,12 +368,17 @@ final class StockRepository extends BaseRepository
             $params[$key] = $productId;
         }
 
+        $consumptionUnitSelect = $this->columnExists('stock_recipe_items', 'consumption_unit')
+            ? 'sri.consumption_unit'
+            : 'si.unit_of_measure AS consumption_unit';
+
         $stmt = $this->db()->prepare("
             SELECT
                 sri.product_id,
                 sri.stock_item_id,
                 sri.quantity_per_unit,
                 sri.waste_percent,
+                {$consumptionUnitSelect},
                 si.name AS stock_item_name,
                 si.unit_of_measure,
                 si.current_quantity,
@@ -392,7 +440,7 @@ final class StockRepository extends BaseRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
-    public function listSoldProductsWithoutAutomaticConsumptionPaginated(int $companyId, array $filters, int $page, int $perPage): array
+    public function listAutomaticStockProductsPaginated(int $companyId, array $filters, int $page, int $perPage): array
     {
         $page = max(1, $page);
         $perPage = max(1, min(50, $perPage));
@@ -408,28 +456,53 @@ final class StockRepository extends BaseRepository
             ];
         }
 
-        [$whereSql, $havingSql, $params] = $this->buildAutomaticStockWhere($companyId, $filters);
+        [$whereSql, $params] = $this->buildAutomaticStockWhere($companyId, $filters);
         $baseSql = "
-            FROM order_items oi
-            INNER JOIN orders o
-                ON o.id = oi.order_id
-               AND o.company_id = oi.company_id
-            LEFT JOIN stock_recipe_items sri
-                ON sri.company_id = oi.company_id
-               AND sri.product_id = oi.product_id
-               AND sri.status = 'ativo'
-            LEFT JOIN stock_consumptions sc
-                ON sc.company_id = oi.company_id
-               AND sc.order_item_id = oi.id
+            FROM products p
+            LEFT JOIN categories c
+                ON c.id = p.category_id
+            LEFT JOIN (
+                SELECT
+                    company_id,
+                    product_id,
+                    COUNT(*) AS recipe_rows_count
+                FROM stock_recipe_items
+                WHERE company_id = :recipe_company_id
+                  AND status = 'ativo'
+                GROUP BY company_id, product_id
+            ) recipe
+                ON recipe.company_id = p.company_id
+               AND recipe.product_id = p.id
+            LEFT JOIN (
+                SELECT
+                    oi.company_id,
+                    oi.product_id,
+                    COUNT(DISTINCT oi.id) AS sold_lines,
+                    SUM(oi.quantity) AS sold_quantity,
+                    MAX(o.created_at) AS last_sold_at,
+                    COUNT(DISTINCT CASE WHEN sc.id IS NULL THEN oi.id END) AS pending_consumption_lines
+                FROM order_items oi
+                INNER JOIN orders o
+                    ON o.id = oi.order_id
+                   AND o.company_id = oi.company_id
+                   AND o.status = 'finished'
+                   AND o.payment_status = 'paid'
+                LEFT JOIN stock_consumptions sc
+                    ON sc.company_id = oi.company_id
+                   AND sc.order_item_id = oi.id
+                WHERE oi.company_id = :sales_company_id
+                  AND oi.status = 'active'
+                GROUP BY oi.company_id, oi.product_id
+            ) sales
+                ON sales.company_id = p.company_id
+               AND sales.product_id = p.id
             WHERE {$whereSql}
-            GROUP BY oi.product_id, oi.product_name_snapshot
-            {$havingSql}
         ";
 
         $countStmt = $this->db()->prepare("
             SELECT COUNT(*)
             FROM (
-                SELECT oi.product_id
+                SELECT p.id
                 {$baseSql}
             ) automatic_stock_rows
         ");
@@ -438,17 +511,25 @@ final class StockRepository extends BaseRepository
 
         $stmt = $this->db()->prepare("
             SELECT
-                oi.product_id,
-                oi.product_name_snapshot AS product_name,
-                COUNT(DISTINCT oi.id) AS sold_lines,
-                SUM(oi.quantity) AS sold_quantity,
-                MAX(o.created_at) AS last_sold_at,
+                p.id AS product_id,
+                p.name AS product_name,
+                p.sku,
+                c.name AS category_name,
+                COALESCE(recipe.recipe_rows_count, 0) AS recipe_rows_count,
+                COALESCE(sales.sold_lines, 0) AS sold_lines,
+                COALESCE(sales.sold_quantity, 0) AS sold_quantity,
+                sales.last_sold_at,
+                COALESCE(sales.pending_consumption_lines, 0) AS pending_consumption_lines,
                 CASE
-                    WHEN COUNT(DISTINCT sri.id) = 0 THEN 'missing_recipe'
-                    ELSE 'missing_consumption'
+                    WHEN COALESCE(recipe.recipe_rows_count, 0) = 0 THEN 'missing_recipe'
+                    WHEN COALESCE(sales.pending_consumption_lines, 0) > 0 THEN 'missing_consumption'
+                    ELSE 'configured'
                 END AS issue_type
             {$baseSql}
-            ORDER BY last_sold_at DESC, sold_quantity DESC
+            ORDER BY
+                CASE WHEN COALESCE(sales.pending_consumption_lines, 0) > 0 THEN 0 ELSE 1 END ASC,
+                sales.last_sold_at DESC,
+                p.name ASC
             LIMIT {$perPage} OFFSET {$offset}
         ");
         $stmt->execute($params);
@@ -482,12 +563,17 @@ final class StockRepository extends BaseRepository
             return;
         }
 
+        $hasConsumptionUnit = $this->columnExists('stock_recipe_items', 'consumption_unit');
+        $unitColumnSql = $hasConsumptionUnit ? "consumption_unit,\n                " : '';
+        $unitValueSql = $hasConsumptionUnit ? ":consumption_unit,\n                " : '';
+
         $insertStmt = $this->db()->prepare("
             INSERT INTO stock_recipe_items (
                 company_id,
                 product_id,
                 stock_item_id,
                 quantity_per_unit,
+                {$unitColumnSql}
                 waste_percent,
                 status,
                 created_at,
@@ -497,6 +583,7 @@ final class StockRepository extends BaseRepository
                 :product_id,
                 :stock_item_id,
                 :quantity_per_unit,
+                {$unitValueSql}
                 :waste_percent,
                 'ativo',
                 NOW(),
@@ -505,13 +592,18 @@ final class StockRepository extends BaseRepository
         ");
 
         foreach ($rows as $row) {
-            $insertStmt->execute([
+            $params = [
                 'company_id' => $companyId,
                 'product_id' => $productId,
                 'stock_item_id' => (int) $row['stock_item_id'],
                 'quantity_per_unit' => round((float) $row['quantity_per_unit'], 3),
                 'waste_percent' => round((float) ($row['waste_percent'] ?? 0), 2),
-            ]);
+            ];
+            if ($hasConsumptionUnit) {
+                $params['consumption_unit'] = (string) ($row['consumption_unit'] ?? 'un');
+            }
+
+            $insertStmt->execute($params);
         }
     }
 
@@ -922,20 +1014,22 @@ final class StockRepository extends BaseRepository
     private function buildAutomaticStockWhere(int $companyId, array $filters): array
     {
         $where = [
-            'oi.company_id = :company_id',
-            "oi.status = 'active'",
-            "o.status = 'finished'",
-            "o.payment_status = 'paid'",
-            'sc.id IS NULL',
+            'p.company_id = :company_id',
+            'p.deleted_at IS NULL',
+            '(COALESCE(recipe.recipe_rows_count, 0) > 0 OR COALESCE(sales.sold_lines, 0) > 0)',
         ];
-        $having = [];
-        $params = ['company_id' => $companyId];
+        $params = [
+            'company_id' => $companyId,
+            'recipe_company_id' => $companyId,
+            'sales_company_id' => $companyId,
+        ];
 
         $search = trim((string) ($filters['search'] ?? ''));
         if ($search !== '') {
             $where[] = "(
-                LOWER(COALESCE(oi.product_name_snapshot, '')) LIKE :search
-                OR CAST(oi.product_id AS CHAR) = :product_id_search
+                LOWER(COALESCE(p.name, '')) LIKE :search
+                OR LOWER(COALESCE(p.sku, '')) LIKE :search
+                OR CAST(p.id AS CHAR) = :product_id_search
             )";
             $params['search'] = '%' . strtolower($search) . '%';
             $params['product_id_search'] = $search;
@@ -943,14 +1037,20 @@ final class StockRepository extends BaseRepository
 
         $issue = trim((string) ($filters['issue'] ?? ''));
         if ($issue === 'missing_recipe') {
-            $having[] = 'COUNT(DISTINCT sri.id) = 0';
+            $where[] = 'COALESCE(recipe.recipe_rows_count, 0) = 0';
+            $where[] = 'COALESCE(sales.sold_lines, 0) > 0';
         } elseif ($issue === 'missing_consumption') {
-            $having[] = 'COUNT(DISTINCT sri.id) > 0';
+            $where[] = 'COALESCE(recipe.recipe_rows_count, 0) > 0';
+            $where[] = 'COALESCE(sales.pending_consumption_lines, 0) > 0';
+        } elseif ($issue === 'with_recipe') {
+            $where[] = 'COALESCE(recipe.recipe_rows_count, 0) > 0';
+        } elseif ($issue === 'configured') {
+            $where[] = 'COALESCE(recipe.recipe_rows_count, 0) > 0';
+            $where[] = 'COALESCE(sales.pending_consumption_lines, 0) = 0';
         }
 
         return [
             implode(' AND ', $where),
-            $having !== [] ? 'HAVING ' . implode(' AND ', $having) : '',
             $params,
         ];
     }

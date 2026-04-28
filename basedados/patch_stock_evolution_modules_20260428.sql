@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS stock_recipe_items (
     product_id BIGINT UNSIGNED NOT NULL,
     stock_item_id BIGINT UNSIGNED NOT NULL,
     quantity_per_unit DECIMAL(10,3) NOT NULL,
+    consumption_unit VARCHAR(20) NOT NULL DEFAULT 'un',
     waste_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00,
     status VARCHAR(20) NOT NULL DEFAULT 'ativo',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -111,7 +111,12 @@ final class StockAvailabilityService
                     continue;
                 }
 
-                $requiredPerUnit = round($quantityPerUnit * (1 + ($wastePercent / 100)), 3);
+                $quantityInStockUnit = $this->convertQuantityToStockUnit(
+                    $quantityPerUnit,
+                    (string) ($recipe['consumption_unit'] ?? $recipe['unit_of_measure'] ?? 'un'),
+                    (string) ($recipe['unit_of_measure'] ?? 'un')
+                );
+                $requiredPerUnit = round($quantityInStockUnit * (1 + ($wastePercent / 100)), 3);
                 $required = round($requiredPerUnit * $orderQuantity, 3);
                 $stockItemActive = (string) ($recipe['stock_item_status'] ?? 'ativo') === 'ativo';
                 $available = $stockItemActive ? round((float) ($recipe['current_quantity'] ?? 0), 3) : 0.0;
@@ -161,5 +166,29 @@ final class StockAvailabilityService
     {
         $formatted = number_format($value, 3, ',', '.');
         return rtrim(rtrim($formatted, '0'), ',');
+    }
+
+    private function convertQuantityToStockUnit(float $quantity, string $consumptionUnit, string $stockUnit): float
+    {
+        $consumptionUnit = strtolower(trim($consumptionUnit));
+        $stockUnit = strtolower(trim($stockUnit));
+        if ($consumptionUnit === $stockUnit) {
+            return round($quantity, 3);
+        }
+
+        if ($stockUnit === 'kg' && $consumptionUnit === 'g') {
+            return round($quantity / 1000, 3);
+        }
+        if ($stockUnit === 'g' && $consumptionUnit === 'kg') {
+            return round($quantity * 1000, 3);
+        }
+        if ($stockUnit === 'l' && $consumptionUnit === 'ml') {
+            return round($quantity / 1000, 3);
+        }
+        if ($stockUnit === 'ml' && $consumptionUnit === 'l') {
+            return round($quantity * 1000, 3);
+        }
+
+        return round($quantity, 3);
     }
 }

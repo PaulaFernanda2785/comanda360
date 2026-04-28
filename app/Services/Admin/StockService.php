@@ -34,6 +34,8 @@ final class StockService
     private const ALLOWED_AUTOMATIC_STOCK_ISSUES = [
         'missing_recipe',
         'missing_consumption',
+        'with_recipe',
+        'configured',
     ];
 
     private const ALLOWED_REFERENCE_TYPES = [
@@ -88,7 +90,7 @@ final class StockService
             $normalized['movement_page'],
             self::MOVEMENTS_PER_PAGE
         );
-        $automaticStockPage = $this->stock->listSoldProductsWithoutAutomaticConsumptionPaginated(
+        $automaticStockPage = $this->stock->listAutomaticStockProductsPaginated(
             $companyId,
             [
                 'search' => $normalized['automatic_stock_search'],
@@ -111,6 +113,7 @@ final class StockService
             'recipe_stock_items' => $this->stock->listActiveItemsForRecipe($companyId),
             'recipe_rows' => $this->stock->listRecipeRows($companyId),
             'production_alerts' => $this->buildProductionAlerts($companyId, $productsForLink),
+            'automatic_stock_products' => is_array($automaticStockPage['items'] ?? null) ? $automaticStockPage['items'] : [],
             'sold_without_auto_stock' => is_array($automaticStockPage['items'] ?? null) ? $automaticStockPage['items'] : [],
             'automatic_stock_pagination' => $this->buildPaginationPayload($automaticStockPage),
             'stock_automation_ready' => $this->stock->tableExists('stock_recipe_items') && $this->stock->tableExists('stock_consumptions'),
@@ -309,11 +312,28 @@ final class StockService
             throw new ValidationException('Produto da ficha técnica não pertence à empresa autenticada.');
         }
 
+        if ((string) ($input['delete_recipe'] ?? '') === '1') {
+            $db = Database::connection();
+            $db->beginTransaction();
+
+            try {
+                $this->stock->syncProductRecipe($companyId, $productId, []);
+                $db->commit();
+                return;
+            } catch (Throwable $e) {
+                if ($db->inTransaction()) {
+                    $db->rollBack();
+                }
+                throw $e;
+            }
+        }
+
         $stockItemIds = $input['recipe_stock_item_id'] ?? [];
         $quantities = $input['recipe_quantity_per_unit'] ?? [];
+        $consumptionUnits = $input['recipe_consumption_unit'] ?? [];
         $wastePercents = $input['recipe_waste_percent'] ?? [];
 
-        if (!is_array($stockItemIds) || !is_array($quantities) || !is_array($wastePercents)) {
+        if (!is_array($stockItemIds) || !is_array($quantities) || !is_array($consumptionUnits) || !is_array($wastePercents)) {
             throw new ValidationException('Formato da ficha técnica inválido.');
         }
 
@@ -338,6 +358,16 @@ final class StockService
             }
 
             $quantity = $this->parseDecimal($rawQuantity, 'consumo por unidade', false);
+            $consumptionUnit = strtolower(trim((string) ($consumptionUnits[$index] ?? ($item['unit_of_measure'] ?? 'un'))));
+            if (!in_array($consumptionUnit, self::UNIT_OPTIONS, true)) {
+                throw new ValidationException('Selecione uma unidade válida para o consumo da ficha técnica.');
+            }
+            if (!$this->unitsAreCompatible((string) ($item['unit_of_measure'] ?? 'un'), $consumptionUnit)) {
+                throw new ValidationException(
+                    'A unidade "' . strtoupper($consumptionUnit) . '" não é compatível com o item "' .
+                    (string) ($item['name'] ?? 'Insumo') . '", cadastrado em ' . strtoupper((string) ($item['unit_of_measure'] ?? 'un')) . '.'
+                );
+            }
             $waste = $this->parseNullableDecimal($rawWaste, 'perda técnica') ?? 0.0;
             if ($waste < 0 || $waste > 100) {
                 throw new ValidationException('A perda técnica deve ficar entre 0 e 100%.');
@@ -346,6 +376,7 @@ final class StockService
             $rows[$stockItemId] = [
                 'stock_item_id' => $stockItemId,
                 'quantity_per_unit' => $quantity,
+                'consumption_unit' => $consumptionUnit,
                 'waste_percent' => $waste,
             ];
         }
@@ -453,6 +484,23 @@ final class StockService
             'insufficient_count' => count($insufficient),
             'controlled_products_count' => count($availability),
         ];
+    }
+
+    private function unitsAreCompatible(string $stockUnit, string $consumptionUnit): bool
+    {
+        $stockUnit = strtolower(trim($stockUnit));
+        $consumptionUnit = strtolower(trim($consumptionUnit));
+        if ($stockUnit === $consumptionUnit) {
+            return true;
+        }
+
+        foreach ([['kg', 'g'], ['l', 'ml']] as $group) {
+            if (in_array($stockUnit, $group, true) && in_array($consumptionUnit, $group, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function normalizeItemPayload(int $companyId, array $input, ?array $existing): array
