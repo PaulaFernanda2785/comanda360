@@ -9,13 +9,17 @@ use App\Repositories\StockRepository;
 final class StockAvailabilityService
 {
     public function __construct(
-        private readonly StockRepository $stock = new StockRepository()
+        private readonly StockRepository $stock = new StockRepository(),
+        private readonly CompanyPlanFeatureService $companyFeatures = new CompanyPlanFeatureService()
     ) {}
 
     public function enrichProducts(int $companyId, array $products): array
     {
         if ($products === []) {
             return [];
+        }
+        if (!$this->companyFeatures->isEnabledForCompany($companyId, 'estoque')) {
+            return $products;
         }
 
         $productIds = array_values(array_unique(array_filter(array_map(
@@ -47,6 +51,10 @@ final class StockAvailabilityService
 
     public function assertItemsAvailable(int $companyId, array $items): void
     {
+        if (!$this->companyFeatures->isEnabledForCompany($companyId, 'estoque')) {
+            return;
+        }
+
         $quantitiesByProduct = [];
         foreach ($items as $item) {
             $productId = (int) ($item['product_id'] ?? 0);
@@ -72,6 +80,10 @@ final class StockAvailabilityService
 
     public function availabilityByProduct(int $companyId, array $productIds, array $orderQuantitiesByProduct = []): array
     {
+        if (!$this->companyFeatures->isEnabledForCompany($companyId, 'estoque')) {
+            return [];
+        }
+
         $productIds = array_values(array_unique(array_filter(array_map(
             static fn (mixed $value): int => (int) $value,
             $productIds

@@ -11,11 +11,16 @@ final class StockConsumptionService
 {
     public function __construct(
         private readonly StockRepository $stock = new StockRepository(),
-        private readonly OrderItemRepository $orderItems = new OrderItemRepository()
+        private readonly OrderItemRepository $orderItems = new OrderItemRepository(),
+        private readonly CompanyPlanFeatureService $companyFeatures = new CompanyPlanFeatureService()
     ) {}
 
     public function consumePaidFinishedOrder(int $companyId, int $orderId, int $userId): void
     {
+        if (!$this->companyFeatures->isEnabledForCompany($companyId, 'estoque')) {
+            return;
+        }
+
         if (!$this->stock->tableExists('stock_recipe_items') || !$this->stock->tableExists('stock_consumptions')) {
             return;
         }
