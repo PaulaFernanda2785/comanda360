@@ -13,7 +13,8 @@ final class ProductService
 
     public function __construct(
         private readonly ProductRepository $products = new ProductRepository(),
-        private readonly CompanyPlanLimitService $planLimits = new CompanyPlanLimitService()
+        private readonly CompanyPlanLimitService $planLimits = new CompanyPlanLimitService(),
+        private readonly StockAvailabilityService $stockAvailability = new StockAvailabilityService()
     ) {}
 
     public function list(int $companyId): array
@@ -469,7 +470,7 @@ final class ProductService
         }
         unset($product);
 
-        return $products;
+        return $this->stockAvailability->enrichProducts($companyId, $products);
     }
 
     private function ensureProductAdditionalGroup(int $companyId, array $product): array

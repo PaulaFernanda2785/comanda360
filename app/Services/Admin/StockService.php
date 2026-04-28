@@ -52,7 +52,8 @@ final class StockService
 
     public function __construct(
         private readonly StockRepository $stock = new StockRepository(),
-        private readonly ProductRepository $products = new ProductRepository()
+        private readonly ProductRepository $products = new ProductRepository(),
+        private readonly StockAvailabilityService $stockAvailability = new StockAvailabilityService()
     ) {}
 
     public function panel(int $companyId, array $filters): array
@@ -82,6 +83,8 @@ final class StockService
             self::MOVEMENTS_PER_PAGE
         );
 
+        $productsForLink = $this->stock->listProductsForLink($companyId);
+
         return [
             'items' => is_array($itemsPage['items'] ?? null) ? $itemsPage['items'] : [],
             'movements' => is_array($movementsPage['items'] ?? null) ? $movementsPage['items'] : [],
@@ -89,7 +92,12 @@ final class StockService
             'filters' => $normalized,
             'item_pagination' => $this->buildPaginationPayload($itemsPage),
             'movement_pagination' => $this->buildPaginationPayload($movementsPage),
-            'products' => $this->stock->listProductsForLink($companyId),
+            'products' => $productsForLink,
+            'recipe_stock_items' => $this->stock->listActiveItemsForRecipe($companyId),
+            'recipe_rows' => $this->stock->listRecipeRows($companyId),
+            'production_alerts' => $this->buildProductionAlerts($companyId, $productsForLink),
+            'sold_without_auto_stock' => $this->stock->listSoldProductsWithoutAutomaticConsumption($companyId, 10),
+            'stock_automation_ready' => $this->stock->tableExists('stock_recipe_items') && $this->stock->tableExists('stock_consumptions'),
             'status_options' => self::ALLOWED_ITEM_STATUS,
             'alert_options' => self::ALLOWED_ALERT_FILTERS,
             'movement_type_options' => self::ALLOWED_MOVEMENT_TYPES,
@@ -239,7 +247,7 @@ final class StockService
         }
 
         if ($type === 'adjustment' && $reason === null) {
-            $reason = 'Ajuste de inventario para saldo alvo ' . number_format($nextQuantity, 3, ',', '.') . ' ' . (string) ($item['unit_of_measure'] ?? 'un');
+            $reason = 'Ajuste de inventario para saldo alvo ' . $this->formatQuantity($nextQuantity) . ' ' . (string) ($item['unit_of_measure'] ?? 'un');
         }
 
         $referenceId = $this->normalizeNullableInteger($input['reference_id'] ?? null);
@@ -261,6 +269,76 @@ final class StockService
                 'moved_at' => date('Y-m-d H:i:s'),
             ]);
 
+            $db->commit();
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    public function updateRecipe(int $companyId, array $input): void
+    {
+        if (!$this->stock->tableExists('stock_recipe_items')) {
+            throw new ValidationException('Estrutura de ficha tecnica ainda nao instalada. Execute o patch SQL de evolucao do estoque.');
+        }
+
+        $productId = (int) ($input['recipe_product_id'] ?? 0);
+        if ($productId <= 0) {
+            throw new ValidationException('Selecione um produto valido para a ficha tecnica.');
+        }
+
+        if ($this->products->findByIdForCompany($companyId, $productId) === null) {
+            throw new ValidationException('Produto da ficha tecnica nao pertence a empresa autenticada.');
+        }
+
+        $stockItemIds = $input['recipe_stock_item_id'] ?? [];
+        $quantities = $input['recipe_quantity_per_unit'] ?? [];
+        $wastePercents = $input['recipe_waste_percent'] ?? [];
+
+        if (!is_array($stockItemIds) || !is_array($quantities) || !is_array($wastePercents)) {
+            throw new ValidationException('Formato da ficha tecnica invalido.');
+        }
+
+        $rows = [];
+        $totalRows = max(count($stockItemIds), count($quantities));
+        for ($index = 0; $index < $totalRows; $index++) {
+            $stockItemId = (int) ($stockItemIds[$index] ?? 0);
+            $rawQuantity = trim((string) ($quantities[$index] ?? ''));
+            $rawWaste = trim((string) ($wastePercents[$index] ?? '0'));
+
+            if ($stockItemId <= 0 && $rawQuantity === '') {
+                continue;
+            }
+
+            if ($stockItemId <= 0) {
+                throw new ValidationException('Selecione um item de estoque valido na ficha tecnica.');
+            }
+
+            $item = $this->stock->findItemById($companyId, $stockItemId);
+            if ($item === null) {
+                throw new ValidationException('Item de estoque da ficha tecnica nao pertence a empresa autenticada.');
+            }
+
+            $quantity = $this->parseDecimal($rawQuantity, 'consumo por unidade', false);
+            $waste = $this->parseNullableDecimal($rawWaste, 'perda tecnica') ?? 0.0;
+            if ($waste < 0 || $waste > 100) {
+                throw new ValidationException('A perda tecnica deve ficar entre 0 e 100%.');
+            }
+
+            $rows[$stockItemId] = [
+                'stock_item_id' => $stockItemId,
+                'quantity_per_unit' => $quantity,
+                'waste_percent' => $waste,
+            ];
+        }
+
+        $db = Database::connection();
+        $db->beginTransaction();
+
+        try {
+            $this->stock->syncProductRecipe($companyId, $productId, array_values($rows));
             $db->commit();
         } catch (Throwable $e) {
             if ($db->inTransaction()) {
@@ -308,6 +386,42 @@ final class StockService
             'movement_type' => $movementType,
             'page' => $page,
             'movement_page' => $movementPage,
+        ];
+    }
+
+    private function buildProductionAlerts(int $companyId, array $products): array
+    {
+        $productIds = array_values(array_filter(array_map(
+            static fn (array $product): int => (int) ($product['id'] ?? 0),
+            $products
+        )));
+        $availability = $this->stockAvailability->availabilityByProduct($companyId, $productIds);
+
+        $byProductName = [];
+        foreach ($products as $product) {
+            $productId = (int) ($product['id'] ?? 0);
+            if ($productId > 0) {
+                $byProductName[$productId] = (string) ($product['name'] ?? 'Produto');
+            }
+        }
+
+        $insufficient = [];
+        foreach ($availability as $productId => $state) {
+            if (!empty($state['has_recipe']) && empty($state['stock_available'])) {
+                $insufficient[] = [
+                    'product_id' => (int) $productId,
+                    'product_name' => $byProductName[(int) $productId] ?? ('Produto #' . (int) $productId),
+                    'note' => (string) ($state['stock_note'] ?? 'Insumos insuficientes para producao.'),
+                    'max_production_quantity' => (int) ($state['max_production_quantity'] ?? 0),
+                    'items' => is_array($state['insufficient_items'] ?? null) ? $state['insufficient_items'] : [],
+                ];
+            }
+        }
+
+        return [
+            'insufficient_products' => $insufficient,
+            'insufficient_count' => count($insufficient),
+            'controlled_products_count' => count($availability),
         ];
     }
 
@@ -454,6 +568,12 @@ final class StockService
     {
         $normalized = trim((string) ($value ?? ''));
         return $normalized !== '' ? $normalized : null;
+    }
+
+    private function formatQuantity(float $value): string
+    {
+        $formatted = number_format($value, 3, ',', '.');
+        return rtrim(rtrim($formatted, '0'), ',');
     }
 
     private function normalizeNullableInteger(mixed $value): ?int

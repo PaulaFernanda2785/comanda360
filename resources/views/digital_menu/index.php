@@ -144,6 +144,7 @@ if (!is_string($productsJson)) {
         position:relative;display:grid;grid-template-columns:108px minmax(0,1fr);gap:14px;padding:14px;border:1px solid var(--dm-border);
         border-radius:24px;background:linear-gradient(180deg,#fff,#f9fbfd)
     }
+    .dm-product-card.is-unavailable{opacity:.72;background:#f8fafc}
     .dm-product-image{
         width:108px;height:108px;border-radius:18px;overflow:hidden;background:linear-gradient(135deg,#e0ecff,#eef4fb);
         display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--dm-muted)
@@ -156,6 +157,7 @@ if (!is_string($productsJson)) {
     .dm-tag{display:inline-flex;padding:6px 9px;border-radius:999px;background:var(--dm-surface-soft);border:1px solid var(--dm-border);font-size:11px;font-weight:700;color:var(--dm-muted)}
     .dm-product-meta{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
     .dm-price{font-size:20px;font-weight:800;color:var(--dm-secondary)}
+    .dm-unavailable-note{font-size:12px;font-weight:800;color:#991b1b}
     .dm-empty{padding:18px;border-radius:20px;border:1px dashed var(--dm-border);background:var(--dm-surface-soft);color:var(--dm-muted)}
     .dm-cart-dock{
         position:fixed;left:0;right:0;bottom:0;z-index:40;padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px));
@@ -347,14 +349,18 @@ if (!is_string($productsJson)) {
                                     <?php
                                     $categoryKey = (string) ($category['key'] ?? 'category-' . $index);
                                     $categoryProducts = is_array($category['products'] ?? null) ? $category['products'] : [];
+                                    $availableCategoryProducts = array_values(array_filter(
+                                        $categoryProducts,
+                                        static fn (array $product): bool => !array_key_exists('stock_available', $product) || !empty($product['stock_available'])
+                                    ));
                                     ?>
                                     <section class="dm-category-section" id="category-<?= htmlspecialchars($categoryKey) ?>" data-category-section="<?= htmlspecialchars($categoryKey) ?>">
                                         <div class="dm-category-head">
                                             <div class="dm-category-copy">
                                                 <h3><?= htmlspecialchars((string) ($category['name'] ?? 'Categoria')) ?></h3>
-                                                <p><?= count($categoryProducts) ?> produto(s) disponível(is) nesta categoria.</p>
+                                                <p><?= count($availableCategoryProducts) ?> produto(s) disponível(is) nesta categoria.</p>
                                             </div>
-                                            <span class="dm-refresh-status"><?= count($categoryProducts) ?> produto(s)</span>
+                                            <span class="dm-refresh-status"><?= count($availableCategoryProducts) ?> produto(s)</span>
                                         </div>
 
                                         <div class="dm-product-list">
@@ -365,8 +371,9 @@ if (!is_string($productsJson)) {
                                                     : (float) ($product['price'] ?? 0);
                                                 $imageUrl = product_image_url((string) ($product['image_path'] ?? ''));
                                                 $additionals = is_array($product['additionals'] ?? null) ? $product['additionals'] : [];
+                                                $stockAvailable = !array_key_exists('stock_available', $product) || !empty($product['stock_available']);
                                                 ?>
-                                                <article class="dm-product-card">
+                                                <article class="dm-product-card<?= $stockAvailable ? '' : ' is-unavailable' ?>">
                                                     <div class="dm-product-image">
                                                         <?php if ($imageUrl !== ''): ?>
                                                             <img src="<?= htmlspecialchars($imageUrl) ?>" alt="<?= htmlspecialchars((string) ($product['name'] ?? 'Produto')) ?>">
@@ -384,18 +391,25 @@ if (!is_string($productsJson)) {
                                                             <?php if ((int) ($product['allows_notes'] ?? 0) === 1): ?>
                                                                 <span class="dm-tag">Aceita observação</span>
                                                             <?php endif; ?>
+                                                            <?php if (!$stockAvailable): ?>
+                                                                <span class="dm-tag">Produto indisponível</span>
+                                                            <?php endif; ?>
                                                         </div>
                                                         <div class="dm-product-meta">
                                                             <span class="dm-price"><?= $formatMoney($price) ?></span>
-                                                            <button
-                                                                class="btn"
-                                                                type="button"
-                                                                data-product-open
-                                                                data-product-id="<?= (int) ($product['id'] ?? 0) ?>"
-                                                                <?= $currentCommand !== null ? '' : 'disabled title="Abra sua comanda primeiro"' ?>
-                                                            >
-                                                                Adicionar
-                                                            </button>
+                                                            <?php if (!$stockAvailable): ?>
+                                                                <span class="dm-unavailable-note">Produto indisponível</span>
+                                                            <?php else: ?>
+                                                                <button
+                                                                    class="btn"
+                                                                    type="button"
+                                                                    data-product-open
+                                                                    data-product-id="<?= (int) ($product['id'] ?? 0) ?>"
+                                                                    <?= $currentCommand !== null ? '' : 'disabled title="Abra sua comanda primeiro"' ?>
+                                                                >
+                                                                    Adicionar
+                                                                </button>
+                                                            <?php endif; ?>
                                                         </div>
                                                     </div>
                                                 </article>
@@ -711,7 +725,15 @@ if (!is_string($productsJson)) {
                     ...item,
                     additionals: item.additionals.filter((additional) => additional.id > 0 && additional.quantity > 0),
                 }))
-                .filter((item) => item.productId > 0 && item.quantity > 0 && Number.isFinite(item.lineTotal) && item.lineTotal >= 0 && productsById[String(item.productId)]);
+                    .filter((item) => {
+                        const product = productsById[String(item.productId)] || null;
+                        return item.productId > 0
+                            && item.quantity > 0
+                            && Number.isFinite(item.lineTotal)
+                            && item.lineTotal >= 0
+                            && product
+                            && product.stock_available !== false;
+                    });
         };
 
         const saveCart = () => {
@@ -1093,6 +1115,10 @@ if (!is_string($productsJson)) {
 
             const product = productsById[String(productId)];
             if (!product) {
+                return;
+            }
+            if (product.stock_available === false) {
+                alert('Produto indisponível no momento.');
                 return;
             }
 

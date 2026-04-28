@@ -103,6 +103,7 @@ final class OrderItemRepository extends BaseRepository
             SELECT
                 oi.id,
                 oi.order_id,
+                oi.product_id,
                 oi.product_name_snapshot,
                 oi.unit_price,
                 oi.quantity,

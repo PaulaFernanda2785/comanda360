@@ -24,7 +24,8 @@ final class PaymentService
         private readonly OrderStatusHistoryRepository $statusHistory = new OrderStatusHistoryRepository(),
         private readonly CashRegisterRepository $cashRegisters = new CashRegisterRepository(),
         private readonly CashMovementRepository $cashMovements = new CashMovementRepository(),
-        private readonly CommandLifecycleService $commandLifecycle = new CommandLifecycleService()
+        private readonly CommandLifecycleService $commandLifecycle = new CommandLifecycleService(),
+        private readonly StockConsumptionService $stockConsumption = new StockConsumptionService()
     ) {}
 
     public function list(int $companyId): array
@@ -236,6 +237,7 @@ final class PaymentService
                         'changed_by_user_id' => $userId,
                         'notes' => 'Finalizado automaticamente apos pagamento total em etapa final de producao.',
                     ]);
+                    $this->stockConsumption->consumePaidFinishedOrder($companyId, $orderId, $userId);
                 }
             }
 

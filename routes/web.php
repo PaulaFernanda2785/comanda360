@@ -162,6 +162,7 @@ $router->get('/admin/stock', [StockController::class, 'index'], $companyFeatureA
 $router->post('/admin/stock/items/store', [StockController::class, 'storeItem'], $companyFeatureAccess('stock.manage', 'estoque'));
 $router->post('/admin/stock/items/update', [StockController::class, 'updateItem'], $companyFeatureAccess('stock.manage', 'estoque'));
 $router->post('/admin/stock/movements/store', [StockController::class, 'storeMovement'], $companyFeatureAccess('stock.manage', 'estoque'));
+$router->post('/admin/stock/recipes/update', [StockController::class, 'updateRecipe'], $companyFeatureAccess('stock.manage', 'estoque'));
 
 $router->get('/admin/payments', [PaymentController::class, 'index'], $companyAccess('payments.view'));
 $router->get('/admin/payments/create', [PaymentController::class, 'create'], $companyAccess('payments.create'));

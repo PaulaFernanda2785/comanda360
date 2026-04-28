@@ -93,6 +93,25 @@ final class StockController extends Controller
         }
     }
 
+    public function updateRecipe(Request $request): Response
+    {
+        $redirectTo = $this->resolveStockRedirect($request);
+        $guard = $this->guardSingleSubmit($request, 'stock.recipes.update', $redirectTo);
+        if ($guard !== null) {
+            return $guard;
+        }
+
+        $user = Auth::user() ?? [];
+        $companyId = (int) ($user['company_id'] ?? 0);
+
+        try {
+            $this->service->updateRecipe($companyId, $request->all());
+            return $this->backWithSuccess('Ficha tecnica atualizada com sucesso.', $redirectTo);
+        } catch (ValidationException $e) {
+            return $this->backWithError($e->getMessage(), $redirectTo);
+        }
+    }
+
     private function resolveStockRedirect(Request $request): string
     {
         $default = '/admin/stock';

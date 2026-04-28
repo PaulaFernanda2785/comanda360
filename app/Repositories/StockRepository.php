@@ -4,9 +4,40 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use PDO;
+use PDOException;
 
 final class StockRepository extends BaseRepository
 {
+    private array $tableExistsCache = [];
+
+    public function tableExists(string $table): bool
+    {
+        $table = trim($table);
+        if ($table === '') {
+            return false;
+        }
+
+        if (array_key_exists($table, $this->tableExistsCache)) {
+            return $this->tableExistsCache[$table];
+        }
+
+        try {
+            $stmt = $this->db()->prepare("
+                SELECT COUNT(*)
+                FROM information_schema.TABLES
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = :table
+            ");
+            $stmt->execute(['table' => $table]);
+            $exists = ((int) $stmt->fetchColumn()) > 0;
+        } catch (PDOException) {
+            $exists = false;
+        }
+
+        $this->tableExistsCache[$table] = $exists;
+        return $exists;
+    }
+
     public function listItemsPaginated(int $companyId, array $filters, int $page, int $perPage): array
     {
         $page = max(1, $page);
@@ -220,6 +251,200 @@ final class StockRepository extends BaseRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
+    public function listActiveItemsForRecipe(int $companyId): array
+    {
+        $stmt = $this->db()->prepare("
+            SELECT
+                id,
+                name,
+                sku,
+                unit_of_measure,
+                current_quantity
+            FROM stock_items
+            WHERE company_id = :company_id
+              AND status = 'ativo'
+            ORDER BY name ASC, id ASC
+        ");
+        $stmt->execute(['company_id' => $companyId]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public function listRecipeRows(int $companyId): array
+    {
+        if (!$this->tableExists('stock_recipe_items')) {
+            return [];
+        }
+
+        $stmt = $this->db()->prepare("
+            SELECT
+                sri.id,
+                sri.company_id,
+                sri.product_id,
+                p.name AS product_name,
+                sri.stock_item_id,
+                si.name AS stock_item_name,
+                si.unit_of_measure,
+                sri.quantity_per_unit,
+                sri.waste_percent,
+                sri.status,
+                sri.updated_at
+            FROM stock_recipe_items sri
+            INNER JOIN products p
+                ON p.id = sri.product_id
+               AND p.company_id = sri.company_id
+               AND p.deleted_at IS NULL
+            INNER JOIN stock_items si
+                ON si.id = sri.stock_item_id
+               AND si.company_id = sri.company_id
+            WHERE sri.company_id = :company_id
+            ORDER BY p.name ASC, si.name ASC, sri.id ASC
+        ");
+        $stmt->execute(['company_id' => $companyId]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public function listActiveRecipeRowsForProducts(int $companyId, array $productIds): array
+    {
+        if (!$this->tableExists('stock_recipe_items')) {
+            return [];
+        }
+
+        $ids = array_values(array_unique(array_map(static fn (mixed $value): int => (int) $value, $productIds)));
+        $ids = array_values(array_filter($ids, static fn (int $value): bool => $value > 0));
+        if ($ids === []) {
+            return [];
+        }
+
+        $params = ['company_id' => $companyId];
+        $placeholders = [];
+        foreach ($ids as $index => $productId) {
+            $key = 'product_id_' . $index;
+            $placeholders[] = ':' . $key;
+            $params[$key] = $productId;
+        }
+
+        $stmt = $this->db()->prepare("
+            SELECT
+                sri.product_id,
+                sri.stock_item_id,
+                sri.quantity_per_unit,
+                sri.waste_percent,
+                si.name AS stock_item_name,
+                si.unit_of_measure,
+                si.current_quantity,
+                si.status AS stock_item_status
+            FROM stock_recipe_items sri
+            INNER JOIN stock_items si
+                ON si.id = sri.stock_item_id
+               AND si.company_id = sri.company_id
+            WHERE sri.company_id = :company_id
+              AND sri.status = 'ativo'
+              AND sri.product_id IN (" . implode(', ', $placeholders) . ")
+            ORDER BY sri.product_id ASC, sri.id ASC
+        ");
+        $stmt->execute($params);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public function listSoldProductsWithoutAutomaticConsumption(int $companyId, int $limit = 10): array
+    {
+        $limit = max(1, min(50, $limit));
+        if (!$this->tableExists('stock_recipe_items') || !$this->tableExists('stock_consumptions')) {
+            return [];
+        }
+
+        $stmt = $this->db()->prepare("
+            SELECT
+                oi.product_id,
+                oi.product_name_snapshot AS product_name,
+                COUNT(DISTINCT oi.id) AS sold_lines,
+                SUM(oi.quantity) AS sold_quantity,
+                MAX(o.created_at) AS last_sold_at,
+                CASE
+                    WHEN COUNT(DISTINCT sri.id) = 0 THEN 'missing_recipe'
+                    ELSE 'missing_consumption'
+                END AS issue_type
+            FROM order_items oi
+            INNER JOIN orders o
+                ON o.id = oi.order_id
+               AND o.company_id = oi.company_id
+            LEFT JOIN stock_recipe_items sri
+                ON sri.company_id = oi.company_id
+               AND sri.product_id = oi.product_id
+               AND sri.status = 'ativo'
+            LEFT JOIN stock_consumptions sc
+                ON sc.company_id = oi.company_id
+               AND sc.order_item_id = oi.id
+            WHERE oi.company_id = :company_id
+              AND oi.status = 'active'
+              AND o.status = 'finished'
+              AND o.payment_status = 'paid'
+              AND sc.id IS NULL
+            GROUP BY oi.product_id, oi.product_name_snapshot
+            ORDER BY last_sold_at DESC, sold_quantity DESC
+            LIMIT {$limit}
+        ");
+        $stmt->execute(['company_id' => $companyId]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    public function syncProductRecipe(int $companyId, int $productId, array $rows): void
+    {
+        if (!$this->tableExists('stock_recipe_items')) {
+            return;
+        }
+
+        $deleteStmt = $this->db()->prepare("
+            DELETE FROM stock_recipe_items
+            WHERE company_id = :company_id
+              AND product_id = :product_id
+        ");
+        $deleteStmt->execute([
+            'company_id' => $companyId,
+            'product_id' => $productId,
+        ]);
+
+        if ($rows === []) {
+            return;
+        }
+
+        $insertStmt = $this->db()->prepare("
+            INSERT INTO stock_recipe_items (
+                company_id,
+                product_id,
+                stock_item_id,
+                quantity_per_unit,
+                waste_percent,
+                status,
+                created_at,
+                updated_at
+            ) VALUES (
+                :company_id,
+                :product_id,
+                :stock_item_id,
+                :quantity_per_unit,
+                :waste_percent,
+                'ativo',
+                NOW(),
+                NOW()
+            )
+        ");
+
+        foreach ($rows as $row) {
+            $insertStmt->execute([
+                'company_id' => $companyId,
+                'product_id' => $productId,
+                'stock_item_id' => (int) $row['stock_item_id'],
+                'quantity_per_unit' => round((float) $row['quantity_per_unit'], 3),
+                'waste_percent' => round((float) ($row['waste_percent'] ?? 0), 2),
+            ]);
+        }
+    }
+
     public function findItemById(int $companyId, int $itemId): ?array
     {
         $stmt = $this->db()->prepare("
@@ -261,6 +486,31 @@ final class StockRepository extends BaseRepository
                 si.created_at,
                 si.updated_at
             LIMIT 1
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'item_id' => $itemId,
+        ]);
+
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public function findItemByIdForUpdate(int $companyId, int $itemId): ?array
+    {
+        $stmt = $this->db()->prepare("
+            SELECT
+                id,
+                company_id,
+                name,
+                current_quantity,
+                unit_of_measure,
+                status
+            FROM stock_items
+            WHERE company_id = :company_id
+              AND id = :item_id
+            LIMIT 1
+            FOR UPDATE
         ");
         $stmt->execute([
             'company_id' => $companyId,
@@ -474,6 +724,67 @@ final class StockRepository extends BaseRepository
             'reference_id' => $data['reference_id'],
             'moved_by_user_id' => $data['moved_by_user_id'],
             'moved_at' => $data['moved_at'],
+        ]);
+
+        return (int) $this->db()->lastInsertId();
+    }
+
+    public function hasConsumptionForOrder(int $companyId, int $orderId): bool
+    {
+        if (!$this->tableExists('stock_consumptions')) {
+            return false;
+        }
+
+        $stmt = $this->db()->prepare("
+            SELECT 1
+            FROM stock_consumptions
+            WHERE company_id = :company_id
+              AND order_id = :order_id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            'company_id' => $companyId,
+            'order_id' => $orderId,
+        ]);
+
+        return (bool) $stmt->fetchColumn();
+    }
+
+    public function createConsumption(array $data): int
+    {
+        if (!$this->tableExists('stock_consumptions')) {
+            return 0;
+        }
+
+        $stmt = $this->db()->prepare("
+            INSERT INTO stock_consumptions (
+                company_id,
+                order_id,
+                order_item_id,
+                product_id,
+                stock_item_id,
+                stock_movement_id,
+                quantity,
+                created_at
+            ) VALUES (
+                :company_id,
+                :order_id,
+                :order_item_id,
+                :product_id,
+                :stock_item_id,
+                :stock_movement_id,
+                :quantity,
+                NOW()
+            )
+        ");
+        $stmt->execute([
+            'company_id' => $data['company_id'],
+            'order_id' => $data['order_id'],
+            'order_item_id' => $data['order_item_id'],
+            'product_id' => $data['product_id'],
+            'stock_item_id' => $data['stock_item_id'],
+            'stock_movement_id' => $data['stock_movement_id'],
+            'quantity' => $data['quantity'],
         ]);
 
         return (int) $this->db()->lastInsertId();

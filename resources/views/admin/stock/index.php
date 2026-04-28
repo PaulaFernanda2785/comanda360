@@ -7,6 +7,12 @@ $filters = is_array($stockPanel['filters'] ?? null) ? $stockPanel['filters'] : [
 $itemPagination = is_array($stockPanel['item_pagination'] ?? null) ? $stockPanel['item_pagination'] : [];
 $movementPagination = is_array($stockPanel['movement_pagination'] ?? null) ? $stockPanel['movement_pagination'] : [];
 $products = is_array($stockPanel['products'] ?? null) ? $stockPanel['products'] : [];
+$recipeStockItems = is_array($stockPanel['recipe_stock_items'] ?? null) ? $stockPanel['recipe_stock_items'] : [];
+$recipeRows = is_array($stockPanel['recipe_rows'] ?? null) ? $stockPanel['recipe_rows'] : [];
+$productionAlerts = is_array($stockPanel['production_alerts'] ?? null) ? $stockPanel['production_alerts'] : [];
+$insufficientProducts = is_array($productionAlerts['insufficient_products'] ?? null) ? $productionAlerts['insufficient_products'] : [];
+$soldWithoutAutoStock = is_array($stockPanel['sold_without_auto_stock'] ?? null) ? $stockPanel['sold_without_auto_stock'] : [];
+$stockAutomationReady = !empty($stockPanel['stock_automation_ready']);
 $unitOptions = is_array($stockPanel['unit_options'] ?? null) ? $stockPanel['unit_options'] : [];
 $referenceTypeOptions = is_array($stockPanel['reference_type_options'] ?? null) ? $stockPanel['reference_type_options'] : [];
 $canManageStock = (bool) ($canManageStock ?? false);
@@ -77,8 +83,32 @@ $formatDate = static function (mixed $value, bool $withTime = true): string {
 };
 
 $formatQty = static function (mixed $value): string {
-    return number_format((float) $value, 3, ',', '.');
+    $formatted = number_format((float) $value, 3, ',', '.');
+    return rtrim(rtrim($formatted, '0'), ',');
 };
+
+$formatQtyInput = static function (mixed $value): string {
+    $formatted = number_format((float) $value, 3, '.', '');
+    return rtrim(rtrim($formatted, '0'), '.');
+};
+
+$recipesByProductId = [];
+foreach ($recipeRows as $recipeRow) {
+    $recipeProductId = (int) ($recipeRow['product_id'] ?? 0);
+    if ($recipeProductId <= 0) {
+        continue;
+    }
+    if (!isset($recipesByProductId[$recipeProductId])) {
+        $recipesByProductId[$recipeProductId] = [];
+    }
+    $recipesByProductId[$recipeProductId][] = [
+        'stock_item_id' => (int) ($recipeRow['stock_item_id'] ?? 0),
+        'quantity_per_unit' => $formatQtyInput($recipeRow['quantity_per_unit'] ?? 0),
+        'waste_percent' => $formatQtyInput($recipeRow['waste_percent'] ?? 0),
+        'stock_item_name' => (string) ($recipeRow['stock_item_name'] ?? ''),
+        'unit_of_measure' => (string) ($recipeRow['unit_of_measure'] ?? 'un'),
+    ];
+}
 
 $stockAlertMeta = static function (array $item): array {
     $alert = (string) ($item['stock_alert'] ?? 'normal');
@@ -313,6 +343,12 @@ $renderProductPicker = static function (string $pickerId, array $products, array
     .stock-summary-item strong{color:#0f172a}
     .stock-summary-item span{padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1e3a8a;font-size:11px;font-weight:700}
 
+    .stock-recipe-builder{display:grid;gap:12px}
+    .stock-recipe-grid{display:grid;gap:8px}
+    .stock-recipe-row{display:grid;grid-template-columns:minmax(180px,1.4fr) minmax(120px,.7fr) minmax(110px,.6fr) auto;gap:8px;align-items:end}
+    .stock-recipe-current{display:flex;gap:8px;flex-wrap:wrap}
+    .stock-recipe-pill{padding:6px 10px;border-radius:999px;border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;font-size:12px;font-weight:700}
+
     .stock-empty{padding:14px;border:1px dashed #cbd5e1;border-radius:14px;background:#f8fafc;color:#64748b;font-size:13px;line-height:1.5}
     .stock-pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
     .stock-pagination-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -342,6 +378,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
     }
     @media (max-width:760px){
         .stock-kpis,.stock-filter-grid,.stock-info,.stock-form-grid,.stock-movement-grid,.stock-product-grid,.stock-picker-toolbar{grid-template-columns:1fr}
+        .stock-recipe-row{grid-template-columns:1fr}
         .stock-hero h1{font-size:24px}
     }
 </style>
@@ -530,7 +567,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                                                 </div>
                                                 <div class="field">
                                                     <label for="stock_minimum_<?= (int) ($item['id'] ?? 0) ?>">Estoque mínimo</label>
-                                                    <input id="stock_minimum_<?= (int) ($item['id'] ?? 0) ?>" name="minimum_quantity" type="number" min="0" step="0.001" value="<?= ($item['minimum_quantity'] ?? null) !== null ? htmlspecialchars(number_format((float) $item['minimum_quantity'], 3, '.', '')) : '' ?>">
+                                                    <input id="stock_minimum_<?= (int) ($item['id'] ?? 0) ?>" name="minimum_quantity" type="number" min="0" step="0.001" value="<?= ($item['minimum_quantity'] ?? null) !== null ? htmlspecialchars($formatQtyInput($item['minimum_quantity'])) : '' ?>">
                                                 </div>
                                                 <div class="field">
                                                     <label for="stock_status_edit_<?= (int) ($item['id'] ?? 0) ?>">Status</label>
@@ -570,8 +607,8 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                                                     <input id="stock_quantity_<?= (int) ($item['id'] ?? 0) ?>" name="quantity" type="number" min="0.001" step="0.001" placeholder="Use para entrada ou saida">
                                                 </div>
                                                 <div class="field">
-                                                    <label for="stock_target_<?= (int) ($item['id'] ?? 0) ?>">Saldo alvo</label>
-                                                    <input id="stock_target_<?= (int) ($item['id'] ?? 0) ?>" name="target_quantity" type="number" min="0" step="0.001" placeholder="Use apenas em ajuste">
+                                                    <label for="stock_target_<?= (int) ($item['id'] ?? 0) ?>">Saldo correto apos ajuste</label>
+                                                    <input id="stock_target_<?= (int) ($item['id'] ?? 0) ?>" name="target_quantity" type="number" min="0" step="0.001" placeholder="Saldo final contado">
                                                 </div>
                                                 <div class="field">
                                                     <label for="stock_reference_type_<?= (int) ($item['id'] ?? 0) ?>">Origem</label>
@@ -591,7 +628,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
 
                                             <div class="stock-actions stock-actions--offset">
                                                 <button class="btn" type="submit">Registrar movimento</button>
-                                                <span class="stock-form-note">Entrada e saída usam quantidade. Ajuste usa saldo alvo. Misturar os dois enfraquece a confiabilidade do histórico.</span>
+                                                <span class="stock-form-note">Entrada e saída usam quantidade. Ajuste usa o saldo correto apos contagem. Misturar os dois enfraquece a confiabilidade do histórico.</span>
                                             </div>
                                         </form>
                                     </div>
@@ -652,6 +689,70 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                 </div>
             </section>
 
+            <section class="card">
+                <div class="stock-head">
+                    <div>
+                        <h3>Baixa automática</h3>
+                        <p class="stock-note">Produtos vendidos sem baixa automática indicam itens sem ficha técnica ou pedidos antigos sem consumo registrado.</p>
+                    </div>
+                </div>
+                <div class="stock-summary-grid">
+                    <div class="stock-summary-item"><strong>Produtos vendidos sem baixa automática</strong><span><?= count($soldWithoutAutoStock) ?></span></div>
+                </div>
+                <div class="stock-movement-list" style="margin-top:12px">
+                    <?php if ($soldWithoutAutoStock === []): ?>
+                        <div class="stock-empty">Nenhum produto vendido sem baixa automática encontrado.</div>
+                    <?php else: ?>
+                        <?php foreach ($soldWithoutAutoStock as $row): ?>
+                            <article class="stock-movement">
+                                <div class="stock-movement-top">
+                                    <div class="stock-movement-meta">
+                                        <strong><?= htmlspecialchars((string) ($row['product_name'] ?? 'Produto')) ?></strong>
+                                        <small>
+                                            Vendido: <?= htmlspecialchars($formatQty($row['sold_quantity'] ?? 0)) ?> un
+                                            | Última venda: <?= htmlspecialchars($formatDate($row['last_sold_at'] ?? null)) ?>
+                                        </small>
+                                    </div>
+                                    <span class="badge status-pending">
+                                        <?= (string) ($row['issue_type'] ?? '') === 'missing_recipe' ? 'Sem ficha técnica' : 'Sem baixa registrada' ?>
+                                    </span>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="stock-head">
+                    <div>
+                        <h3>Produção por estoque</h3>
+                        <p class="stock-note">Produtos com ficha técnica ficam indisponíveis no cardápio público quando os insumos não sustentam ao menos uma unidade.</p>
+                    </div>
+                </div>
+                <div class="stock-summary-grid">
+                    <div class="stock-summary-item"><strong>Produtos controlados por ficha técnica</strong><span><?= (int) ($productionAlerts['controlled_products_count'] ?? 0) ?></span></div>
+                    <div class="stock-summary-item"><strong>Indisponíveis por insumo</strong><span><?= (int) ($productionAlerts['insufficient_count'] ?? 0) ?></span></div>
+                </div>
+                <div class="stock-movement-list" style="margin-top:12px">
+                    <?php if ($insufficientProducts === []): ?>
+                        <div class="stock-empty">Nenhum produto controlado está bloqueado por falta de insumo.</div>
+                    <?php else: ?>
+                        <?php foreach ($insufficientProducts as $row): ?>
+                            <article class="stock-movement">
+                                <div class="stock-movement-top">
+                                    <div class="stock-movement-meta">
+                                        <strong><?= htmlspecialchars((string) ($row['product_name'] ?? 'Produto')) ?></strong>
+                                        <small><?= htmlspecialchars((string) ($row['note'] ?? 'Insumos insuficientes para produção.')) ?></small>
+                                    </div>
+                                    <span class="badge status-overdue">Indisponível</span>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </section>
+
             <?php if ($canManageStock): ?>
                 <section class="card">
                     <div class="stock-head">
@@ -683,7 +784,7 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                             </div>
                             <div class="field">
                                 <label for="new_stock_initial">Saldo inicial</label>
-                                <input id="new_stock_initial" name="initial_quantity" type="number" min="0" step="0.001" value="0.000">
+                                <input id="new_stock_initial" name="initial_quantity" type="number" min="0" step="0.001" value="0">
                             </div>
                             <div class="field">
                                 <label for="new_stock_minimum">Estoque mínimo</label>
@@ -707,6 +808,48 @@ $renderProductPicker = static function (string $pickerId, array $products, array
                             <span class="stock-form-note">Se houver saldo inicial, o sistema registra a entrada automaticamente para o item não nascer sem histórico.</span>
                         </div>
                     </form>
+                </section>
+
+                <section class="card">
+                    <div class="stock-head">
+                        <div>
+                            <h3>Ficha tecnica</h3>
+                            <p class="stock-note">Defina quanto cada produto consome de estoque. A baixa automatica acontece quando o pedido fica pago e finalizado.</p>
+                        </div>
+                    </div>
+
+                    <?php if (!$stockAutomationReady): ?>
+                        <div class="stock-empty" style="margin-top:12px">A estrutura de ficha tecnica ainda nao esta instalada no banco. Execute o patch SQL de evolucao do estoque antes de usar este modulo.</div>
+                    <?php elseif ($products === [] || $recipeStockItems === []): ?>
+                        <div class="stock-empty" style="margin-top:12px">Cadastre produtos e itens ativos de estoque antes de montar a ficha tecnica.</div>
+                    <?php else: ?>
+                        <form class="stock-recipe-builder" method="POST" action="<?= htmlspecialchars(base_url('/admin/stock/recipes/update')) ?>" data-stock-recipe-form>
+                            <?= form_security_fields('stock.recipes.update') ?>
+                            <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery) ?>">
+
+                            <div class="field">
+                                <label for="recipe_product_id">Produto</label>
+                                <select id="recipe_product_id" name="recipe_product_id" required data-stock-recipe-product>
+                                    <option value="">Selecione</option>
+                                    <?php foreach ($products as $product): ?>
+                                        <option value="<?= (int) ($product['id'] ?? 0) ?>"><?= htmlspecialchars((string) ($product['name'] ?? 'Produto')) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="stock-recipe-current" data-stock-recipe-current>
+                                <span class="stock-form-note">Selecione um produto para carregar a composicao atual.</span>
+                            </div>
+
+                            <div class="stock-recipe-grid" data-stock-recipe-grid></div>
+
+                            <div class="stock-actions">
+                                <button class="btn secondary" type="button" data-stock-recipe-add>Adicionar insumo</button>
+                                <button class="btn" type="submit">Salvar ficha tecnica</button>
+                            </div>
+                            <span class="stock-form-note">Consumo por unidade deve usar a unidade do item de estoque. Ex.: produto vende 1 pizza e consome 0,250 kg de queijo.</span>
+                        </form>
+                    <?php endif; ?>
                 </section>
             <?php endif; ?>
 
@@ -901,5 +1044,112 @@ $renderProductPicker = static function (string $pickerId, array $products, array
             renderSelected();
             applyFilter();
         });
+    }());
+
+    (function () {
+        var form = document.querySelector('[data-stock-recipe-form]');
+        if (!form) {
+            return;
+        }
+
+        var recipes = <?= json_encode($recipesByProductId, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?> || {};
+        var stockItems = <?= json_encode(array_map(static fn (array $item): array => [
+            'id' => (int) ($item['id'] ?? 0),
+            'name' => (string) ($item['name'] ?? 'Item'),
+            'sku' => (string) ($item['sku'] ?? ''),
+            'unit' => (string) ($item['unit_of_measure'] ?? 'un'),
+        ], $recipeStockItems), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?> || [];
+        var productSelect = form.querySelector('[data-stock-recipe-product]');
+        var grid = form.querySelector('[data-stock-recipe-grid]');
+        var current = form.querySelector('[data-stock-recipe-current]');
+        var addButton = form.querySelector('[data-stock-recipe-add]');
+
+        var escapeHtml = function (value) {
+            return String(value || '').replace(/[&<>"]/g, function (char) {
+                return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[char] || char;
+            });
+        };
+
+        var optionHtml = function (selectedId) {
+            return '<option value="">Selecione</option>' + stockItems.map(function (item) {
+                var label = item.name + (item.sku ? ' | SKU ' + item.sku : '') + ' | ' + String(item.unit || 'un').toUpperCase();
+                return '<option value="' + Number(item.id || 0) + '"' + (Number(selectedId || 0) === Number(item.id || 0) ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
+            }).join('');
+        };
+
+        var addRow = function (row) {
+            if (!grid) {
+                return;
+            }
+
+            row = row || {};
+            var wrapper = document.createElement('div');
+            wrapper.className = 'stock-recipe-row';
+            wrapper.innerHTML = ''
+                + '<div class="field"><label>Insumo</label><select name="recipe_stock_item_id[]">' + optionHtml(row.stock_item_id || 0) + '</select></div>'
+                + '<div class="field"><label>Consumo por unidade</label><input name="recipe_quantity_per_unit[]" type="number" min="0.001" step="0.001" value="' + escapeHtml(row.quantity_per_unit || '') + '" placeholder="0.000"></div>'
+                + '<div class="field"><label>Perda %</label><input name="recipe_waste_percent[]" type="number" min="0" max="100" step="0.01" value="' + escapeHtml(row.waste_percent || '0') + '"></div>'
+                + '<button class="btn secondary" type="button" data-stock-recipe-remove>Remover</button>';
+            grid.appendChild(wrapper);
+        };
+
+        var renderCurrent = function (rows) {
+            if (!current) {
+                return;
+            }
+
+            if (!rows.length) {
+                current.innerHTML = '<span class="stock-form-note">Produto sem ficha tecnica cadastrada.</span>';
+                return;
+            }
+
+            current.innerHTML = rows.map(function (row) {
+                return '<span class="stock-recipe-pill">' + escapeHtml(row.stock_item_name) + ': ' + escapeHtml(row.quantity_per_unit) + ' ' + escapeHtml(row.unit_of_measure || 'un') + '</span>';
+            }).join('');
+        };
+
+        var loadSelectedProduct = function () {
+            if (!grid || !productSelect) {
+                return;
+            }
+
+            var productId = String(productSelect.value || '');
+            var rows = Array.isArray(recipes[productId]) ? recipes[productId] : [];
+            grid.innerHTML = '';
+            renderCurrent(rows);
+
+            if (!productId) {
+                current.innerHTML = '<span class="stock-form-note">Selecione um produto para carregar a composicao atual.</span>';
+                return;
+            }
+
+            if (rows.length) {
+                rows.forEach(addRow);
+            } else {
+                addRow();
+            }
+        };
+
+        if (productSelect) {
+            productSelect.addEventListener('change', loadSelectedProduct);
+        }
+        if (addButton) {
+            addButton.addEventListener('click', function () {
+                addRow();
+            });
+        }
+        if (grid) {
+            grid.addEventListener('click', function (event) {
+                var target = event.target;
+                if (target && target.matches('[data-stock-recipe-remove]')) {
+                    var row = target.closest('.stock-recipe-row');
+                    if (row) {
+                        row.remove();
+                    }
+                }
+            });
+        }
+
+        loadSelectedProduct();
     }());
 </script>

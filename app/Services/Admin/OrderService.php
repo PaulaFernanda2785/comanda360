@@ -34,7 +34,9 @@ final class OrderService
         private readonly CustomerRepository $customers = new CustomerRepository(),
         private readonly DeliveryAddressRepository $deliveryAddresses = new DeliveryAddressRepository(),
         private readonly DeliveryRepository $deliveries = new DeliveryRepository(),
-        private readonly CommandLifecycleService $commandLifecycle = new CommandLifecycleService()
+        private readonly CommandLifecycleService $commandLifecycle = new CommandLifecycleService(),
+        private readonly StockConsumptionService $stockConsumption = new StockConsumptionService(),
+        private readonly StockAvailabilityService $stockAvailability = new StockAvailabilityService()
     ) {}
 
     public function list(int $companyId): array
@@ -202,6 +204,7 @@ final class OrderService
         }
 
         [$items, $subtotal] = $this->normalizeItems($companyId, $input);
+        $this->stockAvailability->assertItemsAvailable($companyId, $items);
         $orderNotes = $this->normalizeNullableText($input['notes'] ?? null);
         $deliveryFee = 0.0;
         $autoSendKitchen = !empty($input['auto_send_kitchen']) && $channel === 'table';
@@ -615,6 +618,9 @@ final class OrderService
                     'changed_by_user_id' => $userId,
                     'notes' => 'Finalizado automaticamente: pedido pago e em etapa final de producao.',
                 ]);
+                $this->stockConsumption->consumePaidFinishedOrder($companyId, $orderId, $userId);
+            } elseif ($paymentStatus === 'paid' && $newStatus === 'finished') {
+                $this->stockConsumption->consumePaidFinishedOrder($companyId, $orderId, $userId);
             }
 
             $commandId = $order['command_id'] !== null ? (int) $order['command_id'] : null;

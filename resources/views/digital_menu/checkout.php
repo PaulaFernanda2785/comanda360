@@ -5,6 +5,7 @@ $table = is_array($access['table'] ?? null) ? $access['table'] : [];
 $currentCommand = is_array($currentCommand ?? null) ? $currentCommand : null;
 $currentCommandPanel = is_array($currentCommandPanel ?? null) ? $currentCommandPanel : ['summary' => [], 'orders' => []];
 $currentSummary = is_array($currentCommandPanel['summary'] ?? null) ? $currentCommandPanel['summary'] : [];
+$products = is_array($products ?? null) ? $products : [];
 $refreshIntervalSeconds = max(1200, (int) ($refreshIntervalSeconds ?? 1200));
 $fatalError = trim((string) ($fatalError ?? ''));
 $companySlug = trim((string) ($company['slug'] ?? ''));
@@ -18,6 +19,10 @@ $menuBaseUrl = $companySlug !== '' && $tableNumber > 0 && $token !== ''
 $storeOrderAction = $menuBaseUrl !== '' ? str_replace('/menu-digital?', '/menu-digital/order/store?', $menuBaseUrl) : base_url('/menu-digital/order/store');
 $cartStorageKey = 'digital-menu-cart:' . $companySlug . ':' . $tableNumber . ':' . $token . ':' . $currentCommandId;
 $formatMoney = static fn (float $value): string => 'R$ ' . number_format($value, 2, ',', '.');
+$productsJson = json_encode($products, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+if (!is_string($productsJson)) {
+    $productsJson = '[]';
+}
 ?>
 
 <style>
@@ -183,6 +188,13 @@ $formatMoney = static fn (float $value): string => 'R$ ' . number_format($value,
         const cartTotal = document.getElementById('digitalCheckoutTotal');
         const cartQuantity = document.getElementById('digitalCheckoutQuantity');
         const checkoutForm = document.getElementById('digitalCheckoutForm');
+        const products = <?= $productsJson ?>;
+        const productsById = {};
+        products.forEach((product) => {
+            if (product && typeof product.id !== 'undefined') {
+                productsById[String(product.id)] = product;
+            }
+        });
         const cart = (() => {
             try {
                 const raw = window.localStorage.getItem(cartStorageKey);
@@ -212,7 +224,15 @@ $formatMoney = static fn (float $value): string => 'R$ ' . number_format($value,
                         ...item,
                         additionals: item.additionals.filter((additional) => additional.id > 0 && additional.quantity > 0),
                     }))
-                    .filter((item) => item.productId > 0 && item.quantity > 0 && Number.isFinite(item.lineTotal) && item.lineTotal >= 0);
+                    .filter((item) => {
+                        const product = productsById[String(item.productId)] || null;
+                        return item.productId > 0
+                            && item.quantity > 0
+                            && Number.isFinite(item.lineTotal)
+                            && item.lineTotal >= 0
+                            && product
+                            && product.stock_available !== false;
+                    });
             } catch (error) {
                 return [];
             }
